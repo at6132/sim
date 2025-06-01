@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Civilization Simulation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css" rel="stylesheet">
+    <style>
+        #world-map {
+            height: 600px;
+            width: 100%;
+            border: 1px solid #ccc;
+        }
+        .agent-panel {
+            height: 600px;
+            overflow-y: auto;
+        }
+        .tribe-panel {
+            height: 300px;
+            overflow-y: auto;
+        }
+        .discovery-panel {
+            height: 300px;
+            overflow-y: auto;
+        }
+        .agent-marker {
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .tribe-boundary {
+            stroke: #666;
+            stroke-width: 2;
+            fill: none;
+        }
+        .resource-marker {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .animal-marker {
+            border-radius: 50%;
+            border: 2px solid #000;
+        }
+        .animal-marker.domesticated {
+            border-color: #4CAF50;
+        }
+        .animal-marker.wild {
+            border-color: #F44336;
+        }
+        .animal-icon {
+            width: 100%;
+            height: 100%;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .animal-icon.horse {
+            background-image: url('/static/images/horse.png');
+        }
+        .animal-icon.wolf {
+            background-image: url('/static/images/wolf.png');
+        }
+        .animal-icon.deer {
+            background-image: url('/static/images/deer.png');
+        }
+        .animal-icon.bear {
+            background-image: url('/static/images/bear.png');
+        }
+        .animal-icon.rabbit {
+            background-image: url('/static/images/rabbit.png');
+        }
+        .animal-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .animal-item h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        .animal-item p {
+            margin: 5px 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row mt-3">
+            <div class="col">
+                <h1>AI Civilization Simulation</h1>
+                <div class="btn-group">
+                    <button id="start-btn" class="btn btn-primary">Start</button>
+                    <button id="stop-btn" class="btn btn-danger">Stop</button>
+                    <button id="reset-btn" class="btn btn-warning">Reset</button>
+                </div>
+                <span id="simulation-time" class="ms-3"></span>
+                <span id="tick-count" class="ms-3"></span>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-md-8">
+                <div id="world-map"></div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-bs-toggle="tab" href="#agents">Agents</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#tribes">Tribes</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#animals">Animals</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-bs-toggle="tab" href="#discoveries">Discoveries</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="agents">
+                                <div id="agent-list" class="agent-panel"></div>
+                            </div>
+                            <div class="tab-pane fade" id="tribes">
+                                <div id="tribe-list" class="tribe-panel"></div>
+                            </div>
+                            <div class="tab-pane fade" id="animals">
+                                <div id="animal-list" class="animal-panel"></div>
+                            </div>
+                            <div class="tab-pane fade" id="discoveries">
+                                <div id="discovery-list" class="discovery-panel"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">Selected Agent Details</div>
+                    <div class="card-body">
+                        <div id="agent-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script>
+        // Initialize map
+        const map = L.map('world-map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        
+        // Initialize socket connection
+        const socket = io();
+        
+        // State
+        let agents = {};
+        let tribes = {};
+        let discoveries = {};
+        let selectedAgent = null;
+        let animalMarkers = {};
+        
+        // Socket event handlers
+        socket.on('world_update', (data) => {
+            updateWorld(data);
+        });
+        
+        // Update world state
+        function updateWorld(data) {
+            // Update simulation time and tick count
+            document.getElementById('simulation-time').textContent = 
+                `Simulation Time: ${formatTime(data.simulation_time)}`;
+            document.getElementById('tick-count').textContent = 
+                `Tick: ${data.tick}`;
+                
+            // Update agents
+            agents = data.agents;
+            updateAgentMarkers();
+            updateAgentList();
+            
+            // Update tribes
+            tribes = data.tribes;
+            updateTribeBoundaries();
+            updateTribeList();
+            
+            // Update discoveries
+            discoveries = data.discoveries;
+            updateDiscoveryList();
+            
+            // Update selected agent details if any
+            if (selectedAgent) {
+                updateAgentDetails(selectedAgent);
+            }
+        }
+        
+        // Update agent markers on map
+        function updateAgentMarkers() {
+            // Clear existing markers
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            // Add new markers
+            Object.values(agents).forEach(agent => {
+                const marker = L.marker([agent.position.y, agent.position.x], {
+                    icon: L.divIcon({
+                        className: 'agent-marker',
+                        html: `<div style="background-color: ${getAgentColor(agent)}; width: 10px; height: 10px;"></div>`
+                    })
+                });
+                
+                marker.on('click', () => {
+                    selectedAgent = agent.id;
+                    updateAgentDetails(agent);
+                });
+                
+                marker.addTo(map);
+            });
+        }
+        
+        // Update tribe boundaries on map
+        function updateTribeBoundaries() {
+            // Clear existing boundaries
+            map.eachLayer((layer) => {
+                if (layer instanceof L.Polygon) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            // Add new boundaries
+            Object.values(tribes).forEach(tribe => {
+                if (tribe.territory) {
+                    const polygon = L.polygon(tribe.territory, {
+                        className: 'tribe-boundary',
+                        color: getTribeColor(tribe)
+                    });
+                    polygon.addTo(map);
+                }
+            });
+        }
+        
+        // Update agent list
+        function updateAgentList() {
+            const list = document.getElementById('agent-list');
+            list.innerHTML = '';
+            
+            Object.values(agents).forEach(agent => {
+                const div = document.createElement('div');
+                div.className = 'card mb-2';
+                div.innerHTML = `
+                    <div class="card-body">
+                        <h5 class="card-title">${agent.name}</h5>
+                        <p class="card-text">
+                            Age: ${agent.age}<br>
+                            Tribe: ${agent.tribe_id || 'None'}<br>
+                            Health: ${agent.health}<br>
+                            Life Stage: ${agent.life_stage}
+                        </p>
+                    </div>
+                `;
+                div.onclick = () => {
+                    selectedAgent = agent.id;
+                    updateAgentDetails(agent);
+                };
+                list.appendChild(div);
+            });
+        }
+        
+        // Update tribe list
+        function updateTribeList() {
+            const list = document.getElementById('tribe-list');
+            list.innerHTML = '';
+            
+            Object.values(tribes).forEach(tribe => {
+                const div = document.createElement('div');
+                div.className = 'card mb-2';
+                div.innerHTML = `
+                    <div class="card-body">
+                        <h5 class="card-title">${tribe.name}</h5>
+                        <p class="card-text">
+                            Members: ${tribe.members.length}<br>
+                            Territory: ${tribe.territory ? 'Yes' : 'No'}<br>
+                            Culture: ${tribe.culture_level}
+                        </p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        // Update discovery list
+        function updateDiscoveryList() {
+            const list = document.getElementById('discovery-list');
+            list.innerHTML = '';
+            
+            Object.entries(discoveries).forEach(([name, discovery]) => {
+                const div = document.createElement('div');
+                div.className = 'card mb-2';
+                div.innerHTML = `
+                    <div class="card-body">
+                        <h5 class="card-title">${name}</h5>
+                        <p class="card-text">
+                            Category: ${discovery.category}<br>
+                            Confidence: ${discovery.confidence}<br>
+                            Discovered by: ${discovery.discovered_by}
+                        </p>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        // Update agent details
+        function updateAgentDetails(agent) {
+            const details = document.getElementById('agent-details');
+            details.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>${agent.name}</h4>
+                        <p>
+                            Age: ${agent.age}<br>
+                            Life Stage: ${agent.life_stage}<br>
+                            Health: ${agent.health}<br>
+                            Tribe: ${agent.tribe_id || 'None'}<br>
+                            Position: (${agent.position.x}, ${agent.position.y})
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h4>Traits</h4>
+                        <p>
+                            Intelligence: ${agent.genes.intelligence}<br>
+                            Curiosity: ${agent.genes.curiosity}<br>
+                            Creativity: ${agent.genes.creativity}<br>
+                            Social Drive: ${agent.genes.social_drive}<br>
+                            Philosophical Tendency: ${agent.genes.philosophical_tendency}
+                        </p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h4>Current Thoughts</h4>
+                        <div id="agent-thoughts"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <h4>Current Emotions</h4>
+                        <div id="agent-emotions"></div>
+                    </div>
+                </div>
+            `;
+            
+            // Update thoughts and emotions
+            updateAgentThoughts(agent);
+            updateAgentEmotions(agent);
+        }
+        
+        // Update agent thoughts
+        function updateAgentThoughts(agent) {
+            const thoughts = document.getElementById('agent-thoughts');
+            thoughts.innerHTML = '';
+            
+            agent.cognition.thoughts.forEach(thought => {
+                const div = document.createElement('div');
+                div.className = 'card mb-2';
+                div.innerHTML = `
+                    <div class="card-body">
+                        <p class="card-text">${thought.content}</p>
+                        <small class="text-muted">
+                            Type: ${thought.type}<br>
+                            Confidence: ${thought.confidence}
+                        </small>
+                    </div>
+                `;
+                thoughts.appendChild(div);
+            });
+        }
+        
+        // Update agent emotions
+        function updateAgentEmotions(agent) {
+            const emotions = document.getElementById('agent-emotions');
+            emotions.innerHTML = '';
+            
+            agent.emotions.current_emotions.forEach(emotion => {
+                const div = document.createElement('div');
+                div.className = 'card mb-2';
+                div.innerHTML = `
+                    <div class="card-body">
+                        <p class="card-text">${emotion.type}</p>
+                        <small class="text-muted">
+                            Intensity: ${emotion.intensity}<br>
+                            Duration: ${emotion.duration}
+                        </small>
+                    </div>
+                `;
+                emotions.appendChild(div);
+            });
+        }
+        
+        // Helper functions
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${hours}h ${minutes}m ${secs}s`;
+        }
+        
+        function getAgentColor(agent) {
+            if (agent.tribe_id) {
+                return getTribeColor(tribes[agent.tribe_id]);
+            }
+            return '#666';
+        }
+        
+        function getTribeColor(tribe) {
+            // Generate consistent color based on tribe ID
+            const hue = (parseInt(tribe.id) * 137.5) % 360;
+            return `hsl(${hue}, 70%, 50%)`;
+        }
+        
+        // Button event handlers
+        document.getElementById('start-btn').onclick = () => {
+            fetch('/api/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    tick_rate: 1.0,
+                    world_size: 100,
+                    initial_agents: 10
+                })
+            });
+        };
+        
+        document.getElementById('stop-btn').onclick = () => {
+            fetch('/api/stop', {
+                method: 'POST'
+            });
+        };
+        
+        document.getElementById('reset-btn').onclick = () => {
+            location.reload();
+        };
+
+        function updateAgentInfo(agent) {
+            const info = document.getElementById('agent-info');
+            info.innerHTML = `
+                <h3>${agent.name}</h3>
+                <p>ID: ${agent.id}</p>
+                <p>Age: ${agent.age}</p>
+                <p>Gender: ${agent.gender}</p>
+                <p>Location: (${agent.longitude.toFixed(2)}, ${agent.latitude.toFixed(2)})</p>
+                <p>Health: ${agent.health.toFixed(2)}</p>
+                <p>Energy: ${agent.energy.toFixed(2)}</p>
+                <p>Needs:</p>
+                <ul>
+                    <li>Hunger: ${agent.needs.hunger.toFixed(2)}</li>
+                    <li>Thirst: ${agent.needs.thirst.toFixed(2)}</li>
+                    <li>Rest: ${agent.needs.rest.toFixed(2)}</li>
+                </ul>
+                <p>Genes:</p>
+                <ul>
+                    <li>Strength: ${agent.genes.strength.toFixed(2)}</li>
+                    <li>Speed: ${agent.genes.speed.toFixed(2)}</li>
+                    <li>Intelligence: ${agent.genes.intelligence.toFixed(2)}</li>
+                    <li>Curiosity: ${agent.genes.curiosity.toFixed(2)}</li>
+                    <li>Creativity: ${agent.genes.creativity.toFixed(2)}</li>
+                    <li>Adaptability: ${agent.genes.adaptability.toFixed(2)}</li>
+                    <li>Philosophical Tendency: ${agent.genes.philosophical_tendency.toFixed(2)}</li>
+                </ul>
+            `;
+        }
+
+        function updateWorldInfo(world) {
+            const info = document.getElementById('world-info');
+            info.innerHTML = `
+                <h3>World Information</h3>
+                <p>Time: ${world.time}</p>
+                <p>Season: ${world.season}</p>
+                <p>Weather: ${world.weather}</p>
+                <p>Temperature: ${world.temperature.toFixed(2)}°C</p>
+                <p>Humidity: ${(world.humidity * 100).toFixed(2)}%</p>
+                <p>Wind Speed: ${world.wind_speed.toFixed(2)} m/s</p>
+                <p>Precipitation: ${(world.precipitation * 100).toFixed(2)}%</p>
+                <p>Territories:</p>
+                <ul>
+                    ${Object.entries(world.territories).map(([id, territory]) => `
+                        <li>${territory.name} (${territory.center_longitude.toFixed(2)}, ${territory.center_latitude.toFixed(2)}) - Radius: ${territory.radius.toFixed(2)} km</li>
+                    `).join('')}
+                </ul>
+            `;
+        }
+    </script>
+</body>
+</html> 

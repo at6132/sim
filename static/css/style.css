@@ -1,0 +1,95 @@
+body {
+    background-color: #f8f9fa;
+    padding: 20px;
+}
+
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+#worldMap {
+    width: 100%;
+    height: 600px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+.agent-marker {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #007bff;
+    border: 2px solid white;
+    cursor: pointer;
+}
+
+.animal-marker {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #28a745;
+    border: 2px solid white;
+    cursor: pointer;
+}
+
+.territory {
+    fill: none;
+    stroke: #6c757d;
+    stroke-width: 2;
+    stroke-dasharray: 5,5;
+}
+
+#agentPanel {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.stat-card {
+    background: white;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+#familyTree {
+    height: 400px;
+    overflow: auto;
+}
+
+.timeline-event {
+    padding: 10px;
+    margin-bottom: 10px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.timeline-event:hover {
+    background: #f8f9fa;
+}
+
+.controls {
+    margin-bottom: 20px;
+}
+
+.btn {
+    margin-right: 10px;
+}
+
+#timeScale {
+    width: 100%;
+    margin-top: 10px;
+} 
