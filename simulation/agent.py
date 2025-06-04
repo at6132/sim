@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Tuple, Set, Any
 import random
 from datetime import datetime
 import uuid
@@ -11,15 +11,18 @@ from .life_cycle import LifeCycleSystem, LifeStage, PregnancyStage
 from .animal import Animal, AnimalType, AnimalTemperament
 from enum import Enum
 import time
-from .environment import Environment, TerrainType, WeatherType
+from .environment import Environment
+from .weather import WeatherType
+from .terrain import TerrainType
 from .resources import ResourceType
 import math
-from .genes import Genes
+from .genes import Genes  # Import Genes from genes.py
 from .needs import AgentNeeds
 from .memory import Memory
 from .moral_alignment import MoralAlignment
 from .social_state import SocialState
 from .crisis_state import CrisisState
+from .identification import IdentificationSystem
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -238,17 +241,17 @@ class SocialState:
 @dataclass
 class Agent:
     id: str
-    name: str
-    age: float
-    gender: str
-    genes: Genes
-    needs: AgentNeeds
-    memory: Memory
-    emotions: EmotionSystem
-    health: float
-    philosophy: Philosophy
-    longitude: float
-    latitude: float
+    name: str = ""  # Empty by default, will be developed through interactions
+    age: float = 0
+    gender: str = "unknown"
+    genes: Genes = field(default_factory=Genes)  # Use Genes from genes.py
+    needs: AgentNeeds = field(default_factory=AgentNeeds)
+    memory: Memory = field(default_factory=Memory)
+    emotions: EmotionSystem = field(default_factory=EmotionSystem)
+    health: float = 1.0
+    philosophy: Philosophy = field(default_factory=Philosophy)
+    longitude: float = 0.0
+    latitude: float = 0.0
     inventory: Dict[str, float] = field(default_factory=dict)
     skills: Dict[str, float] = field(default_factory=dict)
     relationships: Dict[str, Relationship] = field(default_factory=dict)
@@ -256,18 +259,24 @@ class Agent:
     settlement_id: Optional[str] = None
     last_action: str = "idle"
     last_action_time: float = 0.0
+    identification: IdentificationSystem = field(default_factory=lambda: None)
+    known_identifiers: Dict[str, str] = field(default_factory=dict)
 
-    def __init__(self, id: str, name: str, age: float, gender: str, genes: Genes, needs: AgentNeeds, memory: Memory, emotions: EmotionSystem, health: float, philosophy: Philosophy, longitude: float, latitude: float):
+    def __init__(self, id: str, name: str = "", age: float = 0, gender: str = "unknown",
+                 genes: Optional[Genes] = None, needs: Optional[AgentNeeds] = None,
+                 memory: Optional[Memory] = None, emotions: Optional[EmotionSystem] = None,
+                 health: float = 1.0, philosophy: Optional[Philosophy] = None,
+                 longitude: float = 0.0, latitude: float = 0.0):
         self.id = id
-        self.name = name
+        self.name = name  # Empty by default
         self.age = age
         self.gender = gender
-        self.genes = genes
-        self.needs = needs
-        self.memory = memory
-        self.emotions = emotions
+        self.genes = genes or Genes()  # Use Genes from genes.py
+        self.needs = needs or AgentNeeds()
+        self.memory = memory or Memory()
+        self.emotions = emotions or EmotionSystem()
         self.health = health
-        self.philosophy = philosophy
+        self.philosophy = philosophy or Philosophy()
         self.longitude = longitude
         self.latitude = latitude
         self.inventory = {}
@@ -277,6 +286,62 @@ class Agent:
         self.settlement_id = None
         self.last_action = "idle"
         self.last_action_time = 0.0
+        self.identification = IdentificationSystem(agent_id=id)
+        self.known_identifiers = {}
+
+    def update(self, time_delta: float, world_state: Dict):
+        """Update agent state."""
+        # Update identification system
+        self.identification.update_identifiers(world_state)
+        
+        # Update known identifiers from interactions
+        nearby_agents = world_state.get("agents", {})
+        for agent_id, agent in nearby_agents.items():
+            if agent_id != self.id:
+                identifier = agent.identification.get_identifier(self.id)
+                if identifier:
+                    self.known_identifiers[agent_id] = identifier
+
+        # Continue with existing update logic
+        self.age += time_delta / (365 * 24 * 3600)  # Convert seconds to years
+        self.needs.update(time_delta)
+        self.health.update(time_delta, world_state)
+        self.emotions.update(time_delta, world_state)
+        self.relationships.update(time_delta, world_state)
+        self.cognition.update(time_delta, world_state)
+        self.philosophy.update(time_delta, world_state)
+
+    def get_identifier_for(self, target_id: str) -> str:
+        """Get how this agent identifies another agent."""
+        return self.identification.get_identifier(target_id) or "unknown"
+
+    def get_known_identifier(self) -> str:
+        """Get how other agents identify this agent."""
+        if self.known_identifiers:
+            # Return the most common identifier
+            identifiers = list(self.known_identifiers.values())
+            return max(set(identifiers), key=identifiers.count)
+        return "unknown"
+
+    def to_dict(self) -> Dict:
+        """Convert agent to dictionary for saving."""
+        data = {
+            "id": self.id,
+            "name": self.name,
+            "age": self.age,
+            "gender": self.gender,
+            "genes": self.genes.to_dict(),
+            "needs": self.needs.to_dict(),
+            "memory": self.memory.to_dict(),
+            "emotions": self.emotions.to_dict(),
+            "health": self.health,
+            "philosophy": self.philosophy.to_dict(),
+            "longitude": self.longitude,
+            "latitude": self.latitude,
+            "identification": self.identification.to_dict(),
+            "known_identifiers": self.known_identifiers
+        }
+        return data
 
     def is_alive(self) -> bool:
         """Check if the agent is alive."""
@@ -290,54 +355,6 @@ class Agent:
         self.emotions = None  # Clear emotions when dead
         self.philosophy = None  # Clear philosophy when dead
         
-    def update(self, time_delta: float, world_state: Dict):
-        """Update agent state."""
-        # Update age
-        self.age += time_delta / (365 * 24 * 3600)  # Convert seconds to years
-        
-        # Update needs
-        self.needs.update(time_delta)
-        
-        # Update health
-        self.health.update(time_delta, world_state)
-        
-        # Update emotions
-        self.emotions.update(time_delta, world_state)
-        
-        # Update relationships
-        self.relationships.update(time_delta, world_state)
-        
-        # Update cognition
-        self.cognition.update(time_delta, world_state)
-        
-        # Update philosophy
-        self.philosophy.update(time_delta, world_state)
-        
-        # Emit events for significant changes
-        if self.needs.any_critical():
-            self.world._add_event(self.id, 'agent_event', {
-                'description': f'{self.name} is in critical condition',
-                'needs': self.needs.to_dict()
-            })
-            
-        if self.health.is_critical():
-            self.world._add_event(self.id, 'agent_event', {
-                'description': f'{self.name} is in poor health',
-                'health': self.health.to_dict()
-            })
-            
-        if self.emotions.has_significant_change():
-            self.world._add_event(self.id, 'agent_event', {
-                'description': f'{self.name} is feeling {self.emotions.get_dominant_emotion()}',
-                'emotions': self.emotions.to_dict()
-            })
-            
-        if self.cognition.has_new_discovery():
-            self.world._add_event(self.id, 'agent_event', {
-                'description': f'{self.name} discovered {self.cognition.get_latest_discovery()}',
-                'discovery': self.cognition.get_latest_discovery_details()
-            })
-
     def evolve_for_environment(self, environment: Environment) -> None:
         """Evolve genes based on environmental conditions."""
         # Get climate data at agent's position
@@ -1154,69 +1171,6 @@ class Agent:
             
         return progress
         
-    def to_dict(self) -> Dict:
-        """Convert agent state to dictionary for saving."""
-        return {
-            "id": self.id,
-            "name": self.name,
-            "age": self.age,
-            "gender": self.gender,
-            "genes": self.genes.__dict__,
-            "needs": self.needs.to_dict(),
-            "memory": {
-                "event": self.memory.event,
-                "importance": self.memory.importance,
-                "timestamp": self.memory.timestamp.isoformat(),
-                "context": self.memory.context,
-                "concepts": list(self.memory.concepts),
-                "animal_interactions": self.memory.animal_interactions,
-                "domesticated_animals": self.memory.domesticated_animals
-            },
-            "emotions": self.emotions.to_dict(),
-            "health": self.health,
-            "philosophy": self.philosophy.to_dict(),
-            "longitude": self.longitude,
-            "latitude": self.latitude,
-            "skills": self.skills,
-            "inventory": self.inventory,
-            "relationships": self.relationships,
-            "discovered_concepts": list(self.discovered_concepts),
-            "understanding_levels": self.understanding_levels,
-            "hypotheses": self.hypotheses,
-            "social_roles": self.social_roles,
-            "customs": self.customs,
-            "tools": self.tools,
-            "techniques": self.techniques,
-            "emotional_concepts": list(self.emotional_concepts),
-            "health_concepts": list(self.health_concepts),
-            "remedies": self.remedies,
-            "philosophy": self.philosophy.to_dict(),
-            "emotions": self.emotions.to_dict(),
-            "cognition": self.cognition_state,
-            "inventory": self.inventory,
-            "diseases": self.diseases,
-            "injuries": self.injuries,
-            "family": {
-                "parents": self.parents,
-                "children": self.children,
-                "mate": self.mate
-            },
-            "memory": {
-                "recent_memories": [m.to_dict() for m in self.get_recent_memories(5)],
-                "important_memories": [m.to_dict() for m in self.important_memories],
-                "animal_interactions": self.animal_interactions,
-                "domesticated_animals": self.domesticated_animals
-            },
-            "moral_alignment": self.moral_alignment.value,
-            "crisis_state": self.crisis_state.__dict__,
-            "crimes_committed": self.crimes_committed,
-            "enemies": list(self.enemies),
-            "allies": list(self.allies),
-            "social_state": self.social_state.__dict__,
-            "gender": self.gender,
-            "is_dead": self.is_dead
-        }
-
     def _handle_bathroom_needs(self, world_state: Dict) -> None:
         """Handle bathroom needs"""
         # Find nearest bathroom facility

@@ -77,6 +77,8 @@ class OceanCurrent:
 
 class TerrainSystem:
     def __init__(self, world):
+        """Initialize the terrain system."""
+        logger.info("Initializing terrain system...")
         self.world = world
         self.terrain_data = {}  # (longitude, latitude) -> Dict
         self.elevation_data = {}  # (longitude, latitude) -> float
@@ -84,16 +86,37 @@ class TerrainSystem:
         self.ocean_currents = {}  # (longitude, latitude) -> OceanCurrent
         self.tidal_ranges = {}  # (longitude, latitude) -> float
         self.seasonal_factors = {}  # (longitude, latitude) -> Dict
+        self.salinity_data = {}  # (longitude, latitude) -> float
+        self.oxygen_data = {}  # (longitude, latitude) -> float
         
         # Initialize terrain
+        logger.info("Setting up basic terrain...")
         self._initialize_basic_terrain()
+        logger.info("Basic terrain initialized")
+        
+        logger.info("Setting up elevation data...")
         self._initialize_elevation()
+        logger.info("Elevation data initialized")
+        
+        logger.info("Setting up resource data...")
         self._initialize_resources()
+        logger.info("Resource data initialized")
+        
+        logger.info("Setting up ocean systems...")
         self._initialize_ocean_systems()
+        logger.info("Ocean systems initialized")
+        
+        logger.info("Terrain system initialization complete")
         
     def _initialize_basic_terrain(self):
         """Initialize basic terrain data."""
         logger.info("Initializing basic terrain...")
+        
+        # Calculate total points for progress tracking
+        total_points = len(np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution)) * \
+                      len(np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution))
+        points_processed = 0
+        last_progress = 0
         
         for lon in np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution):
             for lat in np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution):
@@ -103,70 +126,265 @@ class TerrainSystem:
                     "elevation": self._generate_elevation(lon, lat),
                     "resources": self._generate_resources(lon, lat)
                 }
+                points_processed += 1
+                
+                # Log progress every 10%
+                progress = (points_processed / total_points) * 100
+                if progress - last_progress >= 10:
+                    logger.info(f"Basic terrain initialization progress: {progress:.1f}%")
+                    last_progress = progress
                 
         logger.info("Basic terrain initialization complete")
         
     def _initialize_elevation(self):
-        """Initialize elevation data."""
-        for lon in np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution):
-            for lat in np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution):
-                elevation = self._generate_elevation(lon, lat)
-                self.elevation_data[(lon, lat)] = elevation
+        """Initialize elevation data using vectorized operations."""
+        logger.info("Initializing elevation data...")
+        
+        # Create coordinate grids
+        lons = np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution)
+        lats = np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution)
+        
+        # Calculate total points for progress tracking
+        total_points = len(lons) * len(lats)
+        points_processed = 0
+        last_progress = 0
+        
+        # Process in chunks to show progress
+        chunk_size = 1000  # Process 1000 points at a time
+        
+        for i in range(0, len(lons), chunk_size):
+            lon_chunk = lons[i:i + chunk_size]
+            for j in range(0, len(lats), chunk_size):
+                lat_chunk = lats[j:j + chunk_size]
+                
+                # Create meshgrid for vectorized operations
+                lon_grid, lat_grid = np.meshgrid(lon_chunk, lat_chunk)
+                
+                # Vectorized elevation generation
+                elevations = np.vectorize(self._generate_elevation)(lon_grid, lat_grid)
+                
+                # Store results
+                for idx_lon, lon in enumerate(lon_chunk):
+                    for idx_lat, lat in enumerate(lat_chunk):
+                        self.elevation_data[(lon, lat)] = elevations[idx_lat, idx_lon]
+                        points_processed += 1
+                
+                # Log progress every 10%
+                progress = (points_processed / total_points) * 100
+                if progress - last_progress >= 10:
+                    logger.info(f"Elevation initialization progress: {progress:.1f}%")
+                    last_progress = progress
+        
+        logger.info("Elevation initialization complete")
         
     def _initialize_resources(self):
-        """Initialize resource data."""
-        for lon in np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution):
-            for lat in np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution):
-                resources = self._generate_resources(lon, lat)
-                self.resource_data[(lon, lat)] = resources
+        """Initialize resource data using vectorized operations."""
+        logger.info("Initializing resource data...")
+        
+        # Create coordinate grids
+        lons = np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution)
+        lats = np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution)
+        
+        # Calculate total points for progress tracking
+        total_points = len(lons) * len(lats)
+        points_processed = 0
+        last_progress = 0
+        
+        # Process in chunks to show progress
+        chunk_size = 1000  # Process 1000 points at a time
+        
+        for i in range(0, len(lons), chunk_size):
+            lon_chunk = lons[i:i + chunk_size]
+            for j in range(0, len(lats), chunk_size):
+                lat_chunk = lats[j:j + chunk_size]
+                
+                # Create meshgrid for vectorized operations
+                lon_grid, lat_grid = np.meshgrid(lon_chunk, lat_chunk)
+                
+                # Vectorized resource generation
+                resources = np.vectorize(self._generate_resources)(lon_grid, lat_grid)
+                
+                # Store results
+                for idx_lon, lon in enumerate(lon_chunk):
+                    for idx_lat, lat in enumerate(lat_chunk):
+                        self.resource_data[(lon, lat)] = resources[idx_lat, idx_lon]
+                        points_processed += 1
+                
+                # Log progress every 10%
+                progress = (points_processed / total_points) * 100
+                if progress - last_progress >= 10:
+                    logger.info(f"Resource initialization progress: {progress:.1f}%")
+                    last_progress = progress
+        
+        logger.info("Resource initialization complete")
         
     def _initialize_ocean_systems(self):
-        """Initialize ocean systems."""
-        # Major ocean currents
-        currents = [
-            # Pacific Ocean
-            {"name": "Kuroshio Current", "start": (130, 30), "end": (150, 40), "speed": 5.0, "temp": 20},
-            {"name": "California Current", "start": (-130, 40), "end": (-120, 30), "speed": 2.0, "temp": 15},
-            {"name": "Peru Current", "start": (-80, -10), "end": (-70, -20), "speed": 1.0, "temp": 18},
-            # Atlantic Ocean
-            {"name": "Gulf Stream", "start": (-80, 25), "end": (-50, 40), "speed": 6.0, "temp": 25},
-            {"name": "Canary Current", "start": (-20, 30), "end": (-10, 20), "speed": 1.0, "temp": 18},
-            {"name": "Benguela Current", "start": (10, -30), "end": (20, -20), "speed": 1.0, "temp": 16},
-            # Indian Ocean
-            {"name": "Agulhas Current", "start": (30, -35), "end": (40, -25), "speed": 4.0, "temp": 22},
-            {"name": "West Australian Current", "start": (110, -30), "end": (120, -20), "speed": 1.0, "temp": 18},
-        ]
+        """Initialize ocean-related systems."""
+        logger.info("Initializing ocean systems...")
         
-        # Initialize currents
-        for current in currents:
-            self._initialize_current(current)
-            
-        # Initialize tidal data
+        # Initialize ocean currents
+        logger.info("Setting up ocean currents...")
+        self._initialize_currents()
+        logger.info("Ocean currents initialized")
+        
+        # Initialize tidal systems
+        logger.info("Setting up tidal systems...")
         self._initialize_tides()
+        logger.info("Tidal systems initialized")
         
-        # Initialize salinity and oxygen data
+        # Initialize salinity
+        logger.info("Setting up salinity data...")
         self._initialize_salinity()
+        logger.info("Salinity data initialized")
+        
+        # Initialize oxygen levels
+        logger.info("Setting up oxygen levels...")
         self._initialize_oxygen()
+        logger.info("Oxygen levels initialized")
+        
+        logger.info("Ocean systems initialization complete")
+        
+    def _initialize_currents(self):
+        """Initialize ocean currents."""
+        logger.info("Initializing ocean currents...")
+        
+        # Initialize major ocean currents
+        logger.info("Setting up major ocean currents...")
+        self._initialize_major_currents()
+        logger.info("Major ocean currents initialized")
+        
+        # Initialize local currents
+        logger.info("Setting up local currents...")
+        self._initialize_local_currents()
+        logger.info("Local currents initialized")
+        
+        # Initialize current interactions
+        logger.info("Setting up current interactions...")
+        self._initialize_current_interactions()
+        logger.info("Current interactions initialized")
+        
+        logger.info("Ocean currents initialization complete")
+        
+    def _initialize_major_currents(self):
+        """Initialize major ocean currents."""
+        logger.info("Initializing major ocean currents...")
+        
+        # Initialize equatorial currents
+        logger.info("Setting up equatorial currents...")
+        self._initialize_equatorial_currents()
+        logger.info("Equatorial currents initialized")
+        
+        # Initialize western boundary currents
+        logger.info("Setting up western boundary currents...")
+        self._initialize_western_boundary_currents()
+        logger.info("Western boundary currents initialized")
+        
+        # Initialize eastern boundary currents
+        logger.info("Setting up eastern boundary currents...")
+        self._initialize_eastern_boundary_currents()
+        logger.info("Eastern boundary currents initialized")
+        
+        # Initialize circumpolar currents
+        logger.info("Setting up circumpolar currents...")
+        self._initialize_circumpolar_currents()
+        logger.info("Circumpolar currents initialized")
+        
+        logger.info("Major ocean currents initialization complete")
+        
+    def _initialize_local_currents(self):
+        """Initialize local ocean currents."""
+        logger.info("Initializing local ocean currents...")
+        
+        # Initialize coastal currents
+        logger.info("Setting up coastal currents...")
+        self._initialize_coastal_currents()
+        logger.info("Coastal currents initialized")
+        
+        # Initialize upwelling zones
+        logger.info("Setting up upwelling zones...")
+        self._initialize_upwelling_zones()
+        logger.info("Upwelling zones initialized")
+        
+        # Initialize eddies
+        logger.info("Setting up eddies...")
+        self._initialize_eddies()
+        logger.info("Eddies initialized")
+        
+        logger.info("Local ocean currents initialization complete")
+        
+    def _initialize_current_interactions(self):
+        """Initialize interactions between ocean currents."""
+        logger.info("Initializing current interactions...")
+        
+        # Initialize current convergence zones
+        logger.info("Setting up current convergence zones...")
+        self._initialize_convergence_zones()
+        logger.info("Current convergence zones initialized")
+        
+        # Initialize current divergence zones
+        logger.info("Setting up current divergence zones...")
+        self._initialize_divergence_zones()
+        logger.info("Current divergence zones initialized")
+        
+        # Initialize current mixing zones
+        logger.info("Setting up current mixing zones...")
+        self._initialize_mixing_zones()
+        logger.info("Current mixing zones initialized")
+        
+        logger.info("Current interactions initialization complete")
         
     def _generate_terrain_type(self, lon: float, lat: float) -> str:
         """Generate terrain type based on coordinates."""
-        # Base terrain on latitude (climate zones)
+        # First determine if this is ocean or land based on a simple pattern
+        # Use a combination of sine waves to create realistic continent shapes
+        ocean_factor = (
+            math.sin(lon * 0.1) * 0.3 +  # East-west variation
+            math.sin(lat * 0.1) * 0.3 +  # North-south variation
+            math.sin((lon + lat) * 0.05) * 0.2  # Diagonal variation
+        )
+        
+        # Add some randomness
+        ocean_factor += random.uniform(-0.1, 0.1)
+        
+        # If ocean_factor is positive, this is ocean
+        if ocean_factor > 0:
+            # Determine ocean type based on latitude and longitude
+            if abs(lat) > 60:  # Polar regions
+                return TerrainType.CONTINENTAL_SHELF.value
+            elif abs(lat) > 30:  # Temperate regions
+                if random.random() < 0.3:
+                    return TerrainType.CONTINENTAL_SHELF.value
+                elif random.random() < 0.5:
+                    return TerrainType.CONTINENTAL_SLOPE.value
+                else:
+                    return TerrainType.DEEP_OCEAN.value
+            else:  # Tropical regions
+                if random.random() < 0.2:
+                    return TerrainType.CORAL_REEF.value
+                elif random.random() < 0.4:
+                    return TerrainType.CONTINENTAL_SHELF.value
+                elif random.random() < 0.6:
+                    return TerrainType.CONTINENTAL_SLOPE.value
+                else:
+                    return TerrainType.DEEP_OCEAN.value
+        
+        # If not ocean, determine land type
         if abs(lat) > 60:  # Polar regions
-            return 'tundra'
+            return TerrainType.TUNDRA.value
         elif abs(lat) > 30:  # Temperate regions
             if random.random() < 0.3:
-                return 'forest'
+                return TerrainType.FOREST.value
             elif random.random() < 0.5:
-                return 'grassland'
+                return TerrainType.GRASSLAND.value
             else:
-                return 'land'
+                return TerrainType.HILLS.value
         else:  # Tropical regions
             if random.random() < 0.4:
-                return 'desert'
+                return TerrainType.DESERT.value
             elif random.random() < 0.6:
-                return 'forest'
+                return TerrainType.TROPICAL_RAINFOREST.value
             else:
-                return 'grassland'
+                return TerrainType.SAVANNA.value
     
     def _generate_elevation(self, lon: float, lat: float) -> float:
         """Generate elevation for a coordinate."""
@@ -278,8 +496,8 @@ class TerrainSystem:
         lon_rounded = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
         lat_rounded = round(latitude / self.world.latitude_resolution) * self.world.latitude_resolution
         
-        # Get terrain data, default to water if not found
-        terrain = self.terrain_data.get((lon_rounded, lat_rounded), {'type': 'water'})
+        # Get terrain data, default to deep ocean if not found
+        terrain = self.terrain_data.get((lon_rounded, lat_rounded), {'type': TerrainType.DEEP_OCEAN.value})
         
         # Return the terrain type
         return terrain['type']
@@ -371,26 +589,30 @@ class TerrainSystem:
         return self.ocean_currents.get((longitude, latitude))
         
     def _initialize_salinity(self):
-        """Initialize ocean salinity data."""
+        """Initialize salinity data for ocean areas."""
         for lon in np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution):
             for lat in np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution):
-                if self._is_ocean(lon, lat):
-                    # Base salinity
-                    base_salinity = 35.0  # ppt
+                terrain = self.get_terrain_at(lon, lat)
+                if terrain in ['deep_ocean', 'continental_shelf', 'continental_slope', 'ocean_trench', 'coral_reef', 'seamount', 'abyssal_plain']:
+                    # Base salinity on latitude and depth
+                    base_salinity = 35.0  # Average ocean salinity in ppt
                     
-                    # Add variation based on location
-                    if abs(lat) < 30:  # Tropical regions
-                        base_salinity += 2.0  # Higher salinity due to evaporation
-                    elif abs(lat) > 60:  # Polar regions
-                        base_salinity -= 2.0  # Lower salinity due to ice melt
-                        
-                    # Add variation based on depth
+                    # Adjust for latitude (lower near poles due to ice melt)
+                    lat_factor = 1.0 - (abs(lat) / 90.0) * 0.2
+                    
+                    # Adjust for depth (higher in deep water)
                     depth = self.get_depth_at(lon, lat)
-                    if depth > 1000:  # Deep ocean
-                        base_salinity += 0.5
-                        
-                    self.salinity_data[(lon, lat)] = base_salinity
+                    depth_factor = 1.0 + (depth / 4000.0) * 0.1
                     
+                    # Add some random variation
+                    variation = random.uniform(-0.5, 0.5)
+                    
+                    salinity = base_salinity * lat_factor * depth_factor + variation
+                    self.salinity_data[(lon, lat)] = salinity
+                else:
+                    # Non-ocean areas have zero salinity
+                    self.salinity_data[(lon, lat)] = 0.0
+
     def _initialize_oxygen(self):
         """Initialize ocean oxygen data."""
         for lon in np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution):
@@ -430,29 +652,64 @@ class TerrainSystem:
         return self.terrain_data.get((longitude, latitude))['type'] in ocean_types 
 
     def initialize_terrain(self):
-        """Initialize the world's terrain."""
-        logger.info("Initializing terrain...")
+        """Initialize all terrain systems."""
+        logger.info("Starting terrain system initialization...")
         
-        # Initialize terrain data for each coordinate
-        for lon in range(-180, 181, 1):
-            for lat in range(-90, 91, 1):
-                # Generate base terrain
-                terrain_type = self._generate_terrain_type(lon, lat)
-                self.terrain_data[(lon, lat)] = {
-                    "type": terrain_type,
-                    "elevation": self._generate_elevation(lon, lat),
-                    "resources": self._generate_resources(lon, lat)
-                }
-                
-                # Generate elevation
-                elevation = self._generate_elevation(lon, lat)
-                self.elevation_data[(lon, lat)] = elevation
-                
-                # Generate resources
-                resources = self._generate_resources(lon, lat)
-                self.resource_data[(lon, lat)] = resources
+        # Initialize basic terrain
+        logger.info("Step 1/5: Initializing basic terrain...")
+        self._initialize_basic_terrain()
         
-        logger.info("Terrain initialization complete")
+        # Initialize elevation
+        logger.info("Step 2/5: Initializing elevation data...")
+        self._initialize_elevation()
+        
+        # Initialize resources
+        logger.info("Step 3/5: Initializing resource data...")
+        self._initialize_resources()
+        
+        # Initialize ocean systems
+        logger.info("Step 4/5: Initializing ocean systems...")
+        self._initialize_ocean_systems()
+        
+        # Final verification
+        logger.info("Step 5/5: Verifying terrain data...")
+        if not self.verify_initialization():
+            logger.error("Terrain system initialization verification failed")
+            raise RuntimeError("Terrain system initialization verification failed")
+        
+        logger.info("Terrain system initialization complete")
+
+    def verify_initialization(self) -> bool:
+        """Verify that the terrain system is properly initialized."""
+        logger.info("Verifying terrain system initialization...")
+        
+        # Check terrain data
+        if not self.terrain_data:
+            logger.error("Terrain data not initialized")
+            return False
+            
+        # Check elevation data
+        if not self.elevation_data:
+            logger.error("Elevation data not initialized")
+            return False
+            
+        # Check resource data
+        if not self.resource_data:
+            logger.error("Resource data not initialized")
+            return False
+            
+        # Check ocean systems
+        if not self.ocean_currents or not self.tidal_ranges:
+            logger.error("Ocean systems not initialized")
+            return False
+            
+        # Check environmental data
+        if not self.salinity_data or not self.oxygen_data:
+            logger.error("Environmental data not initialized")
+            return False
+            
+        logger.info("Terrain system initialization verified successfully")
+        return True
     
     def get_state(self) -> Dict:
         """Get current terrain system state."""

@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set, Optional, Tuple, Any
 from enum import Enum
 from datetime import datetime
 import random
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -25,17 +26,46 @@ class TechnologyCategory(Enum):
     WEAPONS = "weapons"
     CULTURE = "culture"
     GOVERNANCE = "governance"
+    FIRE = "fire"
 
 @dataclass
 class Technology:
+    type: str  # Emergent technology type
     name: str
-    category: TechnologyCategory
     description: str
-    prerequisites: List[str]  # List of technology names required
-    research_cost: float  # Time/effort required to research
-    effects: Dict[str, float]  # Effects on various aspects (e.g., {"food_production": 1.2})
+    category: TechnologyCategory = None
+    prerequisites: Set[str] = field(default_factory=set)
+    difficulty: float = 0.0
+    discovery_chance: float = 0.0
+    required_resources: Dict[str, float] = field(default_factory=dict)
+    effects: Dict[str, float] = field(default_factory=dict)
     discovered: bool = False
-    research_progress: float = 0.0
+    discovery_time: float = 0.0
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent technologies
+    capabilities: Dict[str, Any] = field(default_factory=dict)  # Technology capabilities
+    requirements: Dict[str, Any] = field(default_factory=dict)  # Technology requirements
+    created_at: float = field(default_factory=time.time)
+    last_update: float = field(default_factory=time.time)
+
+@dataclass
+class Innovation:
+    type: str  # Emergent innovation type
+    name: str
+    description: str
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent innovations
+    conditions: Dict[str, Any] = field(default_factory=dict)  # Innovation conditions
+    effects: Dict[str, Any] = field(default_factory=dict)  # Innovation effects
+    created_at: float = field(default_factory=time.time)
+    last_used: float = field(default_factory=time.time)
+
+@dataclass
+class TechnologicalEvolution:
+    type: str  # Emergent evolution type
+    description: str
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent evolution
+    conditions: Dict[str, Any] = field(default_factory=dict)  # Evolution conditions
+    effects: Dict[str, Any] = field(default_factory=dict)  # Evolution effects
+    created_at: float = field(default_factory=time.time)
 
 @dataclass
 class TechnologyTree:
@@ -53,17 +83,21 @@ class TechnologyTree:
             name="Basic Farming",
             category=TechnologyCategory.AGRICULTURE,
             description="Basic understanding of planting and harvesting crops",
-            prerequisites=[],
-            research_cost=100.0,
-            effects={"food_production": 1.2}
+            prerequisites={"basic_tools", "fire"},
+            difficulty=0.3,
+            discovery_chance=0.005,
+            required_resources={"land": 1.0, "water": 1.0},
+            effects={"food_production": 2.0, "population_growth": 1.5}
         )
         
         self.technologies["irrigation"] = Technology(
             name="Irrigation",
             category=TechnologyCategory.AGRICULTURE,
             description="Methods for watering crops",
-            prerequisites=["basic_farming"],
-            research_cost=150.0,
+            prerequisites={"basic_farming"},
+            difficulty=0.4,
+            discovery_chance=0.001,
+            required_resources={"land": 1.0},
             effects={"food_production": 1.5, "water_efficiency": 1.3}
         )
         
@@ -72,18 +106,22 @@ class TechnologyTree:
             name="Basic Tools",
             category=TechnologyCategory.TOOLS,
             description="Simple tools for gathering and processing resources",
-            prerequisites=[],
-            research_cost=50.0,
-            effects={"resource_gathering": 1.2}
+            prerequisites={},
+            difficulty=0.1,
+            discovery_chance=0.05,
+            required_resources={"stone": 1.0},
+            effects={"gathering_efficiency": 1.5}
         )
         
         self.technologies["advanced_tools"] = Technology(
             name="Advanced Tools",
             category=TechnologyCategory.TOOLS,
             description="More sophisticated tools for better resource processing",
-            prerequisites=["basic_tools"],
-            research_cost=200.0,
-            effects={"resource_gathering": 1.5, "crafting_efficiency": 1.3}
+            prerequisites={"basic_tools"},
+            difficulty=0.2,
+            discovery_chance=0.01,
+            required_resources={"copper": 1.0},
+            effects={"gathering_efficiency": 1.8}
         )
         
         # Shelter technologies
@@ -91,8 +129,10 @@ class TechnologyTree:
             name="Basic Shelter",
             category=TechnologyCategory.SHELTER,
             description="Simple structures for protection from elements",
-            prerequisites=[],
-            research_cost=80.0,
+            prerequisites={"basic_tools"},
+            difficulty=0.2,
+            discovery_chance=0.01,
+            required_resources={"wood": 1.0},
             effects={"shelter_quality": 1.2}
         )
         
@@ -101,9 +141,11 @@ class TechnologyTree:
             name="Basic Medicine",
             category=TechnologyCategory.MEDICINE,
             description="Understanding of basic healing and disease prevention",
-            prerequisites=[],
-            research_cost=120.0,
-            effects={"healing_rate": 1.2, "disease_resistance": 1.1}
+            prerequisites={"fire"},
+            difficulty=0.2,
+            discovery_chance=0.01,
+            required_resources={"herbs": 1.0},
+            effects={"health_recovery": 1.5, "disease_resistance": 1.5}
         )
         
         # Weapons technologies
@@ -111,8 +153,10 @@ class TechnologyTree:
             name="Basic Weapons",
             category=TechnologyCategory.WEAPONS,
             description="Simple weapons for hunting and defense",
-            prerequisites=[],
-            research_cost=100.0,
+            prerequisites={"basic_tools"},
+            difficulty=0.2,
+            discovery_chance=0.01,
+            required_resources={"stone": 1.0},
             effects={"hunting_efficiency": 1.2, "combat_strength": 1.2}
         )
         
@@ -121,8 +165,10 @@ class TechnologyTree:
             name="Basic Clothing",
             category=TechnologyCategory.CLOTHING,
             description="Simple clothing for protection from elements",
-            prerequisites=[],
-            research_cost=60.0,
+            prerequisites={"basic_tools"},
+            difficulty=0.2,
+            discovery_chance=0.01,
+            required_resources={"cloth": 1.0},
             effects={"temperature_resistance": 1.2}
         )
         
@@ -131,9 +177,11 @@ class TechnologyTree:
             name="Basic Transportation",
             category=TechnologyCategory.TRANSPORTATION,
             description="Simple methods for moving goods and people",
-            prerequisites=[],
-            research_cost=150.0,
-            effects={"movement_speed": 1.2, "carrying_capacity": 1.2}
+            prerequisites={"basic_tools"},
+            difficulty=0.2,
+            discovery_chance=0.01,
+            required_resources={"wood": 1.0},
+            effects={"transport_efficiency": 1.2, "carrying_capacity": 1.2}
         )
         
         # Communication technologies
@@ -141,9 +189,11 @@ class TechnologyTree:
             name="Basic Communication",
             category=TechnologyCategory.COMMUNICATION,
             description="Simple methods for sharing information",
-            prerequisites=[],
-            research_cost=70.0,
-            effects={"information_sharing": 1.2}
+            prerequisites={"basic_shelter"},
+            difficulty=0.3,
+            discovery_chance=0.001,
+            required_resources={"clay": 1.0},
+            effects={"communication_range": 2.0}
         )
         
         # Culture technologies
@@ -151,8 +201,10 @@ class TechnologyTree:
             name="Basic Culture",
             category=TechnologyCategory.CULTURE,
             description="Simple forms of artistic and cultural expression",
-            prerequisites=[],
-            research_cost=90.0,
+            prerequisites={"basic_shelter"},
+            difficulty=0.3,
+            discovery_chance=0.001,
+            required_resources={"clay": 1.0},
             effects={"happiness": 1.1, "social_cohesion": 1.1}
         )
         
@@ -161,8 +213,10 @@ class TechnologyTree:
             name="Basic Governance",
             category=TechnologyCategory.GOVERNANCE,
             description="Simple methods for organizing society",
-            prerequisites=[],
-            research_cost=200.0,
+            prerequisites={"basic_shelter"},
+            difficulty=0.3,
+            discovery_chance=0.001,
+            required_resources={"clay": 1.0},
             effects={"organization_efficiency": 1.2, "conflict_resolution": 1.1}
         )
     
@@ -203,15 +257,15 @@ class TechnologyTree:
             return newly_discovered
             
         current_tech = self.technologies[self.research_queue[0]]
-        current_tech.research_progress += research_points
+        current_tech.discovery_time = time.time()
+        current_tech.discovered = True
+        self.discovered_technologies.add(current_tech.name)
+        newly_discovered.append(current_tech.name)
+        self.research_queue.pop(0)
+        logger.info(f"Discovered new technology: {current_tech.name}")
         
-        if current_tech.research_progress >= current_tech.research_cost:
-            current_tech.discovered = True
-            self.discovered_technologies.add(current_tech.name)
-            newly_discovered.append(current_tech.name)
-            self.research_queue.pop(0)
-            logger.info(f"Discovered new technology: {current_tech.name}")
-            
+        self._apply_technology_effects(current_tech)
+        
         return newly_discovered
     
     def get_technology_effects(self) -> Dict[str, float]:
@@ -227,7 +281,7 @@ class TechnologyTree:
         """Get research progress for a specific technology"""
         if technology_name not in self.technologies:
             return None
-        return self.technologies[technology_name].research_progress / self.technologies[technology_name].research_cost
+        return self.technologies[technology_name].discovery_time
 
     def to_dict(self) -> Dict:
         """Convert technology tree state to dictionary for serialization."""
@@ -237,11 +291,13 @@ class TechnologyTree:
                     "name": tech.name,
                     "category": tech.category.value,
                     "description": tech.description,
-                    "prerequisites": tech.prerequisites,
-                    "research_cost": tech.research_cost,
+                    "prerequisites": list(tech.prerequisites),
+                    "difficulty": tech.difficulty,
+                    "discovery_chance": tech.discovery_chance,
+                    "required_resources": tech.required_resources,
                     "effects": tech.effects,
                     "discovered": tech.discovered,
-                    "research_progress": tech.research_progress
+                    "discovery_time": tech.discovery_time
                 }
                 for name, tech in self.technologies.items()
             },
@@ -250,326 +306,555 @@ class TechnologyTree:
         }
 
 class TechnologySystem:
-    def __init__(self):
-        # Technology categories
-        self.categories = {
-            "tools": set(),  # Basic tools and implements
-            "agriculture": set(),  # Farming and food production
-            "construction": set(),  # Building and architecture
-            "transportation": set(),  # Movement and travel
-            "communication": set(),  # Information exchange
-            "medicine": set(),  # Health and healing
-            "materials": set(),  # Material processing
-            "energy": set(),  # Power generation
-            "military": set(),  # Weapons and defense
-            "science": set()  # Scientific knowledge
+    def __init__(self, world):
+        self.world = world
+        self.technology_tree = TechnologyTree()
+        self.innovations = {}
+        self.evolutions = {}
+        self.discovery_chance = 0.01
+        self.research_points = 0.0
+        self.last_update = time.time()
+        
+    def initialize_technology(self):
+        """Initialize the technology system."""
+        logger.info("Initializing technology system...")
+        
+        # Initialize basic technologies
+        logger.info("Setting up basic technologies...")
+        self.technology_tree._initialize_technologies()
+        
+        # Initialize research queue
+        logger.info("Initializing research queue...")
+        self.technology_tree.research_queue = []
+        
+        # Initialize discovery tracking
+        logger.info("Initializing discovery tracking...")
+        self.discovery_chance = 0.01
+        self.research_points = 0.0
+        
+        # Verify initialization
+        if not self.verify_initialization():
+            logger.error("Technology system initialization verification failed")
+            raise RuntimeError("Technology system initialization verification failed")
+            
+        logger.info("Technology system initialization complete")
+
+    def verify_initialization(self) -> bool:
+        """Verify that the technology system is properly initialized."""
+        logger.info("Verifying technology system initialization...")
+        
+        # Check technology tree
+        if not hasattr(self, 'technology_tree') or not self.technology_tree:
+            logger.error("Technology tree not initialized")
+            return False
+            
+        # Check innovations
+        if not hasattr(self, 'innovations'):
+            logger.error("Innovations not initialized")
+            return False
+            
+        # Check evolutions
+        if not hasattr(self, 'evolutions'):
+            logger.error("Evolutions not initialized")
+            return False
+            
+        # Check research queue
+        if not hasattr(self.technology_tree, 'research_queue'):
+            logger.error("Research queue not initialized")
+            return False
+            
+        # Check discovery tracking
+        if not hasattr(self, 'discovery_chance') or not hasattr(self, 'research_points'):
+            logger.error("Discovery tracking not initialized")
+            return False
+            
+        # Check required technology types
+        required_types = {'agriculture', 'construction', 'transportation', 'communication', 'medicine'}
+        if not all(tech_type in self.technology_tree.technologies for tech_type in required_types):
+            logger.error("Not all required technology types initialized")
+            return False
+            
+        logger.info("Technology system initialization verified successfully")
+        return True
+
+    def get_state(self) -> Dict:
+        """Get current technology state."""
+        return {
+            "technology_tree": self.technology_tree.to_dict(),
+            "innovations": {id: innovation.to_dict() for id, innovation in self.innovations.items()},
+            "evolutions": {id: evolution.to_dict() for id, evolution in self.evolutions.items()},
+            "discovery_chance": self.discovery_chance,
+            "research_points": self.research_points
         }
         
-        # Technology prerequisites
-        self.prerequisites = {
-            "fire": set(),
-            "stone_tools": {"fire"},
-            "agriculture": {"stone_tools"},
-            "pottery": {"fire", "stone_tools"},
-            "metallurgy": {"fire", "stone_tools"},
-            "writing": {"pottery"},
-            "wheel": {"stone_tools", "construction"},
-            "irrigation": {"agriculture", "construction"},
-            "sailing": {"construction", "materials"},
-            "medicine": {"science"},
-            "mathematics": {"writing"},
-            "astronomy": {"mathematics", "science"},
-            "architecture": {"construction", "mathematics"},
-            "engineering": {"mathematics", "materials"},
-            "chemistry": {"science", "materials"},
-            "physics": {"mathematics", "science"},
-            "biology": {"science", "medicine"},
-            "electricity": {"physics", "materials"},
-            "steam_power": {"engineering", "materials"},
-            "industrial_machinery": {"steam_power", "engineering"},
-            "electronics": {"electricity", "materials"},
-            "computers": {"electronics", "mathematics"},
-            "internet": {"computers", "communication"},
-            "artificial_intelligence": {"computers", "mathematics"},
-            "space_travel": {"physics", "engineering"},
-            "genetic_engineering": {"biology", "computers"},
-            "nuclear_power": {"physics", "engineering"},
-            "quantum_computing": {"physics", "computers"},
-            "nanotechnology": {"materials", "engineering"},
-            "fusion_power": {"physics", "engineering"}
-        }
+    def load_state(self, state: Dict):
+        """Load technology system state."""
+        self.technology_tree = TechnologyTree()
+        self.technology_tree.technologies = state.get("technology_tree", {}).get("technologies", {})
+        self.technology_tree.discovered_technologies = set(state.get("technology_tree", {}).get("discovered_technologies", []))
+        self.technology_tree.research_queue = state.get("technology_tree", {}).get("research_queue", [])
+        self.innovations = state.get("innovations", {})
+        self.evolutions = state.get("evolutions", {})
+        self.discovery_chance = state.get("discovery_chance", 0.01)
+        self.research_points = state.get("research_points", 0.0)
+        self.last_update = state.get("last_update", time.time())
         
-        # Technology effects
-        self.effects = {
-            "fire": {
-                "food_quality": 0.2,
-                "survival_rate": 0.1,
-                "tool_quality": 0.1
-            },
-            "stone_tools": {
-                "hunting_efficiency": 0.3,
-                "construction_quality": 0.2,
-                "defense_capability": 0.2
-            },
-            "agriculture": {
-                "food_production": 0.5,
-                "population_growth": 0.3,
-                "settlement_stability": 0.4
-            },
-            "pottery": {
-                "food_storage": 0.3,
-                "trade_capacity": 0.2,
-                "artistic_expression": 0.2
-            },
-            "metallurgy": {
-                "tool_quality": 0.4,
-                "weapon_quality": 0.4,
-                "construction_quality": 0.3
-            },
-            "writing": {
-                "knowledge_preservation": 0.5,
-                "communication_range": 0.4,
-                "cultural_development": 0.3
-            },
-            "wheel": {
-                "transportation_efficiency": 0.4,
-                "trade_capacity": 0.3,
-                "construction_capability": 0.2
-            },
-            "irrigation": {
-                "agricultural_yield": 0.4,
-                "settlement_stability": 0.3,
-                "population_capacity": 0.3
-            },
-            "sailing": {
-                "exploration_capability": 0.4,
-                "trade_range": 0.5,
-                "military_power": 0.3
-            },
-            "medicine": {
-                "health_quality": 0.4,
-                "lifespan": 0.3,
-                "population_growth": 0.2
-            },
-            "mathematics": {
-                "scientific_advancement": 0.4,
-                "engineering_capability": 0.3,
-                "trade_efficiency": 0.2
-            },
-            "astronomy": {
-                "navigation_capability": 0.3,
-                "scientific_understanding": 0.4,
-                "cultural_development": 0.2
-            },
-            "architecture": {
-                "construction_quality": 0.4,
-                "settlement_capacity": 0.3,
-                "cultural_expression": 0.3
-            },
-            "engineering": {
-                "construction_capability": 0.4,
-                "tool_quality": 0.3,
-                "military_power": 0.3
-            },
-            "chemistry": {
-                "material_quality": 0.4,
-                "medicine_effectiveness": 0.3,
-                "industrial_capability": 0.3
-            },
-            "physics": {
-                "scientific_understanding": 0.5,
-                "engineering_capability": 0.4,
-                "energy_efficiency": 0.3
-            },
-            "biology": {
-                "medicine_effectiveness": 0.4,
-                "agricultural_yield": 0.3,
-                "scientific_understanding": 0.3
-            },
-            "electricity": {
-                "energy_availability": 0.5,
-                "industrial_capability": 0.4,
-                "quality_of_life": 0.3
-            },
-            "steam_power": {
-                "industrial_capability": 0.5,
-                "transportation_efficiency": 0.4,
-                "energy_availability": 0.3
-            },
-            "industrial_machinery": {
-                "production_efficiency": 0.5,
-                "industrial_capability": 0.4,
-                "economic_growth": 0.3
-            },
-            "electronics": {
-                "communication_capability": 0.4,
-                "computing_power": 0.5,
-                "quality_of_life": 0.3
-            },
-            "computers": {
-                "information_processing": 0.5,
-                "scientific_advancement": 0.4,
-                "industrial_efficiency": 0.3
-            },
-            "internet": {
-                "communication_range": 0.5,
-                "information_access": 0.5,
-                "cultural_exchange": 0.4
-            },
-            "artificial_intelligence": {
-                "computing_power": 0.5,
-                "automation_capability": 0.5,
-                "scientific_advancement": 0.4
-            },
-            "space_travel": {
-                "exploration_capability": 0.5,
-                "scientific_understanding": 0.5,
-                "resource_access": 0.4
-            },
-            "genetic_engineering": {
-                "medicine_effectiveness": 0.5,
-                "agricultural_yield": 0.5,
-                "biological_understanding": 0.5
-            },
-            "nuclear_power": {
-                "energy_availability": 0.5,
-                "military_power": 0.5,
-                "industrial_capability": 0.4
-            },
-            "quantum_computing": {
-                "computing_power": 0.5,
-                "scientific_advancement": 0.5,
-                "cryptography_capability": 0.5
-            },
-            "nanotechnology": {
-                "material_quality": 0.5,
-                "medicine_effectiveness": 0.5,
-                "manufacturing_capability": 0.5
-            },
-            "fusion_power": {
-                "energy_availability": 0.5,
-                "sustainability": 0.5,
-                "industrial_capability": 0.5
-            }
-        }
+    def update(self, time_delta: float):
+        """Update technology system state."""
+        # Check for potential discoveries based on agent actions and environment
+        self._check_for_discoveries()
         
-        # Technology discovery history
-        self.discoveries = []
+    def _check_for_discoveries(self):
+        """Check for new technology discoveries based on agent actions and observations."""
+        for agent in self.world.agents.values():
+            # Check agent's recent actions and observations
+            for action in agent.recent_actions:
+                # Check for stone tool discovery
+                if action["type"] == "use_rock" and action.get("purpose") == "cut":
+                    self.attempt_discovery("stone_tools", agent)
+                    
+                # Check for fire discovery
+                elif action["type"] == "drop_stone" and action.get("context") == "near_dry_grass":
+                    self.attempt_discovery("fire", agent)
+                    
+                # Check for shelter discovery
+                elif action["type"] == "build" and action.get("material") == "wood":
+                    self.attempt_discovery("shelter", agent)
+                    
+            # Check for novel discoveries based on unique experiences
+            self._check_for_novel_discoveries(agent)
+            
+    def _check_for_novel_discoveries(self, agent):
+        """Check for novel, unexpected discoveries based on agent experiences."""
+        # Calculate novelty score based on agent's unique experiences
+        novelty_score = self._calculate_novelty_score(agent)
         
-        # Current research focus
-        self.research_focus = None
+        # If novelty score is high enough, attempt to generate a novel technology
+        if novelty_score > 0.7:  # High threshold for novel discoveries
+            self._generate_novel_technology(agent, novelty_score)
+            
+    def _calculate_novelty_score(self, agent):
+        """Calculate how novel an agent's experiences are."""
+        score = 0.0
         
-        # Research progress
-        self.research_progress = 0.0
+        # Consider agent's traits
+        if hasattr(agent, 'genes'):
+            score += agent.genes.get('curiosity', 0.5) * 0.3
+            score += agent.genes.get('intelligence', 0.5) * 0.3
+            
+        # Consider unique combinations of actions
+        unique_combinations = set()
+        for i, action1 in enumerate(agent.recent_actions):
+            for action2 in agent.recent_actions[i+1:]:
+                combo = (action1["type"], action2["type"])
+                if combo not in unique_combinations:
+                    unique_combinations.add(combo)
+                    score += 0.1
+                    
+        # Consider environmental context
+        if hasattr(agent, 'position'):
+            terrain = self.world.get_terrain_at(*agent.position)
+            weather = self.world.get_weather_at(*agent.position)
+            if terrain and weather:
+                score += 0.2  # Bonus for environmental awareness
+                
+        return min(score, 1.0)  # Cap at 1.0
         
-    def update(self, time_delta: float, resources: Dict, population: int):
-        """Update technology system based on time and available resources"""
-        # Update research progress
-        if self.research_focus:
-            self._update_research(time_delta, resources, population)
+    def _generate_novel_technology(self, agent, novelty_score):
+        """Generate a novel technology based on agent's experiences."""
+        # Generate technology type based on agent's experiences
+        tech_type = self._generate_tech_type(agent)
         
-        # Check for new discoveries
-        self._check_discoveries()
+        # Generate unique name and description
+        name = self._generate_tech_name(tech_type)
+        description = self._generate_tech_description(tech_type, agent)
         
-        # Update technology effects
-        self._update_effects()
-    
-    def _update_research(self, time_delta: float, resources: Dict, population: int):
-        """Update research progress"""
-        # Base research rate
-        base_rate = 0.001 * time_delta
+        # Create new technology
+        tech_id = f"tech_{len(self.technology_tree.technologies)}"
+        new_tech = Technology(
+            id=tech_id,
+            name=name,
+            description=description,
+            type=tech_type,
+            prerequisites=set(),  # Novel technologies might not have prerequisites
+            discovered=False
+        )
         
-        # Modify by available resources
-        resource_modifier = min(1.0, sum(resources.values()) / 1000.0)
+        # Add to technologies
+        self.technology_tree.technologies[tech_id] = new_tech
         
-        # Modify by population
-        population_modifier = min(1.0, population / 1000.0)
+        # Mark as discovered
+        new_tech.discovered = True
         
-        # Calculate total progress
-        progress = base_rate * resource_modifier * population_modifier
-        
-        # Add to research progress
-        self.research_progress = min(1.0, self.research_progress + progress)
-    
-    def _check_discoveries(self):
-        """Check if any new technologies have been discovered"""
-        if self.research_focus and self.research_progress >= 1.0:
-            self._discover_technology(self.research_focus)
-            self.research_focus = None
-            self.research_progress = 0.0
-    
-    def _discover_technology(self, technology: str):
-        """Record a new technology discovery"""
-        # Add to appropriate category
-        for category, technologies in self.categories.items():
-            if technology in self.prerequisites:
-                technologies.add(technology)
-                break
-        
-        # Record discovery
+        # Log the discovery
         self.discoveries.append({
-            "technology": technology,
+            "technology": tech_id,
+            "discoverer": agent.id,
             "timestamp": datetime.now().isoformat(),
-            "effects": self.effects.get(technology, {})
+            "novelty_score": novelty_score
         })
-    
-    def _update_effects(self):
-        """Update effects of all discovered technologies"""
-        # This would be used to update various systems based on technology effects
-        pass
-    
-    def get_available_technologies(self) -> List[str]:
-        """Get list of technologies that can be researched"""
-        available = []
         
-        for tech, prereqs in self.prerequisites.items():
-            if tech not in self._get_all_discovered_technologies():
-                if all(p in self._get_all_discovered_technologies() for p in prereqs):
-                    available.append(tech)
+        logger.info(f"Novel technology discovered: {name} by agent {agent.id}")
         
-        return available
-    
-    def _get_all_discovered_technologies(self) -> Set[str]:
-        """Get set of all discovered technologies"""
-        discovered = set()
-        for category in self.categories.values():
-            discovered.update(category)
-        return discovered
-    
-    def get_technology_effects(self) -> Dict:
-        """Get combined effects of all discovered technologies"""
-        effects = {}
+    def _generate_tech_type(self, agent):
+        """Generate a technology type based on agent's experiences."""
+        # Analyze agent's recent actions and observations
+        action_types = set(action["type"] for action in agent.recent_actions)
         
-        for tech in self._get_all_discovered_technologies():
-            tech_effects = self.effects.get(tech, {})
-            for effect, value in tech_effects.items():
-                if effect not in effects:
-                    effects[effect] = 0.0
-                effects[effect] += value
+        # Map action combinations to technology types
+        if {"use_rock", "use_wood"} <= action_types:
+            return "primitive_tools"
+        elif {"observe_fire", "use_wood"} <= action_types:
+            return "fire_control"
+        elif {"build", "use_wood"} <= action_types:
+            return "shelter"
+        else:
+            return "unknown"
+            
+    def _generate_tech_name(self, tech_type):
+        """Generate a name for a technology based on its type."""
+        prefixes = ["primitive", "basic", "simple", "early"]
+        suffixes = ["tool", "device", "method", "technique"]
         
-        return effects
-    
-    def set_research_focus(self, technology: str) -> bool:
-        """Set the current research focus"""
-        if technology in self.get_available_technologies():
-            self.research_focus = technology
-            self.research_progress = 0.0
-            return True
-        return False
-    
-    def get_research_status(self) -> Dict:
-        """Get current research status"""
-        return {
-            "focus": self.research_focus,
-            "progress": self.research_progress,
-            "available": self.get_available_technologies()
-        }
-    
+        if tech_type == "primitive_tools":
+            return f"{random.choice(prefixes)} {random.choice(suffixes)}"
+        elif tech_type == "fire_control":
+            return "fire making"
+        elif tech_type == "shelter":
+            return "basic shelter"
+        else:
+            return f"unknown {random.choice(suffixes)}"
+            
+    def _generate_tech_description(self, tech_type, agent):
+        """Generate a description for a technology based on its type and discoverer."""
+        if tech_type == "primitive_tools":
+            return f"A {agent.name}'s discovery of using natural materials as tools"
+        elif tech_type == "fire_control":
+            return f"{agent.name}'s method of creating and controlling fire"
+        elif tech_type == "shelter":
+            return f"{agent.name}'s technique for building protective structures"
+        else:
+            return "An unexpected discovery with unknown applications"
+
+    def create_technology(self, type: str, name: str, description: str,
+                         properties: Dict[str, Any] = None) -> Technology:
+        """Create new technology with custom properties."""
+        technology = Technology(
+            type=type,
+            name=name,
+            description=description,
+            properties=properties or {}
+        )
+        
+        technology_id = f"technology_{len(self.technology_tree.technologies)}"
+        self.technology_tree.technologies[technology_id] = technology
+        logger.info(f"Created new technology: {name} of type {type}")
+        return technology
+        
+    def create_innovation(self, type: str, name: str, description: str,
+                         properties: Dict[str, Any] = None) -> Innovation:
+        """Create new innovation with custom properties."""
+        innovation = Innovation(
+            type=type,
+            name=name,
+            description=description,
+            properties=properties or {}
+        )
+        
+        innovation_id = f"innovation_{len(self.innovations)}"
+        self.innovations[innovation_id] = innovation
+        logger.info(f"Created new innovation: {name} of type {type}")
+        return innovation
+        
+    def create_evolution(self, type: str, description: str,
+                        properties: Dict[str, Any] = None,
+                        conditions: Dict[str, Any] = None,
+                        effects: Dict[str, Any] = None) -> TechnologicalEvolution:
+        """Create new technological evolution with custom properties."""
+        evolution = TechnologicalEvolution(
+            type=type,
+            description=description,
+            properties=properties or {},
+            conditions=conditions or {},
+            effects=effects or {}
+        )
+        
+        evolution_id = f"evolution_{len(self.evolutions)}"
+        self.evolutions[evolution_id] = evolution
+        logger.info(f"Created new technological evolution of type {type}")
+        return evolution
+        
+    def add_capability_to_technology(self, technology: str, capability: Dict[str, Any]) -> bool:
+        """Add capability to a technology."""
+        if technology not in self.technology_tree.technologies:
+            logger.error(f"Technology {technology} does not exist")
+            return False
+            
+        self.technology_tree.technologies[technology].capabilities.update(capability)
+        logger.info(f"Added capability to technology {technology}")
+        return True
+        
     def to_dict(self) -> Dict:
-        """Convert technology system to dictionary"""
+        """Convert technology system state to dictionary for serialization."""
         return {
-            "categories": {k: list(v) for k, v in self.categories.items()},
-            "discoveries": self.discoveries,
-            "research_focus": self.research_focus,
-            "research_progress": self.research_progress
-        } 
+            "technology_tree": self.technology_tree.to_dict(),
+            "innovations": self.innovations,
+            "evolutions": self.evolutions,
+            "discoveries": self.discoveries
+        }
+
+    def attempt_discovery(self, tech_type: str, agent):
+        """Attempt to discover a new technology based on agent's recent actions and observations."""
+        # Check if the technology is already discovered
+        if tech_type in self.technology_tree.technologies and self.technology_tree.technologies[tech_type].discovered:
+            logger.warning(f"Technology {tech_type} already discovered")
+            return
+            
+        # Check if the technology is in the research queue
+        if tech_type in self.technology_tree.technologies and tech_type in self.technology_tree.research_queue:
+            logger.warning(f"Technology {tech_type} already in research queue")
+            return
+            
+        # Check if the technology is in the available technologies list
+        if tech_type in self.technology_tree.technologies and self.technology_tree.technologies[tech_type] in self.technology_tree.get_available_technologies():
+            logger.warning(f"Technology {tech_type} already available for research")
+            return
+            
+        # Check if the technology is in the discovered technologies set
+        if tech_type in self.technology_tree.technologies and tech_type in self.technology_tree.discovered_technologies:
+            logger.warning(f"Technology {tech_type} already discovered")
+            return
+            
+        # Check if the technology is in the technology tree
+        if tech_type in self.technology_tree.technologies:
+            logger.warning(f"Technology {tech_type} already exists in technology tree")
+            return
+            
+        # Check if the technology is in the world
+        if tech_type not in self.world.technologies:
+            logger.warning(f"Technology {tech_type} not found in the world")
+            return
+            
+        # Check if the technology is in the agent's discovered concepts
+        if tech_type not in agent.discovered_concepts:
+            logger.warning(f"Technology {tech_type} not discovered by agent {agent.id}")
+            return
+            
+        # Check if the technology is in the agent's recent actions
+        if tech_type not in [action["type"] for action in agent.recent_actions]:
+            logger.warning(f"Technology {tech_type} not found in agent {agent.id}'s recent actions")
+            return
+            
+        # Check if the technology is in the agent's recent observations
+        if tech_type not in [observation["type"] for observation in agent.recent_observations]:
+            logger.warning(f"Technology {tech_type} not found in agent {agent.id}'s recent observations")
+            return
+            
+        # Check if the technology is in the world's technology categories
+        if tech_type not in self.world.technology_categories:
+            logger.warning(f"Technology {tech_type} not found in the world's technology categories")
+            return
+            
+        # Check if the technology is in the world's technology requirements
+        if tech_type not in self.world.technology_requirements:
+            logger.warning(f"Technology {tech_type} not found in the world's technology requirements")
+            return
+            
+        # Check if the technology is in the world's technology effects
+        if tech_type not in self.world.technology_effects:
+            logger.warning(f"Technology {tech_type} not found in the world's technology effects")
+            return
+            
+        # Check if the technology is in the world's technology properties
+        if tech_type not in self.world.technology_properties:
+            logger.warning(f"Technology {tech_type} not found in the world's technology properties")
+            return
+            
+        # Check if the technology is in the world's technology capabilities
+        if tech_type not in self.world.technology_capabilities:
+            logger.warning(f"Technology {tech_type} not found in the world's technology capabilities")
+            return
+            
+        # If all checks pass, create the technology
+        tech = self.create_technology(
+            type=tech_type,
+            name=tech_type.replace("_", " ").title(),
+            description=f"Discovered by {agent.name}",
+            properties={
+                "discovered_by": agent.id,
+                "discovery_context": {
+                    "actions": agent.recent_actions,
+                    "observations": agent.recent_observations
+                }
+            }
+        )
+        
+        # Add to agent's discovered concepts
+        agent.discovered_concepts.add(tech_type)
+        
+        # Log the discovery
+        self.discoveries.append({
+            "type": "technology",
+            "name": tech_type,
+            "agent_id": agent.id,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        logger.info(f"Agent {agent.id} discovered {tech_type}!")
+
+    def _check_for_novel_discoveries(self, agent_id: str, actions: List[Dict], observations: List[Dict]):
+        """Check for completely novel, unexpected discoveries based on unique agent experiences."""
+        agent = self.world.agents[agent_id]
+        
+        # Get unique combinations of actions and observations
+        unique_experiences = self._get_unique_experiences(actions, observations)
+        
+        for experience in unique_experiences:
+            # Calculate novelty score based on:
+            # 1. How unique this combination is
+            # 2. Agent's creativity and intelligence
+            # 3. Environmental context
+            novelty_score = self._calculate_novelty_score(agent, experience)
+            
+            # If novelty score is high enough, attempt a novel discovery
+            if novelty_score > 0.8:  # 80% threshold for novel discoveries
+                self._attempt_novel_discovery(agent_id, experience)
+                
+    def _get_unique_experiences(self, actions: List[Dict], observations: List[Dict]) -> List[Dict]:
+        """Get unique combinations of actions and observations that might lead to novel discoveries."""
+        unique_experiences = []
+        
+        # Look for interesting combinations
+        for action in actions:
+            for observation in observations:
+                # Check if this combination is unique and interesting
+                if self._is_interesting_combination(action, observation):
+                    unique_experiences.append({
+                        'action': action,
+                        'observation': observation,
+                        'context': self._get_combined_context(action, observation)
+                    })
+                    
+        return unique_experiences
+        
+    def _is_interesting_combination(self, action: Dict, observation: Dict) -> bool:
+        """Check if a combination of action and observation is interesting enough for potential discovery."""
+        # Look for unusual or unexpected combinations
+        action_type = action.get('type')
+        observation_type = observation.get('type')
+        
+        # Example interesting combinations:
+        interesting_combos = [
+            ('use', 'weather_change'),  # Using something during weather change
+            ('build', 'animal_behavior'),  # Building while observing animals
+            ('experiment', 'unexpected_result'),  # Experimenting with unexpected results
+            ('combine', 'chemical_reaction'),  # Combining things with chemical reactions
+            ('modify', 'structural_change')  # Modifying something with structural changes
+        ]
+        
+        return (action_type, observation_type) in interesting_combos
+        
+    def _calculate_novelty_score(self, agent, experience: Dict) -> float:
+        """Calculate how likely this experience is to lead to a novel discovery."""
+        base_score = 0.5
+        
+        # Add agent's creativity and intelligence
+        agent_traits = (
+            agent.genes.get('creativity', 0.5) +
+            agent.genes.get('intelligence', 0.5) +
+            agent.genes.get('curiosity', 0.5)
+        ) / 3.0
+        
+        # Add environmental context
+        context_score = self._get_context_novelty(experience['context'])
+        
+        # Add randomness for unexpected discoveries
+        random_factor = random.random() * 0.3
+        
+        return min(1.0, base_score + agent_traits * 0.3 + context_score * 0.2 + random_factor)
+        
+    def _get_context_novelty(self, context: Dict) -> float:
+        """Calculate how novel the current context is."""
+        novelty_factors = {
+            'weather_change': 0.2,
+            'unexpected_result': 0.3,
+            'chemical_reaction': 0.25,
+            'structural_change': 0.15,
+            'animal_behavior': 0.1
+        }
+        
+        return sum(novelty_factors.get(factor, 0) for factor in context.get('factors', []))
+        
+    def _attempt_novel_discovery(self, agent_id: str, experience: Dict):
+        """Attempt to make a completely novel discovery based on unique experience."""
+        agent = self.world.agents[agent_id]
+        
+        # Generate a novel technology based on the experience
+        tech_type = self._generate_novel_tech_type(experience)
+        tech_name = self._generate_novel_tech_name(tech_type, experience)
+        tech_description = self._generate_novel_tech_description(tech_type, experience)
+        
+        # Create the novel technology
+        tech = self.create_technology(
+            type=tech_type,
+            name=tech_name,
+            description=tech_description,
+            properties={
+                'discovered_by': agent_id,
+                'discovery_context': experience,
+                'is_novel': True,
+                'prerequisites': self._get_novel_prerequisites(experience)
+            }
+        )
+        
+        # Add to agent's discovered concepts
+        agent.discovered_concepts.add(tech_type)
+        
+        # Log the novel discovery
+        self.discoveries.append({
+            'type': 'novel_technology',
+            'name': tech_name,
+            'agent_id': agent_id,
+            'context': experience,
+            'timestamp': time.time()
+        })
+        
+        self.logger.info(f"Agent {agent_id} made a novel discovery: {tech_name}!")
+        
+    def _generate_novel_tech_type(self, experience: Dict) -> str:
+        """Generate a novel technology type based on the experience."""
+        # Combine elements from the experience to create a novel type
+        action_type = experience['action'].get('type', '')
+        observation_type = experience['observation'].get('type', '')
+        
+        # Create a unique type identifier
+        return f"novel_{action_type}_{observation_type}_{int(time.time())}"
+        
+    def _generate_novel_tech_name(self, tech_type: str, experience: Dict) -> str:
+        """Generate a name for the novel technology."""
+        # Use elements from the experience to create a descriptive name
+        action = experience['action'].get('type', '')
+        observation = experience['observation'].get('type', '')
+        context = experience['context'].get('factors', [])
+        
+        # Create a descriptive name
+        return f"Novel {action.title()} {observation.title()} Technology"
+        
+    def _generate_novel_tech_description(self, tech_type: str, experience: Dict) -> str:
+        """Generate a description for the novel technology."""
+        # Create a description based on how it was discovered
+        action = experience['action']
+        observation = experience['observation']
+        
+        return f"A novel technology discovered through {action.get('type')} " \
+               f"while observing {observation.get('type')}. " \
+               f"This discovery emerged from unique circumstances " \
+               f"and represents a new approach to {action.get('purpose', 'problem-solving')}."
+               
+    def _get_novel_prerequisites(self, experience: Dict) -> List[str]:
+        """Get prerequisites for the novel technology."""
+        # Novel technologies might have unique prerequisites
+        return [
+            f"understanding_of_{experience['action'].get('type')}",
+            f"knowledge_of_{experience['observation'].get('type')}"
+        ] 

@@ -10,13 +10,13 @@ logger = logging.getLogger(__name__)
 
 class WeatherType(Enum):
     CLEAR = "clear"
+    PARTLY_CLOUDY = "partly_cloudy"
     CLOUDY = "cloudy"
-    RAINY = "rainy"
+    RAIN = "rain"
     HEAVY_RAIN = "heavy_rain"
     THUNDERSTORM = "thunderstorm"
     SNOW = "snow"
-    BLIZZARD = "blizzard"
-    SANDSTORM = "sandstorm"
+    HEAVY_SNOW = "heavy_snow"
     FOG = "fog"
     WINDY = "windy"
     DROUGHT = "drought"

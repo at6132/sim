@@ -5,6 +5,10 @@ import random
 import math
 import time
 from datetime import datetime
+import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AnimalType(Enum):
     HORSE = "horse"
@@ -145,16 +149,22 @@ class Animal:
 
 class AnimalSystem:
     def __init__(self, world_size: Tuple[float, float] = (360.0, 180.0)):
+        """Initialize the animal system."""
+        logger.info("Initializing animal system...")
+        
         # Store world size
         self.world_size = world_size
         
-        # Animal populations
+        # Initialize animal populations
+        logger.info("Setting up animal populations...")
         self.herbivores = {}  # Plant-eating animals
         self.carnivores = {}  # Meat-eating animals
         self.omnivores = {}  # Mixed diet animals
         self.domesticated = {}  # Tamed animals
+        logger.info("Animal populations initialized")
         
-        # Animal behaviors
+        # Initialize animal behaviors
+        logger.info("Setting up animal behaviors...")
         self.behaviors = {
             "herbivore": {
                 "foraging": 0.8,
@@ -181,8 +191,10 @@ class AnimalSystem:
                 "dependency": 0.9
             }
         }
+        logger.info("Animal behaviors initialized")
         
-        # Animal traits
+        # Initialize animal traits
+        logger.info("Setting up animal traits...")
         self.traits = {
             "herbivore": {
                 "speed": 0.7,
@@ -194,47 +206,148 @@ class AnimalSystem:
                 "speed": 0.8,
                 "strength": 0.9,
                 "intelligence": 0.7,
-                "senses": 0.9
+                "senses": 0.8
             },
             "omnivore": {
                 "speed": 0.6,
                 "strength": 0.6,
-                "intelligence": 0.8,
+                "intelligence": 0.6,
                 "senses": 0.7
             },
             "domesticated": {
                 "speed": 0.5,
                 "strength": 0.5,
-                "intelligence": 0.6,
-                "senses": 0.5
+                "intelligence": 0.8,
+                "senses": 0.6
             }
         }
+        logger.info("Animal traits initialized")
         
-        # Animal interactions
-        self.predator_prey = {}  # Predator-prey relationships
-        self.symbiotic = {}  # Symbiotic relationships
-        self.competition = {}  # Competitive relationships
+        # Initialize animal distribution
+        logger.info("Initializing animal distribution...")
+        self.initialize_animals()
+        logger.info("Animal distribution initialized")
         
-        # Animal habitats
-        self.habitats = {
-            "forest": set(),
-            "plains": set(),
-            "mountains": set(),
-            "desert": set(),
-            "water": set()
-        }
+        logger.info("Animal system initialization complete")
         
-        # Animal populations
-        self.populations = {
-            "herbivore": 0,
-            "carnivore": 0,
-            "omnivore": 0,
-            "domesticated": 0
-        }
+    def initialize_animals(self):
+        """Initialize animal distribution across the world."""
+        logger.info("Initializing animal distribution...")
         
-        # Animal events
-        self.events = []
+        # Calculate total points for progress tracking
+        total_points = len(np.arange(self.world_size[0])) * len(np.arange(self.world_size[1]))
+        points_processed = 0
+        last_progress = 0
         
+        # Process in chunks to show progress
+        chunk_size = 1000  # Process 1000 points at a time
+        
+        for lon in np.arange(self.world_size[0]):
+            for lat in np.arange(self.world_size[1]):
+                # Get terrain type at location
+                terrain_type = self.world.terrain.get_terrain_at(lon, lat)
+                
+                # Generate animals based on terrain
+                logger.info(f"Generating animals for terrain type: {terrain_type}")
+                self._generate_animals_for_terrain(lon, lat, terrain_type)
+                
+                points_processed += 1
+                
+                # Log progress every 10%
+                progress = (points_processed / total_points) * 100
+                if progress - last_progress >= 10:
+                    logger.info(f"Animal distribution progress: {progress:.1f}%")
+                    last_progress = progress
+        
+        # Initialize animal ecosystems
+        logger.info("Setting up animal ecosystems...")
+        self._initialize_animal_ecosystems()
+        logger.info("Animal ecosystems initialized")
+        
+        # Initialize animal interactions
+        logger.info("Setting up animal interactions...")
+        self._initialize_animal_interactions()
+        logger.info("Animal interactions initialized")
+        
+        logger.info("Animal distribution initialization complete")
+        
+    def _initialize_animal_ecosystems(self):
+        """Initialize animal ecosystems."""
+        logger.info("Initializing animal ecosystems...")
+        
+        # Initialize forest ecosystems
+        logger.info("Setting up forest ecosystems...")
+        self._initialize_forest_ecosystems()
+        logger.info("Forest ecosystems initialized")
+        
+        # Initialize grassland ecosystems
+        logger.info("Setting up grassland ecosystems...")
+        self._initialize_grassland_ecosystems()
+        logger.info("Grassland ecosystems initialized")
+        
+        # Initialize desert ecosystems
+        logger.info("Setting up desert ecosystems...")
+        self._initialize_desert_ecosystems()
+        logger.info("Desert ecosystems initialized")
+        
+        # Initialize tundra ecosystems
+        logger.info("Setting up tundra ecosystems...")
+        self._initialize_tundra_ecosystems()
+        logger.info("Tundra ecosystems initialized")
+        
+        # Initialize swamp ecosystems
+        logger.info("Setting up swamp ecosystems...")
+        self._initialize_swamp_ecosystems()
+        logger.info("Swamp ecosystems initialized")
+        
+        logger.info("Animal ecosystems initialization complete")
+        
+    def _initialize_animal_interactions(self):
+        """Initialize animal interactions."""
+        logger.info("Initializing animal interactions...")
+        
+        # Initialize predator-prey relationships
+        logger.info("Setting up predator-prey relationships...")
+        self._initialize_predator_prey_relationships()
+        logger.info("Predator-prey relationships initialized")
+        
+        # Initialize symbiotic relationships
+        logger.info("Setting up symbiotic relationships...")
+        self._initialize_symbiotic_relationships()
+        logger.info("Symbiotic relationships initialized")
+        
+        # Initialize social structures
+        logger.info("Setting up social structures...")
+        self._initialize_social_structures()
+        logger.info("Social structures initialized")
+        
+        logger.info("Animal interactions initialization complete")
+        
+    def _generate_animals_for_terrain(self, lon: float, lat: float, terrain_type: str):
+        """Generate animals based on terrain type."""
+        logger.info(f"Generating animals for terrain type: {terrain_type}")
+        
+        if terrain_type == "forest":
+            logger.info("Generating forest animals...")
+            self._generate_forest_animals(lon, lat)
+            logger.info("Forest animals generated")
+        elif terrain_type == "grassland":
+            logger.info("Generating grassland animals...")
+            self._generate_grassland_animals(lon, lat)
+            logger.info("Grassland animals generated")
+        elif terrain_type == "desert":
+            logger.info("Generating desert animals...")
+            self._generate_desert_animals(lon, lat)
+            logger.info("Desert animals generated")
+        elif terrain_type == "tundra":
+            logger.info("Generating tundra animals...")
+            self._generate_tundra_animals(lon, lat)
+            logger.info("Tundra animals generated")
+        elif terrain_type == "swamp":
+            logger.info("Generating swamp animals...")
+            self._generate_swamp_animals(lon, lat)
+            logger.info("Swamp animals generated")
+    
     def update(self, time_delta: float, environment: Dict):
         """Update animal system based on time and environment"""
         # Update animal populations
@@ -548,4 +661,43 @@ class AnimalSystem:
             "habitats": {k: list(v) for k, v in self.habitats.items()},
             "populations": self.populations,
             "events": self.events
-        } 
+        }
+
+    def _initialize_predator_prey_relationships(self):
+        """Initialize predator-prey relationships."""
+        logger.info("Initializing predator-prey relationships...")
+        
+        # Initialize predator-prey relationships
+        self.predator_prey = {}
+        for predator_id, predator in self.carnivores.items():
+            for prey_id, prey in self.herbivores.items():
+                if self._can_catch_prey(predator, prey):
+                    self.predator_prey[(predator_id, prey_id)] = True
+        logger.info("Predator-prey relationships initialized")
+    
+    def _initialize_symbiotic_relationships(self):
+        """Initialize symbiotic relationships."""
+        logger.info("Initializing symbiotic relationships...")
+        
+        # Initialize symbiotic relationships
+        self.symbiotic = {}
+        for herbivore1_id, herbivore1 in self.herbivores.items():
+            for herbivore2_id, herbivore2 in self.herbivores.items():
+                if herbivore1_id != herbivore2_id:
+                    self.symbiotic[(herbivore1_id, herbivore2_id)] = True
+        logger.info("Symbiotic relationships initialized")
+    
+    def _initialize_social_structures(self):
+        """Initialize social structures."""
+        logger.info("Initializing social structures...")
+        
+        # Initialize social structures
+        self.social_structures = {}
+        for animal_id, animal in self.herbivores.items():
+            self.social_structures[animal_id] = {
+                "group": None,
+                "territory": None
+            }
+        logger.info("Social structures initialized")
+        
+        logger.info("Animal ecosystems initialization complete") 

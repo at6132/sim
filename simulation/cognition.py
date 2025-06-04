@@ -1,576 +1,253 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional, Tuple
+from typing import Dict, List, Set, Optional, Tuple, Any
 from enum import Enum
 import random
-from datetime import datetime
 import logging
+import time
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 class ThoughtType(Enum):
-    # Basic thoughts
     OBSERVATION = "observation"
-    QUESTION = "question"
-    HYPOTHESIS = "hypothesis"
-    CONCLUSION = "conclusion"
-    
-    # Complex thoughts
-    PHILOSOPHICAL = "philosophical"
-    SCIENTIFIC = "scientific"
-    RELIGIOUS = "religious"
-    MORAL = "moral"
-    CULTURAL = "cultural"
-    
-    # Social thoughts
-    EMPATHY = "empathy"
-    JUDGMENT = "judgment"
-    TRUST = "trust"
-    LOYALTY = "loyalty"
-    
-    # Creative thoughts
-    ARTISTIC = "artistic"
-    MUSICAL = "musical"
-    LITERARY = "literary"
-    INVENTIVE = "inventive"
-
-class CognitiveState(Enum):
-    FOCUSED = "focused"
-    DISTRACTED = "distracted"
+    REASONING = "reasoning"
+    MEMORY = "memory"
+    EMOTION = "emotion"
+    DECISION = "decision"
     CREATIVE = "creative"
     ANALYTICAL = "analytical"
-    EMOTIONAL = "emotional"
-    RATIONAL = "rational"
-    TIRED = "tired"
-    ALERT = "alert"
-
-@dataclass
-class Memory:
-    event: str
-    importance: float  # 0-1 scale
-    emotional_impact: float  # 0-1 scale
-    timestamp: float
-    context: Dict[str, float]  # Contextual information
-    associations: Set[str]  # Associated concepts/events
+    INTUITIVE = "intuitive"
 
 @dataclass
 class Thought:
-    type: ThoughtType
-    content: str
-    confidence: float  # 0-1 scale
-    source: str  # What triggered this thought
-    timestamp: datetime
-    associated_memories: List[str] = field(default_factory=list)
-    associated_concepts: Set[str] = field(default_factory=set)
-    emotional_impact: float = 0.0
-    philosophical_impact: float = 0.0
-    social_impact: float = 0.0
-    cultural_impact: float = 0.0
+    type: str  # Emergent thought type
+    content: Any
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent thoughts
+    connections: Dict[str, Any] = field(default_factory=dict)  # Connections to other thoughts
+    created_at: float = field(default_factory=time.time)
+    last_accessed: float = field(default_factory=time.time)
 
 @dataclass
-class Decision:
-    action: str
-    reasoning: str
-    confidence: float  # 0-1 scale
-    alternatives: List[str]
-    expected_outcomes: Dict[str, float]
-    timestamp: float
+class Memory:
+    type: str  # Emergent memory type
+    content: Any
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent memories
+    associations: Dict[str, Any] = field(default_factory=dict)  # Memory associations
+    created_at: float = field(default_factory=time.time)
+    last_accessed: float = field(default_factory=time.time)
 
-class BeliefSystem:
-    def __init__(self):
-        self.beliefs: Dict[str, float] = {}  # belief -> confidence
-        self.moral_values: Dict[str, float] = {}  # value -> strength
-        self.cultural_norms: Dict[str, float] = {}  # norm -> adherence
-        self.religious_beliefs: Dict[str, float] = {}  # belief -> faith
-        self.scientific_theories: Dict[str, float] = {}  # theory -> confidence
-        
-    def update_beliefs(self, thought: Thought, agent_state: Dict):
-        """Update beliefs based on new thoughts and experiences."""
-        if thought.type == ThoughtType.CONCLUSION:
-            self.beliefs[thought.content] = thought.confidence
-            
-        elif thought.type == ThoughtType.MORAL:
-            self.moral_values[thought.content] = thought.confidence
-            
-        elif thought.type == ThoughtType.CULTURAL:
-            self.cultural_norms[thought.content] = thought.confidence
-            
-        elif thought.type == ThoughtType.RELIGIOUS:
-            self.religious_beliefs[thought.content] = thought.confidence
-            
-        elif thought.type == ThoughtType.SCIENTIFIC:
-            self.scientific_theories[thought.content] = thought.confidence
-            
-    def get_belief_summary(self) -> Dict:
-        """Get a summary of current beliefs."""
-        return {
-            "beliefs": self.beliefs,
-            "moral_values": self.moral_values,
-            "cultural_norms": self.cultural_norms,
-            "religious_beliefs": self.religious_beliefs,
-            "scientific_theories": self.scientific_theories
-        }
+@dataclass
+class Learning:
+    type: str  # Emergent learning type
+    content: Any
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent learning
+    applications: Dict[str, Any] = field(default_factory=dict)  # Learning applications
+    created_at: float = field(default_factory=time.time)
+    last_applied: float = field(default_factory=time.time)
 
 class CognitiveSystem:
-    def __init__(self):
-        self.memories: List[Memory] = []
-        self.thoughts: List[Thought] = []
-        self.decisions: List[Decision] = []
-        self.current_state = CognitiveState.FOCUSED
-        self.attention_level = 1.0  # 0-1 scale
-        self.creativity_level = 0.5  # 0-1 scale
-        self.analytical_level = 0.5  # 0-1 scale
-        self.learning_rate = 0.5  # 0-1 scale
-        self.belief_system = BeliefSystem()
-        self.understanding_levels: Dict[str, float] = {}
-        self.creative_works: Dict[str, Dict] = {}
-        self.cultural_contributions: Dict[str, Dict] = {}
-        self._initialize_cognitive_state()
+    def __init__(self, world):
+        """Initialize the cognitive system."""
+        self.world = world
+        self.thoughts: Dict[str, Thought] = {}
+        self.memories: Dict[str, Memory] = {}
+        self.learning: Dict[str, Learning] = {}
+        self.initialize_system()
         
-    def _initialize_cognitive_state(self) -> None:
-        """Initialize cognitive state with random variations"""
-        self.attention_level = random.uniform(0.7, 1.0)
-        self.creativity_level = random.uniform(0.3, 0.7)
-        self.analytical_level = random.uniform(0.3, 0.7)
-        self.learning_rate = random.uniform(0.4, 0.6)
+    def initialize_system(self):
+        """Initialize the cognitive system with minimal structure."""
+        logger.info("Initializing cognitive system...")
         
-    def add_memory(self, event: str, importance: float, emotional_impact: float,
-                  context: Dict[str, float], associations: Set[str]) -> None:
-        """Add a new memory"""
-        memory = Memory(
-            event=event,
-            importance=importance,
-            emotional_impact=emotional_impact,
-            timestamp=0.0,  # Set to current time
-            context=context,
-            associations=associations
+        # Create a basic thought - but don't prescribe its type
+        self.thoughts["initial_thought"] = Thought(
+            type="emergent",  # Let the simulation determine the type
+            content="Initial cognitive state"
         )
         
-        # Add to memories and maintain memory limit
-        self.memories.append(memory)
-        if len(self.memories) > 1000:  # Limit total memories
-            self.memories.sort(key=lambda m: m.importance)
-            self.memories = self.memories[-1000:]
-            
-        logger.info(f"Added memory: {event}")
+        logger.info("Cognitive system initialization complete")
         
-    def add_thought(self, content: str, thought_type: str, priority: float,
-                   emotional_tone: float) -> None:
-        """Add a new thought"""
+    def create_thought(self, type: str, content: Any,
+                      properties: Dict[str, Any] = None) -> Thought:
+        """Create new thought with custom properties."""
         thought = Thought(
-            type=thought_type,
+            type=type,
             content=content,
-            confidence=0.0,  # Confidence will be updated later
-            source="",  # Source will be updated later
-            timestamp=datetime.now(),
-            emotional_impact=emotional_tone,
-            associated_memories=[],
-            associated_concepts=set()
+            properties=properties or {}
         )
         
-        # Add to thoughts and maintain thought limit
-        self.thoughts.append(thought)
-        if len(self.thoughts) > 100:  # Limit active thoughts
-            self.thoughts.sort(key=lambda t: t.confidence)
-            self.thoughts = self.thoughts[-100:]
-            
-        logger.info(f"Added thought: {content}")
+        thought_id = f"thought_{len(self.thoughts)}"
+        self.thoughts[thought_id] = thought
+        logger.info(f"Created new thought of type {type}")
+        return thought
         
-    def make_decision(self, action: str, reasoning: str, confidence: float,
-                     alternatives: List[str], expected_outcomes: Dict[str, float]) -> None:
-        """Record a decision"""
-        decision = Decision(
-            action=action,
-            reasoning=reasoning,
-            confidence=confidence,
-            alternatives=alternatives,
-            expected_outcomes=expected_outcomes,
-            timestamp=0.0  # Set to current time
+    def create_memory(self, type: str, content: Any,
+                     properties: Dict[str, Any] = None) -> Memory:
+        """Create new memory with custom properties."""
+        memory = Memory(
+            type=type,
+            content=content,
+            properties=properties or {}
         )
         
-        # Add to decisions and maintain decision history
-        self.decisions.append(decision)
-        if len(self.decisions) > 100:  # Limit decision history
-            self.decisions = self.decisions[-100:]
-            
-        logger.info(f"Made decision: {action}")
+        memory_id = f"memory_{len(self.memories)}"
+        self.memories[memory_id] = memory
+        logger.info(f"Created new memory of type {type}")
+        return memory
         
-    def update_cognitive_state(self, time_delta: float) -> None:
-        """Update cognitive state based on time and conditions"""
-        # Update attention level
-        self.attention_level = max(0.0, min(1.0,
-            self.attention_level - time_delta * 0.1))  # Natural decay
-            
-        # Update creativity and analytical levels
-        self.creativity_level = max(0.0, min(1.0,
-            self.creativity_level + random.uniform(-0.1, 0.1) * time_delta))
-        self.analytical_level = max(0.0, min(1.0,
-            self.analytical_level + random.uniform(-0.1, 0.1) * time_delta))
-            
-        # Determine current cognitive state
-        if self.attention_level < 0.3:
-            self.current_state = CognitiveState.DISTRACTED
-        elif self.creativity_level > 0.7:
-            self.current_state = CognitiveState.CREATIVE
-        elif self.analytical_level > 0.7:
-            self.current_state = CognitiveState.ANALYTICAL
-        else:
-            self.current_state = CognitiveState.FOCUSED
-            
-    def recall_memory(self, query: str) -> List[Memory]:
-        """Recall memories based on a query"""
-        # Simple keyword matching for now
-        return [
-            memory for memory in self.memories
-            if query.lower() in memory.event.lower() or
-            any(query.lower() in assoc.lower() for assoc in memory.associations)
-        ]
+    def create_learning(self, type: str, content: Any,
+                       properties: Dict[str, Any] = None) -> Learning:
+        """Create new learning with custom properties."""
+        learning = Learning(
+            type=type,
+            content=content,
+            properties=properties or {}
+        )
         
-    def get_recent_thoughts(self, count: int = 10) -> List[Thought]:
-        """Get most recent thoughts"""
-        return sorted(self.thoughts, key=lambda t: t.timestamp)[-count:]
+        learning_id = f"learning_{len(self.learning)}"
+        self.learning[learning_id] = learning
+        logger.info(f"Created new learning of type {type}")
+        return learning
         
-    def get_recent_decisions(self, count: int = 10) -> List[Decision]:
-        """Get most recent decisions"""
-        return sorted(self.decisions, key=lambda d: d.timestamp)[-count:]
-        
-    def get_cognitive_state(self) -> Dict[str, float]:
-        """Get current cognitive state metrics"""
-        return {
-            "attention": self.attention_level,
-            "creativity": self.creativity_level,
-            "analytical": self.analytical_level,
-            "learning": self.learning_rate
+    def connect_thoughts(self, thought1: str, thought2: str,
+                        connection_type: str, properties: Dict[str, Any] = None) -> bool:
+        """Connect two thoughts with custom properties."""
+        if thought1 not in self.thoughts or thought2 not in self.thoughts:
+            logger.error("One or both thoughts do not exist")
+            return False
+            
+        self.thoughts[thought1].connections[thought2] = {
+            "type": connection_type,
+            "properties": properties or {}
         }
         
-    def process_information(self, information: str, importance: float) -> None:
-        """Process new information and update cognitive state"""
-        # Add as memory
-        self.add_memory(
-            event=information,
-            importance=importance,
-            emotional_impact=0.5,  # Neutral emotional impact
-            context={"source": "observation"},
-            associations=set()
-        )
+        self.thoughts[thought2].connections[thought1] = {
+            "type": connection_type,
+            "properties": properties or {}
+        }
         
-        # Generate thoughts based on information
-        if importance > 0.7:
-            self.add_thought(
-                content=f"Important observation: {information}",
-                thought_type="observation",
-                priority=importance,
-                emotional_tone=0.0
-            )
+        logger.info(f"Connected thoughts {thought1} and {thought2}")
+        return True
+        
+    def associate_memories(self, memory1: str, memory2: str,
+                          association_type: str, properties: Dict[str, Any] = None) -> bool:
+        """Associate two memories with custom properties."""
+        if memory1 not in self.memories or memory2 not in self.memories:
+            logger.error("One or both memories do not exist")
+            return False
             
-    def learn_from_experience(self, experience: str, success: bool) -> None:
-        """Learn from an experience and update learning rate"""
-        # Adjust learning rate based on success
-        if success:
-            self.learning_rate = min(1.0, self.learning_rate + 0.1)
-        else:
-            self.learning_rate = max(0.0, self.learning_rate - 0.05)
+        self.memories[memory1].associations[memory2] = {
+            "type": association_type,
+            "properties": properties or {}
+        }
+        
+        self.memories[memory2].associations[memory1] = {
+            "type": association_type,
+            "properties": properties or {}
+        }
+        
+        logger.info(f"Associated memories {memory1} and {memory2}")
+        return True
+        
+    def apply_learning(self, learning: str, application: str,
+                      properties: Dict[str, Any] = None) -> bool:
+        """Apply learning with custom properties."""
+        if learning not in self.learning:
+            logger.error(f"Learning {learning} does not exist")
+            return False
             
-        # Add as memory with appropriate importance
-        self.add_memory(
-            event=experience,
-            importance=0.8 if success else 0.6,
-            emotional_impact=0.7 if success else -0.3,
-            context={"success": success},
-            associations={"learning", "experience"}
-        )
+        self.learning[learning].applications[application] = {
+            "properties": properties or {},
+            "applied_at": time.time()
+        }
         
-    def generate_thoughts(self, context: Dict[str, float]) -> List[Thought]:
-        """Generate new thoughts based on current state and context"""
-        thoughts = []
+        logger.info(f"Applied learning {learning} to {application}")
+        return True
         
-        # Generate thoughts based on cognitive state
-        if self.current_state == CognitiveState.CREATIVE:
-            thoughts.append(Thought(
-                type=ThoughtType.INVENTIVE,
-                content="Exploring new possibilities...",
-                confidence=0.7,
-                source="",
-                timestamp=datetime.now(),
-                emotional_impact=0.5,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
-        elif self.current_state == CognitiveState.ANALYTICAL:
-            thoughts.append(Thought(
-                type=ThoughtType.OBSERVATION,
-                content="Analyzing current situation...",
-                confidence=0.8,
-                source="",
-                timestamp=datetime.now(),
-                emotional_impact=0.0,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
+    def update_cognition(self, time_delta: float):
+        """Update cognitive state."""
+        # Let the simulation determine how thoughts evolve
+        self._update_thoughts(time_delta)
+        
+        # Update memories based on emergent rules
+        self._update_memories(time_delta)
+        
+        # Update learning based on emergent rules
+        self._update_learning(time_delta)
+        
+        # Check for emergent cognitive events
+        self._check_cognitive_events(time_delta)
+        
+    def _update_thoughts(self, time_delta: float):
+        """Update thoughts based on emergent rules."""
+        for thought in self.thoughts.values():
+            # Let the simulation determine thought evolution
+            pass
             
-        # Add thoughts based on context
-        for key, value in context.items():
-            if value > 0.7:
-                thoughts.append(Thought(
-                    type=ThoughtType.OBSERVATION,
-                    content=f"Noticing significant {key}...",
-                    confidence=value,
-                    source="",
-                    timestamp=datetime.now(),
-                    emotional_impact=0.3,
-                    associated_memories=[],
-                    associated_concepts=set()
-                ))
-                
-        return thoughts
-        
-    def process_experience(self, event: str, context: Dict, agent_state: Dict) -> List[Thought]:
-        """Process a new experience and generate thoughts."""
-        new_thoughts = []
-        
-        # Get agent's current state
-        memories = agent_state.get("memories", [])
-        discovered_concepts = agent_state.get("discovered_concepts", set())
-        emotional_state = agent_state.get("emotions", {}).get("current_emotions", {})
-        
-        # Generate thoughts based on event type
-        if "death" in event.lower():
-            thoughts = self._process_death_event(event, context, emotional_state)
-            new_thoughts.extend(thoughts)
-        elif "birth" in event.lower():
-            thoughts = self._process_birth_event(event, context, emotional_state)
-            new_thoughts.extend(thoughts)
-        elif "discovery" in event.lower():
-            thoughts = self._process_discovery_event(event, context, emotional_state)
-            new_thoughts.extend(thoughts)
-        elif "social" in event.lower():
-            thoughts = self._process_social_event(event, context, emotional_state)
-            new_thoughts.extend(thoughts)
+    def _update_memories(self, time_delta: float):
+        """Update memories based on emergent rules."""
+        for memory in self.memories.values():
+            # Let the simulation determine memory evolution
+            pass
             
-        # Update belief system
-        for thought in new_thoughts:
-            self.belief_system.update_beliefs(thought, agent_state)
+    def _update_learning(self, time_delta: float):
+        """Update learning based on emergent rules."""
+        for learning in self.learning.values():
+            # Let the simulation determine learning evolution
+            pass
             
-        # Update thought history
-        self.thoughts.extend(new_thoughts)
+    def _check_cognitive_events(self, time_delta: float):
+        """Check for emergent cognitive events."""
+        # Let the simulation determine what events occur
+        pass
         
-        # Limit history size
-        if len(self.thoughts) > 1000:
-            self.thoughts = self.thoughts[-1000:]
-            
-        return new_thoughts
+    def update(self, time_delta: float):
+        """Update cognitive system state."""
+        # Update thoughts
+        self._update_thoughts(time_delta)
         
-    def _process_death_event(self, event: str, context: Dict, 
-                           emotional_state: Dict) -> List[Thought]:
-        """Process thoughts about death and mortality."""
-        thoughts = []
+        # Update memories
+        self._update_memories(time_delta)
         
-        # Basic observations
-        thoughts.append(Thought(
-            type=ThoughtType.OBSERVATION,
-            content="Life ends with death",
-            confidence=0.9,
-            source=event,
-            timestamp=datetime.now(),
-            emotional_impact=0.8,
-            associated_memories=[],
-            associated_concepts=set()
-        ))
+        # Update learning
+        self._update_learning(time_delta)
         
-        # Philosophical questions
-        if random.random() < 0.7:  # 70% chance to question
-            thoughts.append(Thought(
-                type=ThoughtType.PHILOSOPHICAL,
-                content="What happens after death?",
-                confidence=0.5,
-                source=event,
-                timestamp=datetime.now(),
-                emotional_impact=0.9,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
-            
-        # Religious thoughts
-        if random.random() < 0.5:  # 50% chance
-            thoughts.append(Thought(
-                type=ThoughtType.RELIGIOUS,
-                content="Perhaps there is something beyond death",
-                confidence=0.4,
-                source=event,
-                timestamp=datetime.now(),
-                emotional_impact=0.7,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
-            
-        return thoughts
-        
-    def _process_birth_event(self, event: str, context: Dict,
-                           emotional_state: Dict) -> List[Thought]:
-        """Process thoughts about birth and new life."""
-        thoughts = []
-        
-        # Basic observations
-        thoughts.append(Thought(
-            type=ThoughtType.OBSERVATION,
-            content="New life begins with birth",
-            confidence=0.9,
-            source=event,
-            timestamp=datetime.now(),
-            emotional_impact=0.7,
-            associated_memories=[],
-            associated_concepts=set()
-        ))
-        
-        # Scientific thoughts
-        if random.random() < 0.6:  # 60% chance
-            thoughts.append(Thought(
-                type=ThoughtType.SCIENTIFIC,
-                content="Life emerges from life",
-                confidence=0.8,
-                source=event,
-                timestamp=datetime.now(),
-                emotional_impact=0.8,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
-            
-        # Cultural thoughts
-        if random.random() < 0.5:  # 50% chance
-            thoughts.append(Thought(
-                type=ThoughtType.CULTURAL,
-                content="Birth is a sacred event",
-                confidence=0.6,
-                source=event,
-                timestamp=datetime.now(),
-                emotional_impact=0.7,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
-            
-        return thoughts
-        
-    def _process_discovery_event(self, event: str, context: Dict,
-                               emotional_state: Dict) -> List[Thought]:
-        """Process thoughts about discoveries and new knowledge."""
-        thoughts = []
-        
-        # Scientific thoughts
-        thoughts.append(Thought(
-            type=ThoughtType.SCIENTIFIC,
-            content=f"Discovered {context.get('discovery', 'something new')}",
-            confidence=0.8,
-            source=event,
-            timestamp=datetime.now(),
-            emotional_impact=0.8,
-            associated_memories=[],
-            associated_concepts=set()
-        ))
-        
-        # Creative thoughts
-        if random.random() < 0.4:  # 40% chance
-            thoughts.append(Thought(
-                type=ThoughtType.INVENTIVE,
-                content="This could be used to create something new",
-                confidence=0.6,
-                source=event,
-                timestamp=datetime.now(),
-                emotional_impact=0.7,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
-            
-        return thoughts
-        
-    def _process_social_event(self, event: str, context: Dict,
-                            emotional_state: Dict) -> List[Thought]:
-        """Process thoughts about social interactions."""
-        thoughts = []
-        
-        # Empathetic thoughts
-        if "sadness" in emotional_state or "joy" in emotional_state:
-            thoughts.append(Thought(
-                type=ThoughtType.EMPATHY,
-                content="I understand how others feel",
-                confidence=0.7,
-                source=event,
-                timestamp=datetime.now(),
-                emotional_impact=0.8,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
-            
-        # Cultural thoughts
-        if random.random() < 0.5:  # 50% chance
-            thoughts.append(Thought(
-                type=ThoughtType.CULTURAL,
-                content="Our way of life is unique",
-                confidence=0.6,
-                source=event,
-                timestamp=datetime.now(),
-                emotional_impact=0.7,
-                associated_memories=[],
-                associated_concepts=set()
-            ))
-            
-        return thoughts
-        
-    def generate_creative_work(self, thought: Thought) -> Optional[Dict]:
-        """Generate a creative work based on a thought."""
-        if thought.type in [ThoughtType.ARTISTIC, ThoughtType.MUSICAL, 
-                          ThoughtType.LITERARY, ThoughtType.INVENTIVE]:
-            work = {
-                "type": thought.type.value,
-                "content": thought.content,
-                "inspiration": thought.source,
-                "emotional_impact": thought.emotional_impact,
-                "cultural_impact": thought.cultural_impact,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            self.creative_works[thought.content] = work
-            return work
-            
-        return None
-        
-    def generate_cultural_contribution(self, thought: Thought) -> Optional[Dict]:
-        """Generate a cultural contribution based on a thought."""
-        if thought.type in [ThoughtType.CULTURAL, ThoughtType.RELIGIOUS, 
-                          ThoughtType.MORAL]:
-            contribution = {
-                "type": thought.type.value,
-                "content": thought.content,
-                "inspiration": thought.source,
-                "cultural_impact": thought.cultural_impact,
-                "social_impact": thought.social_impact,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            self.cultural_contributions[thought.content] = contribution
-            return contribution
-            
-        return None
+        # Check for events
+        self._check_cognitive_events(time_delta)
         
     def to_dict(self) -> Dict:
         """Convert cognitive system state to dictionary for serialization."""
         return {
-            "thoughts": [
-                {
-                    "type": t.type.value,
-                    "content": t.content,
-                    "confidence": t.confidence,
-                    "source": t.source,
-                    "timestamp": t.timestamp.isoformat(),
-                    "associated_memories": t.associated_memories,
-                    "associated_concepts": list(t.associated_concepts),
-                    "emotional_impact": t.emotional_impact,
-                    "philosophical_impact": t.philosophical_impact,
-                    "social_impact": t.social_impact,
-                    "cultural_impact": t.cultural_impact
+            "thoughts": {
+                thought_id: {
+                    "type": thought.type,
+                    "content": thought.content,
+                    "properties": thought.properties,
+                    "connections": thought.connections,
+                    "created_at": thought.created_at,
+                    "last_accessed": thought.last_accessed
                 }
-                for t in self.thoughts
-            ],
-            "belief_system": self.belief_system.get_belief_summary(),
-            "understanding_levels": self.understanding_levels,
-            "creative_works": self.creative_works,
-            "cultural_contributions": self.cultural_contributions
+                for thought_id, thought in self.thoughts.items()
+            },
+            "memories": {
+                memory_id: {
+                    "type": memory.type,
+                    "content": memory.content,
+                    "properties": memory.properties,
+                    "associations": memory.associations,
+                    "created_at": memory.created_at,
+                    "last_accessed": memory.last_accessed
+                }
+                for memory_id, memory in self.memories.items()
+            },
+            "learning": {
+                learning_id: {
+                    "type": learning.type,
+                    "content": learning.content,
+                    "properties": learning.properties,
+                    "applications": learning.applications,
+                    "created_at": learning.created_at,
+                    "last_applied": learning.last_applied
+                }
+                for learning_id, learning in self.learning.items()
+            }
         } 

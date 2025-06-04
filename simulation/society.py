@@ -53,9 +53,22 @@ class Settlement:
     longitude: float
     latitude: float
     population: int
-    resources: Dict[str, float]
-    buildings: List[str]
-    history: List[str]  # List of past interactions
+    culture: str
+    type: str = "village"
+    structures: List[str] = field(default_factory=list)
+    residents: Set[str] = field(default_factory=set)
+    resources: Dict[str, float] = field(default_factory=dict)
+    created_at: float = field(default_factory=time.time)
+    last_update: float = field(default_factory=time.time)
+    
+    def __post_init__(self):
+        """Initialize settlement after creation."""
+        self.resources = {
+            "food": 100.0,
+            "water": 100.0,
+            "wood": 50.0,
+            "stone": 50.0
+        }
 
 @dataclass
 class Relationship:
@@ -148,9 +161,13 @@ class Society:
             longitude=positions[0][0],
             latitude=positions[0][1],
             population=len(agent_ids),
+            culture="tribal",
+            type="camp",
+            structures=["shelter", "fire_pit"],
+            residents=set(agent_ids),
             resources={},
-            buildings=["shelter", "fire_pit"],
-            history=[]
+            created_at=time.time(),
+            last_update=time.time()
         )
         self.settlements[camp_id] = camp
         self.social_groups[group_id].settlements.append(camp_id)
@@ -345,7 +362,7 @@ class Society:
     def _advance_to_village(self, settlement: Settlement):
         """Advance a camp to a village."""
         settlement.type = "village"
-        settlement.buildings.extend([
+        settlement.structures.extend([
             "permanent_houses",
             "storage_buildings",
             "communal_areas"
@@ -354,7 +371,7 @@ class Society:
     def _advance_to_town(self, settlement: Settlement):
         """Advance a village to a town."""
         settlement.type = "town"
-        settlement.buildings.extend([
+        settlement.structures.extend([
             "marketplace",
             "religious_building",
             "defensive_walls",
@@ -364,7 +381,7 @@ class Society:
     def _advance_to_city(self, settlement: Settlement):
         """Advance a town to a city."""
         settlement.type = "city"
-        settlement.buildings.extend([
+        settlement.structures.extend([
             "palace",
             "temple_complex",
             "aqueduct",
@@ -375,7 +392,7 @@ class Society:
     def _advance_to_metropolis(self, settlement: Settlement):
         """Advance a city to a metropolis."""
         settlement.type = "metropolis"
-        settlement.buildings.extend([
+        settlement.structures.extend([
             "university",
             "theater",
             "stadium",
@@ -436,9 +453,13 @@ class Society:
                     "longitude": settlement.longitude,
                     "latitude": settlement.latitude,
                     "population": settlement.population,
+                    "culture": settlement.culture,
+                    "type": settlement.type,
+                    "structures": settlement.structures,
+                    "residents": list(settlement.residents),
                     "resources": settlement.resources,
-                    "buildings": settlement.buildings,
-                    "history": settlement.history
+                    "created_at": settlement.created_at,
+                    "last_update": settlement.last_update
                 }
                 for settlement_id, settlement in self.settlements.items()
             },
@@ -632,467 +653,139 @@ class Society:
         return total_development / len(self.social_groups)
 
 class SocietySystem:
-    def __init__(self):
-        # Social structures
-        self.families = {}  # Family units
-        self.tribes = {}  # Tribal groups
-        self.settlements = {}  # Settlements and cities
-        self.nations = {}  # Nations and states
+    def __init__(self, world):
+        self.world = world
+        self.social_groups = {}
+        self.settlements = {}
+        self.religions = {}
+        self.cultures = {}
+        self.language_development = 0.0
+        self.technology_level = 0.0
+        self.civilization_level = 0.0
+        self.events = []
+        self.trade_routes = {}
+        self.cultural_developments = {}
+        self.languages = {}
+        self.art_forms = {}
+        self.governments = {}
         
-        # Social relationships
-        self.relationships = {}  # Individual relationships
-        self.alliances = {}  # Group alliances
-        self.conflicts = {}  # Active conflicts
+    def initialize_society(self):
+        """Initialize the society system."""
+        logger.info("Initializing society system...")
         
-        # Cultural aspects
-        self.traditions = set()  # Cultural traditions
-        self.beliefs = set()  # Shared beliefs
-        self.values = set()  # Cultural values
-        self.art_forms = set()  # Artistic expressions
+        # Initialize social structures
+        logger.info("Setting up social structures...")
+        self.social_groups = {}
+        logger.info("Social structures initialized")
         
-        # Social institutions
-        self.governments = {}  # Government systems
-        self.economies = {}  # Economic systems
-        self.religions = {}  # Religious systems
-        self.education = {}  # Educational systems
+        # Initialize settlements
+        logger.info("Setting up settlements...")
+        self.settlements = {}
+        logger.info("Settlements initialized")
         
-        # Social metrics
-        self.stability = 0.7  # Overall social stability
-        self.cohesion = 0.6  # Social cohesion
-        self.progress = 0.3  # Social progress
-        self.inequality = 0.4  # Social inequality
+        # Initialize cultural systems
+        logger.info("Setting up cultural systems...")
+        self.religions = {}
+        self.cultures = {}
+        self.languages = {}
+        self.art_forms = {}
+        logger.info("Cultural systems initialized")
         
-        # Historical events
-        self.history = []
+        # Initialize governance
+        logger.info("Setting up governance systems...")
+        self.governments = {}
+        logger.info("Governance systems initialized")
         
-    def update(self, time_delta: float, population: Dict, resources: Dict):
-        """Update society based on time and current state"""
-        # Update social structures
-        self._update_structures(population)
+        # Initialize trade and development
+        logger.info("Setting up trade and development systems...")
+        self.trade_routes = {}
+        self.cultural_developments = {}
+        logger.info("Trade and development systems initialized")
         
-        # Update relationships
-        self._update_relationships(time_delta)
+        # Initialize tracking variables
+        logger.info("Initializing tracking variables...")
+        self.language_development = 0.0
+        self.technology_level = 0.0
+        self.civilization_level = 0.0
+        self.events = []
+        logger.info("Tracking variables initialized")
         
-        # Update cultural aspects
-        self._update_culture(time_delta)
+        logger.info("Society system initialization complete")
         
-        # Update institutions
-        self._update_institutions(time_delta, resources)
+    def verify_initialization(self) -> bool:
+        """Verify that all required components are initialized."""
+        logger.info("Verifying society system initialization...")
         
-        # Update social metrics
-        self._update_metrics()
+        # Check social structures
+        if not self.social_groups:
+            logger.warning("No social groups initialized")
+            return False
+            
+        # Check settlements
+        if not self.settlements:
+            logger.warning("No settlements initialized")
+            return False
+            
+        # Check cultural systems
+        if not self.religions or not self.cultures or not self.languages:
+            logger.warning("Cultural systems not fully initialized")
+            return False
+            
+        # Check governance
+        if not self.governments:
+            logger.warning("Governance systems not initialized")
+            return False
+            
+        # Check trade and development
+        if not self.trade_routes or not self.cultural_developments:
+            logger.warning("Trade and development systems not initialized")
+            return False
+            
+        logger.info("Society system initialization verified successfully")
+        return True
         
-        # Record significant events
-        self._record_events()
-    
-    def _update_structures(self, population: Dict):
-        """Update social structures based on population"""
-        # Update families
-        self._update_families(population)
+    def update(self, time_delta: float):
+        """Update society system state."""
+        # Update cultural evolution
+        self._update_cultures(time_delta)
         
-        # Update tribes
-        self._update_tribes(population)
-        
-        # Update settlements
-        self._update_settlements(population)
-        
-        # Update nations
-        self._update_nations(population)
-    
-    def _update_families(self, population: Dict):
-        """Update family structures"""
-        # Create new families
-        for agent_id, agent in population.items():
-            if agent.get("age", 0) >= 15 and agent.get("family_id") is None:
-                self._create_family(agent_id)
-        
-        # Update existing families
-        for family_id, family in self.families.items():
-            self._update_family(family_id, family)
-    
-    def _create_family(self, agent_id: str):
-        """Create a new family unit"""
-        family_id = f"family_{len(self.families)}"
-        self.families[family_id] = {
-            "members": [agent_id],
-            "created": datetime.now().isoformat(),
-            "status": "active",
-            "wealth": 0.0,
-            "influence": 0.0
-        }
-    
-    def _update_family(self, family_id: str, family: Dict):
-        """Update a family unit"""
-        # Update family status
-        if len(family["members"]) == 0:
-            family["status"] = "dissolved"
-        elif len(family["members"]) >= 5:
-            family["status"] = "prosperous"
-        
-        # Update family wealth and influence
-        family["wealth"] = max(0.0, family["wealth"] + random.uniform(-0.1, 0.1))
-        family["influence"] = max(0.0, family["influence"] + random.uniform(-0.05, 0.05))
-    
-    def _update_tribes(self, population: Dict):
-        """Update tribal structures"""
-        # Create new tribes
-        if len(self.tribes) < len(population) / 50:  # One tribe per 50 people
-            self._create_tribe()
-        
-        # Update existing tribes
-        for tribe_id, tribe in self.tribes.items():
-            self._update_tribe(tribe_id, tribe)
-    
-    def _create_tribe(self):
-        """Create a new tribe"""
-        tribe_id = f"tribe_{len(self.tribes)}"
-        self.tribes[tribe_id] = {
-            "members": [],
-            "created": datetime.now().isoformat(),
-            "status": "active",
-            "territory": [],
-            "resources": {},
-            "culture": set(),
-            "leadership": None
-        }
-    
-    def _update_tribe(self, tribe_id: str, tribe: Dict):
-        """Update a tribe"""
-        # Update tribe status
-        if len(tribe["members"]) == 0:
-            tribe["status"] = "dissolved"
-        elif len(tribe["members"]) >= 100:
-            tribe["status"] = "prosperous"
-        
-        # Update tribe resources
-        for resource, amount in tribe["resources"].items():
-            tribe["resources"][resource] = max(0.0, amount + random.uniform(-0.1, 0.1))
-    
-    def _update_settlements(self, population: Dict):
-        """Update settlement structures"""
-        # Create new settlements
-        if len(self.settlements) < len(population) / 1000:  # One settlement per 1000 people
-            self._create_settlement()
-        
-        # Update existing settlements
-        for settlement_id, settlement in self.settlements.items():
-            self._update_settlement(settlement_id, settlement)
-    
-    def _create_settlement(self):
-        """Create a new settlement"""
-        settlement_id = f"settlement_{len(self.settlements)}"
-        self.settlements[settlement_id] = {
-            "population": [],
-            "created": datetime.now().isoformat(),
-            "status": "active",
-            "location": (random.uniform(-100, 100), random.uniform(-100, 100)),
-            "infrastructure": {},
-            "economy": {},
-            "culture": set(),
-            "government": None
-        }
-    
-    def _update_settlement(self, settlement_id: str, settlement: Dict):
-        """Update a settlement"""
-        # Update settlement status
-        if len(settlement["population"]) == 0:
-            settlement["status"] = "abandoned"
-        elif len(settlement["population"]) >= 5000:
-            settlement["status"] = "city"
-        
-        # Update infrastructure
-        for structure, level in settlement["infrastructure"].items():
-            settlement["infrastructure"][structure] = max(0.0, level + random.uniform(-0.05, 0.05))
-        
-        # Update economy
-        for sector, value in settlement["economy"].items():
-            settlement["economy"][sector] = max(0.0, value + random.uniform(-0.1, 0.1))
-    
-    def _update_nations(self, population: Dict):
-        """Update nation structures"""
-        # Create new nations
-        if len(self.nations) < len(population) / 10000:  # One nation per 10000 people
-            self._create_nation()
-        
-        # Update existing nations
-        for nation_id, nation in self.nations.items():
-            self._update_nation(nation_id, nation)
-    
-    def _create_nation(self):
-        """Create a new nation"""
-        nation_id = f"nation_{len(self.nations)}"
-        self.nations[nation_id] = {
-            "territory": [],
-            "created": datetime.now().isoformat(),
-            "status": "active",
-            "population": [],
-            "resources": {},
-            "government": None,
-            "economy": {},
-            "military": {},
-            "diplomacy": {}
-        }
-    
-    def _update_nation(self, nation_id: str, nation: Dict):
-        """Update a nation"""
-        # Update nation status
-        if len(nation["population"]) == 0:
-            nation["status"] = "dissolved"
-        elif len(nation["population"]) >= 100000:
-            nation["status"] = "empire"
-        
-        # Update resources
-        for resource, amount in nation["resources"].items():
-            nation["resources"][resource] = max(0.0, amount + random.uniform(-0.1, 0.1))
-        
-        # Update military
-        for unit, strength in nation["military"].items():
-            nation["military"][unit] = max(0.0, strength + random.uniform(-0.05, 0.05))
-    
-    def _update_relationships(self, time_delta: float):
-        """Update social relationships"""
-        # Update individual relationships
-        for rel_id, relationship in self.relationships.items():
-            self._update_relationship(rel_id, relationship, time_delta)
-        
-        # Update group alliances
-        for alliance_id, alliance in self.alliances.items():
-            self._update_alliance(alliance_id, alliance, time_delta)
-        
-        # Update conflicts
-        for conflict_id, conflict in self.conflicts.items():
-            self._update_conflict(conflict_id, conflict, time_delta)
-    
-    def _update_relationship(self, rel_id: str, relationship: Dict, time_delta: float):
-        """Update an individual relationship"""
-        # Update relationship strength
-        relationship["strength"] = max(0.0, min(1.0, 
-            relationship["strength"] + random.uniform(-0.1, 0.1) * time_delta))
-        
-        # Update relationship type
-        if relationship["strength"] > 0.8:
-            relationship["type"] = "close"
-        elif relationship["strength"] < 0.2:
-            relationship["type"] = "distant"
-    
-    def _update_alliance(self, alliance_id: str, alliance: Dict, time_delta: float):
-        """Update a group alliance"""
-        # Update alliance strength
-        alliance["strength"] = max(0.0, min(1.0,
-            alliance["strength"] + random.uniform(-0.05, 0.05) * time_delta))
-        
-        # Update alliance status
-        if alliance["strength"] < 0.3:
-            alliance["status"] = "weak"
-        elif alliance["strength"] > 0.7:
-            alliance["status"] = "strong"
-    
-    def _update_conflict(self, conflict_id: str, conflict: Dict, time_delta: float):
-        """Update a conflict"""
-        # Update conflict intensity
-        conflict["intensity"] = max(0.0, min(1.0,
-            conflict["intensity"] + random.uniform(-0.1, 0.1) * time_delta))
-        
-        # Check for conflict resolution
-        if conflict["intensity"] < 0.1:
-            conflict["status"] = "resolved"
-    
-    def _update_culture(self, time_delta: float):
-        """Update cultural aspects"""
-        # Update traditions
-        self._update_traditions(time_delta)
-        
-        # Update beliefs
-        self._update_beliefs(time_delta)
-        
-        # Update values
-        self._update_values(time_delta)
-        
-        # Update art forms
-        self._update_art_forms(time_delta)
-    
-    def _update_traditions(self, time_delta: float):
-        """Update cultural traditions"""
-        # Traditions can evolve or be forgotten
-        if random.random() < 0.01 * time_delta:
-            if random.random() < 0.5:
-                self.traditions.add(f"tradition_{len(self.traditions)}")
-            else:
-                if self.traditions:
-                    self.traditions.pop()
-    
-    def _update_beliefs(self, time_delta: float):
-        """Update shared beliefs"""
-        # Beliefs can spread or fade
-        if random.random() < 0.01 * time_delta:
-            if random.random() < 0.5:
-                self.beliefs.add(f"belief_{len(self.beliefs)}")
-            else:
-                if self.beliefs:
-                    self.beliefs.pop()
-    
-    def _update_values(self, time_delta: float):
-        """Update cultural values"""
-        # Values can strengthen or weaken
-        if random.random() < 0.01 * time_delta:
-            if random.random() < 0.5:
-                self.values.add(f"value_{len(self.values)}")
-            else:
-                if self.values:
-                    self.values.pop()
-    
-    def _update_art_forms(self, time_delta: float):
-        """Update artistic expressions"""
-        # Art forms can develop or decline
-        if random.random() < 0.01 * time_delta:
-            if random.random() < 0.5:
-                self.art_forms.add(f"art_{len(self.art_forms)}")
-            else:
-                if self.art_forms:
-                    self.art_forms.pop()
-    
-    def _update_institutions(self, time_delta: float, resources: Dict):
-        """Update social institutions"""
-        # Update governments
-        self._update_governments(time_delta, resources)
-        
-        # Update economies
-        self._update_economies(time_delta, resources)
-        
-        # Update religions
+        # Update religious development
         self._update_religions(time_delta)
         
-        # Update education
-        self._update_education(time_delta, resources)
-    
-    def _update_governments(self, time_delta: float, resources: Dict):
-        """Update government systems"""
-        for gov_id, government in self.governments.items():
-            # Update government stability
-            government["stability"] = max(0.0, min(1.0,
-                government["stability"] + random.uniform(-0.05, 0.05) * time_delta))
-            
-            # Update government effectiveness
-            government["effectiveness"] = max(0.0, min(1.0,
-                government["effectiveness"] + random.uniform(-0.05, 0.05) * time_delta))
-    
-    def _update_economies(self, time_delta: float, resources: Dict):
-        """Update economic systems"""
-        for econ_id, economy in self.economies.items():
-            # Update economic growth
-            economy["growth"] = max(-0.1, min(0.1,
-                economy["growth"] + random.uniform(-0.01, 0.01) * time_delta))
-            
-            # Update economic stability
-            economy["stability"] = max(0.0, min(1.0,
-                economy["stability"] + random.uniform(-0.05, 0.05) * time_delta))
+        # Update government systems
+        self._update_governments(time_delta)
+        
+        # Update social dynamics
+        self._update_social_classes(time_delta)
+        
+    def _update_cultures(self, time_delta: float):
+        """Update cultural evolution."""
+        # Implement cultural evolution logic
+        pass
     
     def _update_religions(self, time_delta: float):
-        """Update religious systems"""
-        for rel_id, religion in self.religions.items():
-            # Update religious influence
-            religion["influence"] = max(0.0, min(1.0,
-                religion["influence"] + random.uniform(-0.05, 0.05) * time_delta))
-            
-            # Update religious unity
-            religion["unity"] = max(0.0, min(1.0,
-                religion["unity"] + random.uniform(-0.05, 0.05) * time_delta))
-    
-    def _update_education(self, time_delta: float, resources: Dict):
-        """Update educational systems"""
-        for edu_id, education in self.education.items():
-            # Update educational quality
-            education["quality"] = max(0.0, min(1.0,
-                education["quality"] + random.uniform(-0.05, 0.05) * time_delta))
-            
-            # Update educational access
-            education["access"] = max(0.0, min(1.0,
-                education["access"] + random.uniform(-0.05, 0.05) * time_delta))
-    
-    def _update_metrics(self):
-        """Update social metrics"""
-        # Update stability
-        self.stability = max(0.0, min(1.0,
-            self.stability + random.uniform(-0.05, 0.05)))
+        """Update religious development."""
+        # Implement religious development logic
+        pass
         
-        # Update cohesion
-        self.cohesion = max(0.0, min(1.0,
-            self.cohesion + random.uniform(-0.05, 0.05)))
+    def _update_governments(self, time_delta: float):
+        """Update government systems."""
+        # Implement government system updates
+        pass
         
-        # Update progress
-        self.progress = max(0.0, min(1.0,
-            self.progress + random.uniform(-0.05, 0.05)))
+    def _update_social_classes(self, time_delta: float):
+        """Update social class dynamics."""
+        # Implement social class dynamics
+        pass
         
-        # Update inequality
-        self.inequality = max(0.0, min(1.0,
-            self.inequality + random.uniform(-0.05, 0.05)))
-    
-    def _record_events(self):
-        """Record significant social events"""
-        # Record major changes in social structures
-        if random.random() < 0.1:
-            self.history.append({
-                "type": "social_change",
-                "timestamp": datetime.now().isoformat(),
-                "description": f"Significant social change occurred",
-                "impact": random.uniform(0.1, 0.5)
-            })
-    
-    def get_social_state(self) -> Dict:
-        """Get current state of society"""
+    def get_society_state(self) -> Dict:
+        """Get current society system state."""
         return {
-            "structures": {
-                "families": len(self.families),
-                "tribes": len(self.tribes),
-                "settlements": len(self.settlements),
-                "nations": len(self.nations)
-            },
-            "relationships": {
-                "individual": len(self.relationships),
-                "alliances": len(self.alliances),
-                "conflicts": len(self.conflicts)
-            },
-            "culture": {
-                "traditions": len(self.traditions),
-                "beliefs": len(self.beliefs),
-                "values": len(self.values),
-                "art_forms": len(self.art_forms)
-            },
-            "institutions": {
-                "governments": len(self.governments),
-                "economies": len(self.economies),
-                "religions": len(self.religions),
-                "education": len(self.education)
-            },
-            "metrics": {
-                "stability": self.stability,
-                "cohesion": self.cohesion,
-                "progress": self.progress,
-                "inequality": self.inequality
-            }
-        }
-    
-    def to_dict(self) -> Dict:
-        """Convert society system to dictionary"""
-        return {
-            "families": self.families,
-            "tribes": self.tribes,
-            "settlements": self.settlements,
-            "nations": self.nations,
-            "relationships": self.relationships,
-            "alliances": self.alliances,
-            "conflicts": self.conflicts,
-            "traditions": list(self.traditions),
-            "beliefs": list(self.beliefs),
-            "values": list(self.values),
-            "art_forms": list(self.art_forms),
-            "governments": self.governments,
-            "economies": self.economies,
+            "cultures": self.cultures,
             "religions": self.religions,
-            "education": self.education,
-            "stability": self.stability,
-            "cohesion": self.cohesion,
-            "progress": self.progress,
-            "inequality": self.inequality,
-            "history": self.history
+            "governments": self.governments,
+            "social_classes": self.social_classes,
+            "traditions": self.traditions,
+            "languages": self.languages,
+            "art_forms": self.art_forms
         } 

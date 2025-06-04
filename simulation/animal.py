@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from enum import Enum
 import random
 import time
@@ -73,100 +73,214 @@ class Animal:
     last_action: str = "idle"
 
 class AnimalSystem:
-    def __init__(self, world_size: int = 1000):
-        self.world_size = world_size
+    def __init__(self, world):
+        """Initialize the animal system with a reference to the world."""
+        self.world = world
         self.animals: Dict[str, Animal] = {}
         self.animal_types = self._initialize_animal_types()
-        self.initialize_animals()
+        self.social_groups = {}
+        self.territories = {}
+        
+    def _initialize_animal_types(self):
+        """Initialize the types of animals and their attributes."""
+        return {
+            AnimalType.HORSE: {
+                "type": AnimalType.HORSE,
+                "size": 2.0,
+                "speed": 1.5,
+                "strength": 1.2,
+                "intelligence": 0.8,
+                "temperament": AnimalTemperament.DOCILE,
+                "diet": ["grass", "hay", "grain"],
+                "lifespan": 25.0,
+                "maturity_age": 3.0,
+                "social": True,
+                "territory_size": 1.0
+            },
+            AnimalType.WOLF: {
+                "type": AnimalType.WOLF,
+                "size": 1.5,
+                "speed": 1.8,
+                "strength": 1.5,
+                "intelligence": 1.2,
+                "temperament": AnimalTemperament.AGGRESSIVE,
+                "diet": ["meat"],
+                "lifespan": 12.0,
+                "maturity_age": 2.0,
+                "social": True,
+                "territory_size": 2.0
+            },
+            AnimalType.DEER: {
+                "type": AnimalType.DEER,
+                "size": 1.8,
+                "speed": 1.6,
+                "strength": 1.0,
+                "intelligence": 0.7,
+                "temperament": AnimalTemperament.NEUTRAL,
+                "diet": ["grass", "leaves", "bark"],
+                "lifespan": 15.0,
+                "maturity_age": 2.0,
+                "social": True,
+                "territory_size": 1.5
+            },
+            AnimalType.BEAR: {
+                "type": AnimalType.BEAR,
+                "size": 2.5,
+                "speed": 1.2,
+                "strength": 2.0,
+                "intelligence": 1.0,
+                "temperament": AnimalTemperament.AGGRESSIVE,
+                "diet": ["meat", "fish", "berries", "honey"],
+                "lifespan": 20.0,
+                "maturity_age": 4.0,
+                "social": False,
+                "territory_size": 3.0
+            },
+            AnimalType.RABBIT: {
+                "type": AnimalType.RABBIT,
+                "size": 0.5,
+                "speed": 1.4,
+                "strength": 0.3,
+                "intelligence": 0.6,
+                "temperament": AnimalTemperament.NEUTRAL,
+                "diet": ["grass", "vegetables"],
+                "lifespan": 8.0,
+                "maturity_age": 0.5,
+                "social": True,
+                "territory_size": 0.5
+            },
+            AnimalType.SHEEP: {
+                "type": AnimalType.SHEEP,
+                "size": 1.2,
+                "speed": 1.0,
+                "strength": 0.8,
+                "intelligence": 0.5,
+                "temperament": AnimalTemperament.DOCILE,
+                "diet": ["grass", "hay"],
+                "lifespan": 12.0,
+                "maturity_age": 1.0,
+                "social": True,
+                "territory_size": 0.8
+            },
+            AnimalType.COW: {
+                "type": AnimalType.COW,
+                "size": 2.2,
+                "speed": 0.8,
+                "strength": 1.5,
+                "intelligence": 0.6,
+                "temperament": AnimalTemperament.DOCILE,
+                "diet": ["grass", "hay", "grain"],
+                "lifespan": 20.0,
+                "maturity_age": 2.0,
+                "social": True,
+                "territory_size": 1.0
+            },
+            AnimalType.GOAT: {
+                "type": AnimalType.GOAT,
+                "size": 1.0,
+                "speed": 1.2,
+                "strength": 0.9,
+                "intelligence": 0.7,
+                "temperament": AnimalTemperament.NEUTRAL,
+                "diet": ["grass", "leaves", "bark"],
+                "lifespan": 15.0,
+                "maturity_age": 1.5,
+                "social": True,
+                "territory_size": 0.8
+            }
+        }
         
     def initialize_animals(self):
-        """Initialize the animal system."""
+        """Initialize the animal system with initial populations."""
         logger.info("Initializing animal system...")
         
-        # Initialize animal distribution across the world
-        for lon in range(-180, 181, 5):  # Every 5 degrees
-            for lat in range(-90, 91, 5):
-                terrain = self.world.terrain.get_terrain_at(lon, lat)
-                if not terrain['is_water']:
-                    self._spawn_animals(lon, lat, terrain['type'])
-                    
-        # Initialize social groups
-        self._initialize_social_groups()
+        # Get all regions
+        regions = self.world.get_regions()
         
-        # Initialize territories
+        # Spawn animals in each region based on terrain type
+        for region in regions:
+            terrain_type = region.get("terrain_type", "grassland")
+            position = region["center"]
+            
+            # Spawn animals based on terrain type
+            if terrain_type == "forest":
+                self._spawn_animals(position, "forest")
+            elif terrain_type == "grassland":
+                self._spawn_animals(position, "grassland")
+            elif terrain_type == "desert":
+                self._spawn_animals(position, "desert")
+            elif terrain_type == "tundra":
+                self._spawn_animals(position, "tundra")
+            elif terrain_type == "swamp":
+                self._spawn_animals(position, "swamp")
+        
+        # Initialize social groups and territories
+        self._initialize_social_groups()
         self._initialize_territories()
         
-        logger.info("Animal system initialization complete")
+        logger.info(f"Initialized {len(self.animals)} animals")
         
-    def _spawn_animals(self, lon: float, lat: float, terrain_type: str):
-        """Spawn animals at a location based on terrain type."""
-        # Determine which animals can live in this terrain
-        suitable_animals = []
-        for animal_type, data in self.animal_types.items():
-            if self._is_suitable_habitat(animal_type, terrain_type):
-                suitable_animals.append(animal_type)
+    def _spawn_animals(self, position: Tuple[float, float], terrain_type: str):
+        """Spawn animals in a given location based on terrain type."""
+        # Define animal types for each terrain
+        terrain_animals = {
+            "forest": [
+                (AnimalType.DEER, 5),  # (type, count)
+                (AnimalType.WOLF, 3),
+                (AnimalType.BEAR, 2),
+                (AnimalType.RABBIT, 8)
+            ],
+            "grassland": [
+                (AnimalType.HORSE, 4),
+                (AnimalType.SHEEP, 6),
+                (AnimalType.COW, 3),
+                (AnimalType.GOAT, 5)
+            ],
+            "desert": [
+                (AnimalType.GOAT, 4),
+                (AnimalType.COW, 2)
+            ],
+            "tundra": [
+                (AnimalType.DEER, 3),
+                (AnimalType.WOLF, 2)
+            ],
+            "swamp": [
+                (AnimalType.DEER, 2),
+                (AnimalType.RABBIT, 4)
+            ]
+        }
+        
+        # Spawn animals for this terrain type
+        for animal_type, count in terrain_animals.get(terrain_type, []):
+            for _ in range(count):
+                # Calculate random offset from center position
+                offset_lon = random.uniform(-0.1, 0.1)
+                offset_lat = random.uniform(-0.1, 0.1)
+                spawn_pos = (position[0] + offset_lon, position[1] + offset_lat)
                 
-        # Spawn animals for each suitable type
-        for animal_type in suitable_animals:
-            # Determine group size based on terrain and animal type
-            group_size = self._calculate_group_size(animal_type, terrain_type)
-            
-            for _ in range(group_size):
-                animal_id = f"{animal_type.value}_{lon}_{lat}_{random.randint(0, 1000)}"
-                self.animals[animal_id] = Animal(
-                    id=animal_id,
+                # Create the animal
+                animal = Animal(
+                    id=f"{animal_type.value}_{len(self.animals)}",
                     type=animal_type,
                     name=f"{animal_type.value.capitalize()} {len(self.animals)}",
-                    position=(lon + random.uniform(-0.1, 0.1), lat + random.uniform(-0.1, 0.1)),
-                    health=1.0,
-                    age=random.uniform(0, self.animal_types[animal_type]['lifespan']),
-                    size=random.uniform(0.5, self.animal_types[animal_type]['size']),
-                    temperament=random.choice([data['temperament'] for data in self.animal_types.values() if data['type'] == animal_type]),
-                    diet=data['diet'].copy(),
+                    position=spawn_pos,
+                    age=random.uniform(0.1, 5.0),
+                    health=random.uniform(0.8, 1.0),
+                    domesticated=False,
+                    temperament=self.animal_types[animal_type]["temperament"],
+                    needs=AnimalNeeds(),
                     state=AnimalState(
-                        lifespan=data['lifespan'],
-                        maturity_age=data['maturity_age']
-                    )
+                        lifespan=self.animal_types[animal_type]["lifespan"],
+                        maturity_age=self.animal_types[animal_type]["maturity_age"]
+                    ),
+                    size=self.animal_types[animal_type]["size"],
+                    speed=self.animal_types[animal_type]["speed"],
+                    strength=self.animal_types[animal_type]["strength"],
+                    intelligence=self.animal_types[animal_type]["intelligence"],
+                    diet=self.animal_types[animal_type]["diet"]
                 )
                 
-    def _is_suitable_habitat(self, animal_type: AnimalType, terrain_type: str) -> bool:
-        """Check if a terrain type is suitable for an animal type."""
-        habitat_preferences = {
-            AnimalType.HORSE: ['grassland', 'forest'],
-            AnimalType.WOLF: ['forest', 'tundra'],
-            AnimalType.DEER: ['forest', 'grassland'],
-            AnimalType.BEAR: ['forest', 'mountain'],
-            AnimalType.RABBIT: ['grassland', 'forest'],
-            AnimalType.SHEEP: ['grassland', 'mountain'],
-            AnimalType.COW: ['grassland'],
-            AnimalType.GOAT: ['mountain', 'grassland']
-        }
-        return terrain_type in habitat_preferences.get(animal_type, [])
-        
-    def _calculate_group_size(self, animal_type: AnimalType, terrain_type: str) -> int:
-        """Calculate appropriate group size for an animal type in a terrain."""
-        base_sizes = {
-            AnimalType.HORSE: (3, 10),
-            AnimalType.WOLF: (2, 8),
-            AnimalType.DEER: (5, 15),
-            AnimalType.BEAR: (1, 3),
-            AnimalType.RABBIT: (2, 8),
-            AnimalType.SHEEP: (5, 20),
-            AnimalType.COW: (3, 12),
-            AnimalType.GOAT: (2, 10)
-        }
-        
-        min_size, max_size = base_sizes.get(animal_type, (1, 5))
-        
-        # Adjust for terrain type
-        if terrain_type == 'forest':
-            max_size = int(max_size * 1.2)
-        elif terrain_type == 'grassland':
-            max_size = int(max_size * 1.5)
-        elif terrain_type == 'mountain':
-            max_size = int(max_size * 0.8)
-            
-        return random.randint(min_size, max_size)
+                self.animals[animal.id] = animal
         
     def _initialize_social_groups(self):
         """Initialize social groups for animals."""
@@ -197,9 +311,15 @@ class AnimalSystem:
                     nearby.append(other)
         return nearby
         
-    def _calculate_distance(self, a1: Animal, a2: Animal) -> float:
-        """Calculate distance between two animals."""
-        return ((a2.position[0] - a1.position[0]) ** 2 + (a2.position[1] - a1.position[1]) ** 2) ** 0.5
+    def _calculate_distance(self, pos1: Union[Animal, Tuple[float, float]], pos2: Union[Animal, Tuple[float, float]]) -> float:
+        """Calculate distance between two positions or animals."""
+        # Extract positions if Animal objects are passed
+        if isinstance(pos1, Animal):
+            pos1 = pos1.position
+        if isinstance(pos2, Animal):
+            pos2 = pos2.position
+            
+        return ((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2) ** 0.5
         
     def _initialize_territories(self):
         """Initialize territories for territorial animals."""
@@ -250,7 +370,7 @@ class AnimalSystem:
         # Check each species
         for animal_type, traits in self.animal_types.items():
             current_count = population_counts.get(animal_type, 0)
-            min_population = int(self.world_size * 0.01)  # 1% of world size
+            min_population = int(self.world.world_size * 0.01)  # 1% of world size
             
             # If population is too low, spawn new animals
             if current_count < min_population:
@@ -383,8 +503,8 @@ class AnimalSystem:
         # Generate random position if none provided
         if position is None:
             position = (
-                random.uniform(0, self.world_size),
-                random.uniform(0, self.world_size)
+                random.uniform(0, self.world.world_size),
+                random.uniform(0, self.world.world_size)
             )
             
         animal = Animal(
@@ -414,10 +534,6 @@ class AnimalSystem:
             animal for animal in self.animals.values()
             if self._calculate_distance(position, animal.position) <= radius
         ]
-        
-    def _calculate_distance(self, pos1: Tuple[float, float], pos2: Tuple[float, float]) -> float:
-        """Calculate distance between two positions"""
-        return ((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2) ** 0.5
         
     def _update_needs(self, animal: Animal, current_time: float, world_state: Dict) -> None:
         """Update animal needs over time"""

@@ -59,7 +59,7 @@ function setupEventListeners() {
 function startSimulation() {
     if (!simulationRunning) {
         simulationRunning = true;
-        fetch('/api/world/state')
+        fetch('/api/world')
             .then(response => response.json())
             .then(data => {
                 updateWorldState(data);
@@ -94,7 +94,7 @@ function updateTimeScale(scale) {
 // Main update loop
 function updateLoop() {
     if (simulationRunning) {
-        fetch('/api/world/state')
+        fetch('/api/world')
             .then(response => response.json())
             .then(data => {
                 updateWorldState(data);
@@ -275,4 +275,9 @@ function handleMapMouseUp(e) {
 
 function handleMapZoom(e) {
     // Handle map zooming
-} 
+}
+
+// Socket event handlers
+socket.on('simulation_state', (data) => {
+    updateWorldState(data);
+}); 

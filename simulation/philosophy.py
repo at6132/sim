@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional, Tuple
+from typing import Dict, List, Set, Optional, Tuple, Any
 from enum import Enum
 import random
 from datetime import datetime
@@ -81,30 +81,16 @@ class Philosophy:
     openness: float = 0.5  # How open to new ideas
     
     def __init__(self):
-        """Initialize philosophy with basic state."""
-        self.purpose = "survive"
-        self.values = ["survival", "knowledge", "growth"]
-        self.beliefs = {
-            "existence": 0.5,
-            "purpose": 0.5,
-            "morality": 0.5
-        }
-        self.concepts = set()
-        self.theories = {}
-        self.questions = []
-        self.worldview = "neutral"
-        self.morality = {
-            "good": 0.5,
-            "evil": 0.5,
-            "right": 0.5,
-            "wrong": 0.5
-        }
-        self.ethics = {
-            "honesty": 0.5,
-            "fairness": 0.5,
-            "compassion": 0.5,
-            "justice": 0.5
-        }
+        """Initialize a new philosophy."""
+        self.beliefs = {}  # Dictionary of beliefs and their strengths
+        self.values = {}   # Dictionary of values and their priorities
+        self.principles = []  # List of guiding principles
+        self.influences = {}  # Dictionary of influences and their impacts
+        self.questions = []  # List of philosophical questions being considered
+        self.theories = {}  # Dictionary of theories and their confidence levels
+        self.paradigms = []  # List of current philosophical paradigms
+        self.contradictions = []  # List of identified contradictions
+        self.evolution = []  # History of philosophical evolution
         
     def update(self, time_delta: float, experiences: List[Dict]):
         """Update philosophy based on experiences and time"""
@@ -231,35 +217,17 @@ class Philosophy:
         }
     
     def to_dict(self) -> Dict:
-        """Convert philosophy to dictionary"""
+        """Convert philosophy to dictionary for serialization."""
         return {
-            "purpose": self.purpose,
-            "values": self.values,
-            "beliefs": self.beliefs,
-            "concepts": list(self.concepts),
-            "theories": self.theories,
-            "questions": self.questions,
-            "worldview": self.worldview,
-            "morality": self.morality,
-            "ethics": self.ethics,
-            "spirituality": self.spirituality,
-            "individualism": self.individualism,
-            "tradition": self.tradition,
-            "authority": self.authority,
-            "nature_relationship": self.nature_relationship,
-            "technology_attitude": self.technology_attitude,
-            "change_attitude": self.change_attitude,
-            "knowledge_attitude": self.knowledge_attitude,
-            "free_will": self.free_will,
-            "meaning_of_life": self.meaning_of_life,
-            "human_nature": self.human_nature,
-            "truth_attitude": self.truth_attitude,
-            "complexity": self.complexity,
-            "consistency": self.consistency,
-            "openness": self.openness,
-            "influences": self.influences,
-            "original_thoughts": self.original_thoughts,
-            "contradictions": self.contradictions
+            'beliefs': self.beliefs,
+            'values': self.values,
+            'principles': self.principles,
+            'influences': self.influences,
+            'questions': self.questions,
+            'theories': self.theories,
+            'paradigms': self.paradigms,
+            'contradictions': self.contradictions,
+            'evolution': self.evolution
         }
         
     def update_from_dict(self, data: Dict):
@@ -354,4 +322,201 @@ class Philosophy:
             
             return new_understanding
             
-        return None 
+        return None
+
+@dataclass
+class PhilosophicalConcept:
+    type: str  # Emergent concept type
+    name: str
+    description: str
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent concepts
+    implications: Dict[str, Any] = field(default_factory=dict)  # Concept implications
+    influences: Dict[str, Any] = field(default_factory=dict)  # Concept influences
+    created_at: float = field(default_factory=time.time)
+    last_update: float = field(default_factory=time.time)
+
+@dataclass
+class PhilosophicalSystem:
+    type: str  # Emergent system type
+    name: str
+    description: str
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent systems
+    concepts: Dict[str, Any] = field(default_factory=dict)  # System concepts
+    interactions: Dict[str, Any] = field(default_factory=dict)  # System interactions
+    created_at: float = field(default_factory=time.time)
+    last_update: float = field(default_factory=time.time)
+
+@dataclass
+class PhilosophicalEvolution:
+    type: str  # Emergent evolution type
+    description: str
+    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent evolution
+    conditions: Dict[str, Any] = field(default_factory=dict)  # Evolution conditions
+    effects: Dict[str, Any] = field(default_factory=dict)  # Evolution effects
+    created_at: float = field(default_factory=time.time)
+
+class PhilosophicalSystem:
+    def __init__(self, world):
+        """Initialize the philosophical system."""
+        self.world = world
+        self.concepts: Dict[str, PhilosophicalConcept] = {}
+        self.systems: Dict[str, PhilosophicalSystem] = {}
+        self.evolutions: Dict[str, PhilosophicalEvolution] = {}
+        self.initialize_system()
+        
+    def initialize_system(self):
+        """Initialize the philosophical system with minimal structure."""
+        logger.info("Initializing philosophical system...")
+        
+        # Create a basic philosophical concept - but don't prescribe its type
+        self.concepts["initial_concept"] = PhilosophicalConcept(
+            type="emergent",  # Let the simulation determine the type
+            name="Initial Concept",
+            description="Primary philosophical concept"
+        )
+        
+        logger.info("Philosophical system initialization complete")
+        
+    def create_concept(self, type: str, name: str, description: str,
+                      properties: Dict[str, Any] = None) -> PhilosophicalConcept:
+        """Create new philosophical concept with custom properties."""
+        concept = PhilosophicalConcept(
+            type=type,
+            name=name,
+            description=description,
+            properties=properties or {}
+        )
+        
+        concept_id = f"concept_{len(self.concepts)}"
+        self.concepts[concept_id] = concept
+        logger.info(f"Created new philosophical concept: {name} of type {type}")
+        return concept
+        
+    def create_system(self, type: str, name: str, description: str,
+                     properties: Dict[str, Any] = None) -> PhilosophicalSystem:
+        """Create new philosophical system with custom properties."""
+        system = PhilosophicalSystem(
+            type=type,
+            name=name,
+            description=description,
+            properties=properties or {}
+        )
+        
+        system_id = f"system_{len(self.systems)}"
+        self.systems[system_id] = system
+        logger.info(f"Created new philosophical system: {name} of type {type}")
+        return system
+        
+    def create_evolution(self, type: str, description: str,
+                        properties: Dict[str, Any] = None,
+                        conditions: Dict[str, Any] = None,
+                        effects: Dict[str, Any] = None) -> PhilosophicalEvolution:
+        """Create new philosophical evolution with custom properties."""
+        evolution = PhilosophicalEvolution(
+            type=type,
+            description=description,
+            properties=properties or {},
+            conditions=conditions or {},
+            effects=effects or {}
+        )
+        
+        evolution_id = f"evolution_{len(self.evolutions)}"
+        self.evolutions[evolution_id] = evolution
+        logger.info(f"Created new philosophical evolution of type {type}")
+        return evolution
+        
+    def add_concept_to_system(self, system: str, concept: str,
+                             properties: Dict[str, Any] = None) -> bool:
+        """Add philosophical concept to a system with custom properties."""
+        if system not in self.systems:
+            logger.error(f"System {system} does not exist")
+            return False
+            
+        if concept not in self.concepts:
+            logger.error(f"Concept {concept} does not exist")
+            return False
+            
+        self.systems[system].concepts[concept] = properties or {}
+        logger.info(f"Added concept {concept} to system {system}")
+        return True
+        
+    def update_philosophy(self, time_delta: float):
+        """Update philosophical state."""
+        # Let the simulation determine how philosophy evolves
+        self._update_philosophical_concepts(time_delta)
+        
+        # Update systems based on emergent rules
+        self._update_philosophical_systems(time_delta)
+        
+        # Check for emergent philosophical events
+        self._check_philosophical_events(time_delta)
+        
+    def _update_philosophical_concepts(self, time_delta: float):
+        """Update philosophical concepts based on emergent rules."""
+        for concept in self.concepts.values():
+            # Let the simulation determine concept evolution
+            pass
+            
+    def _update_philosophical_systems(self, time_delta: float):
+        """Update philosophical systems based on emergent rules."""
+        for system in self.systems.values():
+            # Let the simulation determine system evolution
+            pass
+            
+    def _check_philosophical_events(self, time_delta: float):
+        """Check for emergent philosophical events."""
+        # Let the simulation determine what events occur
+        pass
+        
+    def update(self, time_delta: float):
+        """Update philosophical system state."""
+        # Update concepts
+        self._update_philosophical_concepts(time_delta)
+        
+        # Update systems
+        self._update_philosophical_systems(time_delta)
+        
+        # Check for events
+        self._check_philosophical_events(time_delta)
+        
+    def to_dict(self) -> Dict:
+        """Convert philosophical system state to dictionary for serialization."""
+        return {
+            "concepts": {
+                concept_id: {
+                    "type": concept.type,
+                    "name": concept.name,
+                    "description": concept.description,
+                    "properties": concept.properties,
+                    "implications": concept.implications,
+                    "influences": concept.influences,
+                    "created_at": concept.created_at,
+                    "last_update": concept.last_update
+                }
+                for concept_id, concept in self.concepts.items()
+            },
+            "systems": {
+                system_id: {
+                    "type": system.type,
+                    "name": system.name,
+                    "description": system.description,
+                    "properties": system.properties,
+                    "concepts": system.concepts,
+                    "interactions": system.interactions,
+                    "created_at": system.created_at,
+                    "last_update": system.last_update
+                }
+                for system_id, system in self.systems.items()
+            },
+            "evolutions": {
+                evolution_id: {
+                    "type": evolution.type,
+                    "description": evolution.description,
+                    "properties": evolution.properties,
+                    "conditions": evolution.conditions,
+                    "effects": evolution.effects,
+                    "created_at": evolution.created_at
+                }
+                for evolution_id, evolution in self.evolutions.items()
+            }
+        } 

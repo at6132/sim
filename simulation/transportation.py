@@ -53,125 +53,439 @@ class TransportationType(Enum):
 
 class TransportationSystem:
     def __init__(self, world):
+        """Initialize the transportation system."""
         self.world = world
-        self.routes = {}  # (start_lon, start_lat, end_lon, end_lat) -> Route
-        self.vehicles = {}  # vehicle_id -> Vehicle
-        self.ports = {}  # (lon, lat) -> Port
-        self.roads = {}  # (lon, lat) -> Road
+        self.roads = {}
+        self.paths = {}
+        self.ports = {}
+        self.trade_routes = {}
+        self.transport_networks = {
+            "land": {"nodes": {}, "edges": {}},
+            "water": {"nodes": {}, "edges": {}},
+            "air": {"nodes": {}, "edges": {}}
+        }
         self.initialize_transportation()
         
     def initialize_transportation(self):
-        """Initialize the transportation system."""
+        """Initialize transportation networks and routes."""
         logger.info("Initializing transportation system...")
         
         # Initialize basic transportation infrastructure
-        self._initialize_roads()
-        self._initialize_ports()
-        self._initialize_routes()
+        logger.info("Setting up basic transportation infrastructure...")
+        self._initialize_paths()
         
+        # Initialize trade routes
+        logger.info("Setting up trade routes...")
+        self._initialize_trade_routes()
+        
+        # Initialize transport networks
+        logger.info("Setting up transport networks...")
+        self._initialize_transport_networks()
+        
+        # Initialize ports
+        logger.info("Setting up ports...")
+        self._initialize_ports()
+        
+        # Initialize technology tree
+        logger.info("Setting up transportation technology tree...")
+        self.technology_tree = self._initialize_technology_tree()
+        
+        # Initialize travel speeds
+        logger.info("Setting up travel speeds...")
+        self.travel_speeds = self._initialize_travel_speeds()
+        
+        # Verify initialization
+        if not self.verify_initialization():
+            logger.error("Transportation system initialization verification failed")
+            raise RuntimeError("Transportation system initialization verification failed")
+            
         logger.info("Transportation system initialization complete")
         
-    def _initialize_roads(self):
-        """Initialize basic road network."""
-        # Create roads between major settlements
-        for lon in range(-180, 181, 10):  # Every 10 degrees
-            for lat in range(-90, 91, 10):
-                if not self.world.terrain.get_terrain_at(lon, lat)['is_water']:
-                    self.roads[(lon, lat)] = {
-                        'type': 'dirt',
-                        'quality': 0.5,
-                        'capacity': 1.0,
-                        'connections': []
+    def verify_initialization(self) -> bool:
+        """Verify that the transportation system is properly initialized."""
+        logger.info("Verifying transportation system initialization...")
+        
+        # Check roads
+        if not hasattr(self, 'roads') or not self.roads:
+            logger.error("Roads not initialized")
+            return False
+            
+        # Check paths
+        if not hasattr(self, 'paths') or not self.paths:
+            logger.error("Paths not initialized")
+            return False
+            
+        # Check ports
+        if not hasattr(self, 'ports') or not self.ports:
+            logger.error("Ports not initialized")
+            return False
+            
+        # Check trade routes
+        if not hasattr(self, 'trade_routes') or not self.trade_routes:
+            logger.error("Trade routes not initialized")
+            return False
+            
+        # Check transport networks
+        if not hasattr(self, 'transport_networks') or not self.transport_networks:
+            logger.error("Transport networks not initialized")
+            return False
+            
+        # Check technology tree
+        if not hasattr(self, 'technology_tree') or not self.technology_tree:
+            logger.error("Technology tree not initialized")
+            return False
+            
+        # Check travel speeds
+        if not hasattr(self, 'travel_speeds') or not self.travel_speeds:
+            logger.error("Travel speeds not initialized")
+            return False
+            
+        logger.info("Transportation system initialization verified successfully")
+        return True
+        
+    def _initialize_paths(self):
+        """Initialize transportation paths between settlements."""
+        logger.info("Initializing transportation paths...")
+        
+        # Get all settlements
+        settlements = self.world.settlements
+        
+        # Create paths between nearby settlements
+        for settlement_id, settlement in settlements.items():
+            # Find nearest settlements
+            nearest = self._find_nearest_settlements(settlement, settlements, max_distance=200.0)
+            
+            # Create paths to nearest settlements
+            for target_id, distance in nearest:
+                if self._is_valid_path(settlement, settlements[target_id]):
+                    path_id = f"path_{settlement_id}_{target_id}"
+                    self.paths[path_id] = {
+                        "start": settlement_id,
+                        "end": target_id,
+                        "distance": distance,
+                        "type": "land",
+                        "status": "active",
+                        "traffic": 0.0
                     }
+                    logger.debug(f"Created path {path_id} between settlements {settlement_id} and {target_id}")
         
-        # Connect nearby roads
-        for (lon1, lat1), road1 in self.roads.items():
-            for (lon2, lat2), road2 in self.roads.items():
-                if (lon1, lat1) != (lon2, lat2):
-                    distance = ((lon2 - lon1) ** 2 + (lat2 - lat1) ** 2) ** 0.5
-                    if distance <= 15:  # Connect roads within 15 degrees
-                        road1['connections'].append((lon2, lat2))
-                        road2['connections'].append((lon1, lat1))
+        logger.info(f"Created {len(self.paths)} transportation paths")
         
-    def _initialize_ports(self):
-        """Initialize basic port network."""
-        # Create ports along coastlines
-        for lon in range(-180, 181, 5):  # Every 5 degrees
-            for lat in range(-90, 91, 5):
-                terrain = self.world.terrain.get_terrain_at(lon, lat)
-                if terrain['is_water']:
-                    # Check for nearby land
-                    has_land = False
-                    for dlon in [-1, 0, 1]:
-                        for dlat in [-1, 0, 1]:
-                            if not self.world.terrain.get_terrain_at(lon + dlon, lat + dlat)['is_water']:
-                                has_land = True
-                                break
-                        if has_land:
-                            break
-                    
-                    if has_land:
-                        self.ports[(lon, lat)] = {
-                            'type': 'basic',
-                            'capacity': 1.0,
-                            'connections': []
+    def _find_nearest_settlements(self, settlement, max_distance: float) -> List[Dict]:
+        """Find nearest settlements within max_distance."""
+        nearest = []
+        for other in self.world.settlements.values():
+            if other.id != settlement.id:
+                distance = self._calculate_distance(
+                    (settlement.longitude, settlement.latitude),
+                    (other.longitude, other.latitude)
+                )
+                if distance <= max_distance:
+                    nearest.append(other)
+        return nearest
+        
+    def _is_valid_path(self, start_settlement, end_settlement) -> bool:
+        """Check if a path between settlements is valid (stays on land)."""
+        # Get path points
+        path_points = self._get_path_points(
+            start_settlement.longitude, start_settlement.latitude,
+            end_settlement.longitude, end_settlement.latitude
+        )
+        
+        # Check if all points are on land
+        for lon, lat in path_points:
+            if self._is_on_water(lon, lat):
+                return False
+                
+        return True
+        
+    def _get_path_points(self, start_lon: float, start_lat: float, end_lon: float, end_lat: float) -> List[Tuple[float, float]]:
+        """Get points along a path between two coordinates."""
+        points = []
+        
+        # Calculate number of points based on distance
+        distance = self.world.get_distance(start_lon, start_lat, end_lon, end_lat)
+        num_points = max(2, int(distance / 10.0))  # One point every 10km
+        
+        # Generate points
+        for i in range(num_points):
+            t = i / (num_points - 1)
+            lon = start_lon + (end_lon - start_lon) * t
+            lat = start_lat + (end_lat - start_lat) * t
+            points.append((lon, lat))
+            
+        return points
+        
+    def _is_on_water(self, longitude: float, latitude: float) -> bool:
+        """Check if a position is on water."""
+        terrain = self.world.terrain.get_terrain_at(longitude, latitude)
+        return terrain == "water"
+        
+    def _initialize_trade_routes(self):
+        """Initialize trade routes between settlements."""
+        logger.info("Initializing trade routes...")
+        
+        # Create trade routes between settlements
+        for settlement in self.world.settlements.values():
+            # Find nearest settlements for trade
+            nearest_settlements = self._find_nearest_settlements(settlement, max_distance=200.0)
+            
+            for target in nearest_settlements:
+                # Create trade route if it doesn't exist
+                route_id = f"trade_{settlement.id}_{target.id}"
+                if route_id not in self.trade_routes:
+                    # Check if there's a valid path between settlements
+                    path = self._find_land_path(
+                        (settlement.longitude, settlement.latitude),
+                        (target.longitude, target.latitude)
+                    )
+                    if path:
+                        self.trade_routes[route_id] = {
+                            "id": route_id,
+                            "start": settlement.id,
+                            "end": target.id,
+                            "path": path,
+                            "type": "land",
+                            "status": "active",
+                            "traffic": 0.0,
+                            "goods": {}  # Will be populated with traded goods
                         }
+                        logger.debug(f"Created trade route {route_id} between settlements {settlement.id} and {target.id}")
         
-        # Connect nearby ports
-        for (lon1, lat1), port1 in self.ports.items():
-            for (lon2, lat2), port2 in self.ports.items():
-                if (lon1, lat1) != (lon2, lat2):
-                    distance = ((lon2 - lon1) ** 2 + (lat2 - lat1) ** 2) ** 0.5
-                    if distance <= 30:  # Connect ports within 30 degrees
-                        port1['connections'].append((lon2, lat2))
-                        port2['connections'].append((lon1, lat1))
+        logger.info(f"Created {len(self.trade_routes)} trade routes")
         
-    def _initialize_routes(self):
-        """Initialize basic transportation routes."""
-        # Create routes between connected roads
-        for (lon1, lat1), road1 in self.roads.items():
-            for end_lon, end_lat in road1['connections']:
-                route_id = (lon1, lat1, end_lon, end_lat)
-                if route_id not in self.routes:
-                    self.routes[route_id] = {
-                        'type': 'road',
-                        'distance': ((end_lon - lon1) ** 2 + (end_lat - lat1) ** 2) ** 0.5,
-                        'capacity': 1.0,
-                        'quality': 0.5
-                    }
+    def _initialize_transport_networks(self):
+        """Initialize transport networks."""
+        logger.info("Initializing transport networks...")
         
-        # Create routes between connected ports
-        for (lon1, lat1), port1 in self.ports.items():
-            for end_lon, end_lat in port1['connections']:
-                route_id = (lon1, lat1, end_lon, end_lat)
-                if route_id not in self.routes:
-                    self.routes[route_id] = {
-                        'type': 'sea',
-                        'distance': ((end_lon - lon1) ** 2 + (end_lat - lat1) ** 2) ** 0.5,
-                        'capacity': 2.0,
-                        'quality': 0.7
-                    }
-    
-    def get_route(self, start_lon: float, start_lat: float, end_lon: float, end_lat: float) -> Optional[Dict]:
-        """Get route information between two points."""
-        route_id = (start_lon, start_lat, end_lon, end_lat)
-        return self.routes.get(route_id)
-    
-    def get_road(self, lon: float, lat: float) -> Optional[Dict]:
-        """Get road information at a location."""
-        return self.roads.get((lon, lat))
-    
-    def get_port(self, lon: float, lat: float) -> Optional[Dict]:
-        """Get port information at a location."""
-        return self.ports.get((lon, lat))
+        # Initialize land network
+        logger.info("Setting up land transport network...")
+        self._initialize_land_network()
+        logger.info("Land transport network initialized")
+        
+        # Initialize water network
+        logger.info("Setting up water transport network...")
+        self._initialize_water_network()
+        logger.info("Water transport network initialized")
+        
+        # Initialize air network
+        logger.info("Setting up air transport network...")
+        self._initialize_air_network()
+        logger.info("Air transport network initialized")
+        
+        logger.info("Transport networks initialization complete")
+        
+    def _initialize_land_network(self):
+        """Initialize land transport network."""
+        network = self.transport_networks["land"]
+        
+        # Add settlements as nodes
+        for settlement_id, settlement in self.world.settlements.items():
+            network["nodes"][settlement_id] = {
+                "type": "settlement",
+                "position": (settlement.longitude, settlement.latitude),
+                "connections": []
+            }
+        
+        # Add paths as edges
+        for path_id, path in self.paths.items():
+            start_id = path["start"]
+            end_id = path["end"]
+            
+            # Add edge
+            edge_id = f"edge_{start_id}_{end_id}"
+            network["edges"][edge_id] = {
+                "start": start_id,
+                "end": end_id,
+                "type": "path",
+                "distance": path["distance"]
+            }
+            
+            # Update node connections
+            network["nodes"][start_id]["connections"].append(end_id)
+            network["nodes"][end_id]["connections"].append(start_id)
+            
+    def _initialize_water_network(self):
+        """Initialize water transport network."""
+        network = self.transport_networks["water"]
+        
+        # Add ports as nodes
+        for port_id, port in self.ports.items():
+            network["nodes"][port_id] = {
+                "type": "port",
+                "position": (port["longitude"], port["latitude"]),
+                "connections": []
+            }
+        
+        # Add shipping routes as edges
+        for route_id, route in self.trade_routes.items():
+            if route["type"] == "water":
+                start_id = route["start"]
+                end_id = route["end"]
+                
+                # Add edge
+                edge_id = f"edge_{start_id}_{end_id}"
+                network["edges"][edge_id] = {
+                    "start": start_id,
+                    "end": end_id,
+                    "type": "shipping",
+                    "distance": self.world.get_distance(
+                        self.ports[start_id]["longitude"], self.ports[start_id]["latitude"],
+                        self.ports[end_id]["longitude"], self.ports[end_id]["latitude"]
+                    )
+                }
+                
+                # Update node connections
+                network["nodes"][start_id]["connections"].append(end_id)
+                network["nodes"][end_id]["connections"].append(start_id)
+                
+    def _initialize_air_network(self):
+        """Initialize air transport network."""
+        network = self.transport_networks["air"]
+        
+        # Add airports as nodes
+        for settlement_id, settlement in self.world.settlements.items():
+            if settlement.population >= 1000:  # Only settlements with sufficient population
+                network["nodes"][settlement_id] = {
+                    "type": "airport",
+                    "position": (settlement.longitude, settlement.latitude),
+                    "connections": []
+                }
+        
+        # Add air routes as edges
+        for start_id, start_node in network["nodes"].items():
+            for end_id, end_node in network["nodes"].items():
+                if start_id != end_id:
+                    distance = self.world.get_distance(
+                        start_node["position"][0], start_node["position"][1],
+                        end_node["position"][0], end_node["position"][1]
+                    )
+                    
+                    if distance <= 1000.0:  # Only connect airports within 1000km
+                        # Add edge
+                        edge_id = f"edge_{start_id}_{end_id}"
+                        network["edges"][edge_id] = {
+                            "start": start_id,
+                            "end": end_id,
+                            "type": "air_route",
+                            "distance": distance
+                        }
+                        
+                        # Update node connections
+                        network["nodes"][start_id]["connections"].append(end_id)
+                        network["nodes"][end_id]["connections"].append(start_id)
+                        
+    def update(self, time_delta: float):
+        """Update transportation system state."""
+        # Update path conditions
+        self._update_paths(time_delta)
+        
+        # Update trade routes
+        self._update_trade_routes(time_delta)
+        
+        # Update transport networks
+        self._update_transport_networks(time_delta)
+        
+    def _update_paths(self, time_delta: float):
+        """Update path conditions and traffic."""
+        for path_id, path in self.paths.items():
+            # Update traffic
+            path["traffic"] = max(0.0, path["traffic"] - 0.1 * time_delta)
+            
+            # Check path conditions
+            if not self._is_valid_path(
+                self.world.settlements[path["start"]],
+                self.world.settlements[path["end"]]
+            ):
+                path["status"] = "blocked"
+            else:
+                path["status"] = "active"
+                
+    def _update_trade_routes(self, time_delta: float):
+        """Update trade routes and traffic."""
+        for route_id, route in self.trade_routes.items():
+            # Update traffic
+            route["traffic"] = max(0.0, route["traffic"] - 0.1 * time_delta)
+            
+            # Check route conditions
+            if not self._is_valid_path(
+                self.world.settlements[route["start"]],
+                self.world.settlements[route["end"]]
+            ):
+                route["status"] = "blocked"
+            else:
+                route["status"] = "active"
+                
+    def _update_transport_networks(self, time_delta: float):
+        """Update transport networks."""
+        # Update land network
+        self._update_land_network(time_delta)
+        
+        # Update water network
+        self._update_water_network(time_delta)
+        
+        # Update air network
+        self._update_air_network(time_delta)
+        
+    def _update_land_network(self, time_delta: float):
+        """Update land transport network."""
+        network = self.transport_networks["land"]
+        
+        # Update node states
+        for node_id, node in network["nodes"].items():
+            settlement = self.world.settlements[node_id]
+            node["population"] = settlement.population
+            node["status"] = "active" if settlement.population > 0 else "inactive"
+            
+        # Update edge states
+        for edge_id, edge in network["edges"].items():
+            path = self.paths.get(f"path_{edge['start']}_{edge['end']}")
+            if path:
+                edge["status"] = path["status"]
+                edge["traffic"] = path["traffic"]
+                
+    def _update_water_network(self, time_delta: float):
+        """Update water transport network."""
+        network = self.transport_networks["water"]
+        
+        # Update node states
+        for node_id, node in network["nodes"].items():
+            port = self.ports[node_id]
+            node["status"] = "active" if port["status"] == "active" else "inactive"
+            
+        # Update edge states
+        for edge_id, edge in network["edges"].items():
+            route = self.trade_routes.get(f"trade_{edge['start']}_{edge['end']}")
+            if route:
+                edge["status"] = route["status"]
+                edge["traffic"] = route["traffic"]
+                
+    def _update_air_network(self, time_delta: float):
+        """Update air transport network."""
+        network = self.transport_networks["air"]
+        
+        # Update node states
+        for node_id, node in network["nodes"].items():
+            settlement = self.world.settlements[node_id]
+            node["status"] = "active" if settlement.population >= 1000 else "inactive"
+            
+        # Update edge states
+        for edge_id, edge in network["edges"].items():
+            # Check if both airports are active
+            start_node = network["nodes"][edge["start"]]
+            end_node = network["nodes"][edge["end"]]
+            
+            if start_node["status"] == "active" and end_node["status"] == "active":
+                edge["status"] = "active"
+            else:
+                edge["status"] = "inactive"
     
     def get_state(self) -> Dict:
         """Get current transportation system state."""
         return {
-            'routes': self.routes,
-            'roads': self.roads,
-            'ports': self.ports,
-            'vehicles': self.vehicles
+            "paths": self.paths,
+            "trade_routes": self.trade_routes,
+            "transport_networks": self.transport_networks
         }
 
     def _initialize_technology_tree(self) -> Dict[TransportationType, List[TransportationType]]:
@@ -519,3 +833,213 @@ class TransportationSystem:
         if not self.current_research:
             return None
         return (self.current_research, self.research_progress) 
+
+    def _initialize_ports(self):
+        """Initialize basic port network."""
+        # Create ports along coastlines
+        for lon in range(-180, 181, 5):  # Every 5 degrees
+            for lat in range(-90, 91, 5):
+                terrain = self.world.terrain.get_terrain_at(lon, lat)
+                if terrain == 'water':
+                    # Check for nearby land
+                    has_land = False
+                    for dlon in [-1, 0, 1]:
+                        for dlat in [-1, 0, 1]:
+                            if self.world.terrain.get_terrain_at(lon + dlon, lat + dlat) != 'water':
+                                has_land = True
+                                break
+                        if has_land:
+                            break
+                    
+                    if has_land:
+                        self.ports[(lon, lat)] = {
+                            'type': 'basic',
+                            'capacity': 1.0,
+                            'connections': []
+                        }
+        
+        # Connect nearby ports
+        for (lon1, lat1), port1 in self.ports.items():
+            for (lon2, lat2), port2 in self.ports.items():
+                if (lon1, lat1) != (lon2, lat2):
+                    distance = ((lon2 - lon1) ** 2 + (lat2 - lat1) ** 2) ** 0.5
+                    if distance <= 30:  # Connect ports within 30 degrees
+                        port1['connections'].append((lon2, lat2))
+                        port2['connections'].append((lon1, lat1))
+        
+    def get_route(self, start_lon: float, start_lat: float, end_lon: float, end_lat: float) -> Optional[Dict]:
+        """Get route information between two points."""
+        route_id = (start_lon, start_lat, end_lon, end_lat)
+        return self.routes.get(route_id)
+    
+    def get_road(self, lon: float, lat: float) -> Optional[Dict]:
+        """Get road information at a location."""
+        return self.roads.get((lon, lat))
+    
+    def get_port(self, lon: float, lat: float) -> Optional[Dict]:
+        """Get port information at a location."""
+        return self.ports.get((lon, lat))
+    
+    def get_state(self) -> Dict:
+        """Get current transportation system state."""
+        return {
+            'routes': self.routes,
+            'roads': self.roads,
+            'ports': self.ports,
+            'vehicles': self.vehicles
+        }
+
+    def _initialize_paths(self):
+        """Initialize transportation paths between settlements."""
+        logger.info("Initializing transportation paths...")
+        
+        # Create paths between settlements
+        for settlement in self.world.settlements.values():
+            # Find nearest settlements
+            nearest_settlements = self._find_nearest_settlements(settlement, max_distance=100.0)
+            
+            for target in nearest_settlements:
+                # Create path if it doesn't exist
+                path_id = f"path_{settlement.id}_{target.id}"
+                if path_id not in self.paths:
+                    path = self._create_path(settlement, target)
+                    if path:
+                        self.paths[path_id] = path
+                        
+        logger.info("Transportation paths initialization complete")
+        
+    def _find_nearest_settlements(self, settlement, max_distance: float) -> List[Dict]:
+        """Find nearest settlements within max_distance."""
+        nearest = []
+        for other in self.world.settlements.values():
+            if other.id != settlement.id:
+                distance = self._calculate_distance(
+                    (settlement.longitude, settlement.latitude),
+                    (other.longitude, other.latitude)
+                )
+                if distance <= max_distance:
+                    nearest.append(other)
+        return nearest
+        
+    def _create_path(self, start: Dict, end: Dict) -> Optional[Dict]:
+        """Create a path between two settlements."""
+        # Find path that stays on land
+        path = self._find_land_path(
+            (start.longitude, start.latitude),
+            (end.longitude, end.latitude)
+        )
+        if not path:
+            return None
+            
+        return {
+            "id": f"path_{start.id}_{end.id}",
+            "start": start.id,
+            "end": end.id,
+            "points": path,
+            "type": "land",
+            "status": "active",
+            "traffic": 0.0
+        }
+        
+    def _find_land_path(self, start: Tuple[float, float], end: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
+        """Find a path between two points that stays on land."""
+        # Simple straight line path for now
+        # TODO: Implement proper pathfinding
+        path = []
+        steps = 10
+        for i in range(steps + 1):
+            t = i / steps
+            lon = start[0] + (end[0] - start[0]) * t
+            lat = start[1] + (end[1] - start[1]) * t
+            if self._is_on_water(lon, lat):
+                return None
+            path.append((lon, lat))
+        return path
+        
+    def _is_on_water(self, longitude: float, latitude: float) -> bool:
+        """Check if a position is on water."""
+        terrain = self.world.terrain.get_terrain_at(longitude, latitude)
+        return terrain == "water"
+
+    def _initialize_trade_routes(self):
+        """Initialize trade routes between settlements."""
+        logger.info("Initializing trade routes...")
+        
+        # Create trade routes between settlements
+        for settlement in self.world.settlements.values():
+            # Find nearest settlements for trade
+            nearest_settlements = self._find_nearest_settlements(settlement, max_distance=200.0)
+            
+            for target in nearest_settlements:
+                # Create trade route if it doesn't exist
+                route_id = f"trade_{settlement.id}_{target.id}"
+                if route_id not in self.trade_routes:
+                    # Check if there's a valid path between settlements
+                    path = self._find_land_path(
+                        (settlement.longitude, settlement.latitude),
+                        (target.longitude, target.latitude)
+                    )
+                    if path:
+                        self.trade_routes[route_id] = {
+                            "id": route_id,
+                            "start": settlement.id,
+                            "end": target.id,
+                            "path": path,
+                            "type": "land",
+                            "status": "active",
+                            "traffic": 0.0,
+                            "goods": {}  # Will be populated with traded goods
+                        }
+                        
+        logger.info("Trade routes initialization complete") 
+
+    def _initialize_transport_networks(self):
+        """Initialize transport networks connecting different transportation systems."""
+        logger.info("Initializing transport networks...")
+        
+        # Initialize networks for different transport types
+        self.transport_networks = {
+            'land': {
+                'roads': self.roads,
+                'paths': self.paths,
+                'connections': {}
+            },
+            'water': {
+                'ports': self.ports,
+                'routes': {},
+                'connections': {}
+            },
+            'air': {
+                'airports': {},
+                'routes': {},
+                'connections': {}
+            }
+        }
+        
+        # Connect land networks
+        for road_id, road in self.roads.items():
+            start_pos = road['start']
+            end_pos = road['end']
+            
+            # Add connections to transport network
+            if start_pos not in self.transport_networks['land']['connections']:
+                self.transport_networks['land']['connections'][start_pos] = []
+            if end_pos not in self.transport_networks['land']['connections']:
+                self.transport_networks['land']['connections'][end_pos] = []
+                
+            self.transport_networks['land']['connections'][start_pos].append(end_pos)
+            self.transport_networks['land']['connections'][end_pos].append(start_pos)
+            
+        # Connect water networks
+        for port_pos, port in self.ports.items():
+            if port_pos not in self.transport_networks['water']['connections']:
+                self.transport_networks['water']['connections'][port_pos] = []
+                
+            for connection in port['connections']:
+                self.transport_networks['water']['connections'][port_pos].append(connection)
+                
+        logger.info("Transport networks initialization complete") 
+
+    def _calculate_distance(self, point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
+        """Calculate the distance between two points."""
+        return self.world.get_distance(point1[0], point1[1], point2[0], point2[1]) 

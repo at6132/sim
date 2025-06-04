@@ -63,12 +63,17 @@ class Resource:
 
 class ResourceSystem:
     def __init__(self, world):
+        """Initialize the resource system."""
+        logger.info("Initializing resource system...")
         self.world = world
         self.resources = {}  # (longitude, latitude) -> Dict[str, float]
         self.resource_regeneration_rate = 0.1  # Resources regenerate at 10% per tick
         self.resource_capacity = 1000  # Maximum amount of each resource
         self.discovered_resources: Set[ResourceType] = set()  # Track discovered resource types
         self.fishing_zones: Dict[Tuple[float, float], Dict] = {}  # (longitude, latitude) -> fishing data
+        
+        # Initialize resource requirements
+        logger.info("Setting up resource requirements...")
         self.resource_requirements: Dict[ResourceType, List[Tuple[ResourceType, float]]] = {
             ResourceType.TOOLS: [(ResourceType.WOOD, 2), (ResourceType.STONE, 1)],
             ResourceType.WEAPONS: [(ResourceType.WOOD, 1), (ResourceType.STONE, 2)],
@@ -85,10 +90,16 @@ class ResourceSystem:
             ResourceType.SHELL_CRAFT: [(ResourceType.SHELLFISH, 2)],
             ResourceType.SEAWEED_FERTILIZER: [(ResourceType.SEAWEED, 3)]
         }
+        logger.info("Resource requirements initialized")
+        
+        # Initialize processing recipes
+        logger.info("Setting up processing recipes...")
         self.processing_recipes = {}
         self._initialize_processing_recipes()
+        logger.info("Processing recipes initialized")
         
         # Initialize basic resources as discovered
+        logger.info("Setting up basic resources...")
         self.discovered_resources.update([
             ResourceType.FOOD,
             ResourceType.WATER,
@@ -99,9 +110,14 @@ class ResourceSystem:
             ResourceType.SHELLFISH,
             ResourceType.SEAWEED
         ])
+        logger.info("Basic resources initialized")
         
         # Initialize resources after terrain is ready
+        logger.info("Initializing resource distribution...")
         self.initialize_resources()
+        logger.info("Resource distribution initialized")
+        
+        logger.info("Resource system initialization complete")
         
     def add_resource(self, resource: Resource) -> None:
         """Add a resource to the manager"""
@@ -422,16 +438,112 @@ class ResourceSystem:
         }
         
     def initialize_resources(self):
-        """Initialize resources across the world."""
-        logger.info("Initializing resources...")
+        """Initialize the resource system."""
+        logger.info("Initializing resource system...")
         
-        # Initialize resources for each coordinate
-        for lon in np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution):
-            for lat in np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution):
-                terrain = self.world.terrain.get_terrain_at(lon, lat)
-                self.generate_resources(lon, lat, terrain)  # Pass terrain type directly
-                
-        logger.info("Resource initialization complete")
+        # Initialize basic resources
+        logger.info("Setting up basic resources...")
+        self._initialize_basic_resources()
+        
+        # Initialize resource distribution
+        logger.info("Setting up resource distribution...")
+        self._initialize_resource_distribution()
+        
+        # Initialize resource regeneration
+        logger.info("Setting up resource regeneration...")
+        self._initialize_resource_regeneration()
+        
+        # Verify initialization
+        if not self.verify_initialization():
+            logger.error("Resource system initialization verification failed")
+            raise RuntimeError("Resource system initialization verification failed")
+            
+        logger.info("Resource system initialization complete")
+
+    def verify_initialization(self) -> bool:
+        """Verify that the resource system is properly initialized."""
+        logger.info("Verifying resource system initialization...")
+        
+        # Check resources dictionary
+        if not hasattr(self, 'resources') or not self.resources:
+            logger.error("Resources not initialized")
+            return False
+            
+        # Check resource distribution
+        if not hasattr(self, 'resource_distribution') or not self.resource_distribution:
+            logger.error("Resource distribution not initialized")
+            return False
+            
+        # Check resource regeneration
+        if not hasattr(self, 'regeneration_rates') or not self.regeneration_rates:
+            logger.error("Resource regeneration not initialized")
+            return False
+            
+        # Check resource types
+        required_types = {'water', 'food', 'wood', 'stone', 'metal'}
+        if not all(resource_type in self.resources for resource_type in required_types):
+            logger.error("Not all required resource types initialized")
+            return False
+            
+        logger.info("Resource system initialization verified successfully")
+        return True
+
+    def _initialize_basic_resources(self):
+        """Initialize basic resources."""
+        # Implementation of _initialize_basic_resources method
+        pass
+
+    def _initialize_resource_distribution(self):
+        """Initialize resource distribution."""
+        # Implementation of _initialize_resource_distribution method
+        pass
+
+    def _initialize_resource_regeneration(self):
+        """Initialize resource regeneration."""
+        # Implementation of _initialize_resource_regeneration method
+        pass
+
+    def _initialize_fishing_zones(self):
+        """Initialize fishing zones in the world."""
+        logger.info("Initializing fishing zones...")
+        
+        # Initialize coastal fishing zones
+        logger.info("Setting up coastal fishing zones...")
+        self._initialize_coastal_fishing_zones()
+        logger.info("Coastal fishing zones initialized")
+        
+        # Initialize deep sea fishing zones
+        logger.info("Setting up deep sea fishing zones...")
+        self._initialize_deep_sea_fishing_zones()
+        logger.info("Deep sea fishing zones initialized")
+        
+        # Initialize coral reef fishing zones
+        logger.info("Setting up coral reef fishing zones...")
+        self._initialize_coral_reef_fishing_zones()
+        logger.info("Coral reef fishing zones initialized")
+        
+        logger.info("Fishing zones initialization complete")
+        
+    def _initialize_resource_processing(self):
+        """Initialize resource processing systems."""
+        logger.info("Initializing resource processing...")
+        
+        # Initialize basic processing
+        logger.info("Setting up basic resource processing...")
+        self._initialize_basic_processing()
+        logger.info("Basic resource processing initialized")
+        
+        # Initialize advanced processing
+        logger.info("Setting up advanced resource processing...")
+        self._initialize_advanced_processing()
+        logger.info("Advanced resource processing initialized")
+        
+        # Initialize marine processing
+        logger.info("Setting up marine resource processing...")
+        self._initialize_marine_processing()
+        logger.info("Marine resource processing initialized")
+        
+        logger.info("Resource processing initialization complete")
         
     def create_fishing_zone(self, longitude: float, latitude: float, intensity: float = 1.0, method: str = "net", efficiency: float = 1.0):
         """Create a new fishing zone"""

@@ -1,25 +1,25 @@
 from typing import Dict, List, Optional, Tuple, Set
 import random
 import uuid
+import logging
 from datetime import datetime, timedelta
 from .agent import Agent, Genes
-from .environment import Environment, TerrainType
+from .environment import Environment
+from .terrain import TerrainType
 from .llm import AgentCognition
-from .biology import Biology
+from .biology import BiologicalSystem
 from .technology import TechnologyTree
 from .resources import ResourceSystem, ResourceType
 from .society import Society, SocialStructure, Culture, Settlement
 from .discovery import DiscoverySystem, Discovery
-from .animals import AnimalSystem
+from simulation.animal import AnimalSystem
 from .life_cycle import LifeCycleSystem
 from .philosophy import Philosophy
 from .emotions import EmotionSystem
 from .health import Health
 from .relationships import Relationships
-from .economy import Economy
-import logging
-import math
-from .transportation import TransportationSystem, TransportationType
+from .economy import EconomicSystem
+from simulation.transportation import TransportationSystem, TransportationType
 from .weather import WeatherSystem, WeatherType, WeatherState
 from .marine import MarineSystem
 from .climate import ClimateType
@@ -34,154 +34,218 @@ from .needs import AgentNeeds
 from .memory import Memory
 from .technology import TechnologySystem
 from .society import SocietySystem
+import numpy as np
+import pickle
+import traceback
+import concurrent.futures
 
 logger = logging.getLogger(__name__)
 
 class World:
-    def __init__(self, world_size: int = 1000):
-        logger.info("Creating new world...")
-        # Earth's dimensions
-        self.min_longitude = -180
-        self.max_longitude = 180
-        self.min_latitude = -90
-        self.max_latitude = 90
-        
-        # Earth's dimensions
-        self.EARTH_CIRCUMFERENCE = 40075  # km
-        self.EARTH_RADIUS = 6371  # km
-        # Grid resolution (1 degree = ~111km at equator)
-        self.longitude_resolution = 0.1  # degrees
-        self.latitude_resolution = 0.1  # degrees
-        
-        self.world_size = world_size
-        self.terrain = TerrainSystem(self)
-        self.climate = ClimateSystem(self)
-        self.resources = ResourceSystem(self)
-        self.plants = PlantSystem(world_size, self)
-        self.animals = AnimalSystem(world_size)
-        self.marine = MarineSystem(self)
-        self.transportation = TransportationSystem(world_size)
-        self.weather = WeatherSystem(world_size)
-        self.discovery = DiscoverySystem(world_size)
-        self.cognitive = CognitiveSystem(world_size)
-        self.civilization = CivilizationSystem(world_size)
-        
-        # Initialize state
-        self.current_tick = 0
-        self.simulation_time = 0.0
-        self.explored_areas = set()
-        self.discoveries = []
-        self.events = []
-        
-        # Initialize environment first
-        self.environment = Environment()
-        
-        # Initialize systems using real-world coordinates
-        self.transportation_system = TransportationSystem(self)
-        
-        # Time tracking
-        self.real_time_start = datetime.now()
-        self.game_time_start = datetime(1000, 1, 1)  # Start in year 1000
-        self.time_scale = 1.0  # 1 real second = 1 game hour
-        
-        # Initialize other systems
-        self.agents: Dict[str, Agent] = {}
-        self.settlements: Dict[str, Settlement] = {}
-        self.cultures: Dict[str, Culture] = {}
-        self.life_cycle_system = LifeCycleSystem()
-        
-        # Initialize database directory
-        self.db_dir = "agent_data"
-        if not os.path.exists(self.db_dir):
-            os.makedirs(self.db_dir)
+    @classmethod
+    def load_from_save(cls):
+        """Try to load the most recent world state."""
+        save_dir = "simulation_saves"
+        if not os.path.exists(save_dir):
+            return None
             
-        # Load existing agent data if any
-        self.load_agent_data()
+        # Get all save directories
+        save_dirs = [d for d in os.listdir(save_dir) if d.startswith("world_state_")]
+        if not save_dirs:
+            return None
+            
+        # Get most recent save
+        latest_save = max(save_dirs, key=lambda x: os.path.getctime(os.path.join(save_dir, x)))
+        save_path = os.path.join(save_dir, latest_save)
+        
+        try:
+            # Load world state
+            with open(os.path.join(save_path, "world.pkl"), 'rb') as f:
+                world = pickle.load(f)
+            logger.info(f"Loaded world state from {save_path}")
+            return world
+        except Exception as e:
+            logger.error(f"Error loading world state: {e}")
+            return None
+
+    def __init__(self):
+        """Initialize the world."""
+        # Set up world dimensions (real-world coordinates)
+        self.min_longitude = -180.0  # Westernmost longitude
+        self.max_longitude = 180.0   # Easternmost longitude
+        self.min_latitude = -90.0    # Southernmost latitude
+        self.max_latitude = 90.0     # Northernmost latitude
+        self.longitude_resolution = 0.1  # Degrees per tile
+        self.latitude_resolution = 0.1   # Degrees per tile
+        
+        # Set up time-related attributes
+        self.time = 0.0  # Current time in seconds
+        self.year_length = 365.25 * 24 * 3600  # Length of a year in seconds
+        self.day_length = 24 * 3600  # Length of a day in seconds
+        self.season_length = self.year_length / 4  # Length of a season in seconds
+        
+        # Initialize basic attributes
+        self.agents = {}  # Initialize agents dictionary
+        self.settlements = {}  # Initialize settlements dictionary
+        self.current_time = datetime.now()
+        self.events = []
+        self.regions = []
+        
+        # Calculate grid dimensions based on resolution
+        self.grid_width = int((self.max_longitude - self.min_longitude) / self.longitude_resolution)
+        self.grid_height = int((self.max_latitude - self.min_latitude) / self.latitude_resolution)
+        
+        # Set world size
+        self.world_size = (self.grid_width, self.grid_height)
+        
+        # Initialize time-related attributes
+        self.current_tick = 0  # Current simulation tick
+        self.simulation_time = 0.0  # Total simulation time in hours
+        self.game_time = datetime.now()  # Current game time
+        self.real_time_start = datetime.now()  # When the simulation started
+        self.game_time_start = datetime.now()  # When the game time started
+        self.time_scale = 1.0  # Time scaling factor
         
         # Initialize world state
-        self._initialize_world()
+        self.current_season = "spring"
+        self.current_weather = "clear"
+        self.temperature = 20.0  # Celsius
+        self.humidity = 0.5  # 0-1
+        self.wind_speed = 0.0  # m/s
+        self.wind_direction = 0.0  # degrees
+        self.precipitation = 0.0  # mm
+        self.cloud_cover = 0.0  # 0-1
+        self.air_pressure = 1013.25  # hPa
+        self.visibility = 10.0  # km
         
-        logger.info("World created successfully")
+        # Initialize systems
+        self.terrain = TerrainSystem(self)
+        self.climate = ClimateSystem(self)
+        self.weather = WeatherSystem(self)
+        self.resources = ResourceSystem(self)
+        self.society = SocietySystem(self)
+        self.animal_system = AnimalSystem(self)
+        self.marine_system = MarineSystem(self)
+        self.transportation_system = TransportationSystem(self)
+        self.plants = PlantSystem(self)
+        self.technology = TechnologySystem(self)
+        
+        # Track initialization count
+        self._init_count = 0
+        
+        # Try to load saved state first
+        if not self._load_state():
+            logger.info("No saved state found, initializing new world...")
+            self._initialize_world()
+            self._save_state()
         
     def _initialize_world(self):
-        """Initialize the world state."""
-        # Generate terrain
+        """Initialize the world and all its systems."""
+        if self._init_count > 0:
+            logger.warning("World already initialized, skipping initialization")
+            return
+            
+        logger.info("Initializing world...")
+        self._init_count += 1
+        
+        # Initialize terrain first (required by other systems)
         self.terrain.initialize_terrain()
         
-        # Initialize climate
+        # Initialize climate (required for spawning)
         self.climate.initialize_earth_climate()
-        
-        # Initialize weather
-        self.weather.initialize_weather_systems()
         
         # Initialize resources
         self.resources.initialize_resources()
         
-        # Initialize transportation
+        # Initialize plants with initial populations
+        self.plants.initialize_plants()
+        
+        # Initialize animals with initial populations
+        self.animal_system.initialize_animals()
+        
+        # Initialize marine life with initial populations
+        self.marine_system.initialize_marine()
+        
+        # Initialize technology
+        self.technology.initialize_technology()
+        
+        # Initialize society and transportation after all other systems
+        self.society.initialize_society()
         self.transportation_system.initialize_transportation()
         
-        # Initialize ocean systems
-        self.terrain.initialize_ocean_systems()
-        
-        # Create initial settlements
-        self._create_initial_settlements()
-        
-        # Create initial agents
+        # Create initial agents (Avi and Yehudit)
         self._create_initial_agents()
         
-        # Spawn initial marine life
-        self.marine.spawn_creatures(count=1000)
+        # Verify all systems are properly initialized
+        if not self.verify_initialization():
+            logger.error("World initialization verification failed")
+            raise RuntimeError("World initialization verification failed")
         
-    def _create_initial_settlements(self):
-        """Create initial settlements in the world."""
-        # Create a few major settlements
-        settlements = [
-            {
-                "name": "New York",
-                "longitude": -74.0060,
-                "latitude": 40.7128,
-                "population": 1000,
-                "culture": "American"
-            },
-            {
-                "name": "London",
-                "longitude": -0.1278,
-                "latitude": 51.5074,
-                "population": 800,
-                "culture": "British"
-            },
-            {
-                "name": "Tokyo",
-                "longitude": 139.6917,
-                "latitude": 35.6895,
-                "population": 900,
-                "culture": "Japanese"
-            }
-        ]
+        logger.info("World initialization complete")
         
-        for settlement_data in settlements:
-            settlement_id = str(uuid.uuid4())
-            self.settlements[settlement_id] = Settlement(
-                id=settlement_id,
-                name=settlement_data["name"],
-                longitude=settlement_data["longitude"],
-                latitude=settlement_data["latitude"],
-                population=settlement_data["population"],
-                culture=settlement_data["culture"]
-            )
+    def verify_initialization(self) -> bool:
+        """Verify that all systems are properly initialized."""
+        logger.info("Verifying world initialization...")
+        
+        # Verify terrain system
+        if not hasattr(self.terrain, 'terrain_data') or not self.terrain.terrain_data:
+            logger.error("Terrain system not properly initialized")
+            return False
             
-    def _create_initial_agents(self):
-        """Create initial agents (Adam and Eve)"""
-        logger.info("Creating initial agents (Adam and Eve)...")
+        # Verify climate system
+        if not hasattr(self.climate, 'temperature_map') or not self.climate.temperature_map.any():
+            logger.error("Climate system not properly initialized")
+            return False
+            
+        # Verify resource system
+        if not hasattr(self.resources, 'resources') or not self.resources.resources:
+            logger.error("Resource system not properly initialized")
+            return False
+            
+        # Verify plant system
+        if not hasattr(self.plants, 'plants') or not self.plants.plants:
+            logger.error("Plant system not properly initialized")
+            return False
+            
+        # Verify animal system
+        if not hasattr(self.animal_system, 'creatures') or not self.animal_system.creatures:
+            logger.error("Animal system not properly initialized")
+            return False
+            
+        # Verify marine system
+        if not hasattr(self.marine_system, 'creatures') or not self.marine_system.creatures:
+            logger.error("Marine system not properly initialized")
+            return False
+            
+        # Verify technology system
+        if not hasattr(self.technology, 'technology_tree') or not self.technology.technology_tree:
+            logger.error("Technology system not properly initialized")
+            return False
+            
+        # Verify society system
+        if not hasattr(self.society, 'social_groups') or not self.society.social_groups:
+            logger.error("Society system not properly initialized")
+            return False
+            
+        # Verify transportation system
+        if not hasattr(self.transportation_system, 'roads') or not self.transportation_system.roads:
+            logger.error("Transportation system not properly initialized")
+            return False
+            
+        logger.info("World initialization verified successfully")
+        return True
+
+    def _create_initial_agents(self) -> None:
+        """Create initial agents without names."""
+        logger.info("Creating initial agents without names")
         
-        # Create Adam (Avi)
-        adam = Agent(
-            id="adam",
-            name="Avi",
-            last_name="Taub",
-            age=25.0,
-            gender="male",
-            genes=Genes(),
+        # Create first agent
+        agent1 = Agent(
+            id="agent_1",
+            name="",  # Empty name, will be developed through interactions
+            age=20,
+            gender="unknown",
+            genes=Genes(),  # Use default Genes initialization
             needs=AgentNeeds(),
             memory=Memory(),
             emotions=EmotionSystem(),
@@ -191,83 +255,142 @@ class World:
             latitude=0.0
         )
         
-        # Create Eve (Yehudit)
-        eve = Agent(
-            id="eve",
-            name="Yehudit",
-            last_name="Taub",
-            age=25.0,
-            gender="female",
-            genes=Genes(),
+        # Create second agent
+        agent2 = Agent(
+            id="agent_2",
+            name="",  # Empty name, will be developed through interactions
+            age=20,
+            gender="unknown",
+            genes=Genes(),  # Use default Genes initialization
             needs=AgentNeeds(),
             memory=Memory(),
             emotions=EmotionSystem(),
             health=1.0,
             philosophy=Philosophy(),
-            longitude=0.1,
-            latitude=0.1
+            longitude=1.0,
+            latitude=1.0
         )
         
-        self.agents["adam"] = adam
-        self.agents["eve"] = eve
-        logger.info("Initial agents created")
+        # Add agents to world
+        self.agents[agent1.id] = agent1
+        self.agents[agent2.id] = agent2
         
-    def update(self, time_scale=1.0):
-        """Update the world state"""
-        self.current_tick += 1
-        self.simulation_time += time_scale
+        logger.info(f"Created initial agents with IDs: {agent1.id}, {agent2.id}")
+
+    def spawn_initial_agents(self, num_agents: int = 2) -> None:
+        """Spawn initial agents without names."""
+        logger.info(f"Spawning {num_agents} initial agents without names")
+        
+        for i in range(num_agents):
+            # Generate random position
+            longitude = random.uniform(-180, 180)
+            latitude = random.uniform(-90, 90)
+            
+            # Create agent
+            agent = Agent(
+                id=f"agent_{i}",
+                name="",  # Empty name, will be developed through interactions
+                age=20,
+                gender="unknown",
+                genes=Genes(),
+                needs=AgentNeeds(),
+                memory=Memory(),
+                emotions=EmotionSystem(),
+                health=1.0,
+                philosophy=Philosophy(),
+                longitude=longitude,
+                latitude=latitude
+            )
+            
+            # Add agent to world
+            self.agents[agent.id] = agent
+            
+        logger.info(f"Spawned {num_agents} agents with IDs: {', '.join(agent.id for agent in self.agents.values())}")
+
+    def update(self, time_delta: float):
+        """Update world state."""
+        # Update time
+        self.time += time_delta
         
         # Update systems
-        self.terrain.update()
-        self.climate.update()
-        self.animals.update(self)
+        self.terrain.update(time_delta)
+        self.climate.update(time_delta)
+        self.weather.update(time_delta)
+        self.resources.update(time_delta)
+        self.plants.update(time_delta)
+        self.animal_system.update(time_delta)
+        self.marine_system.update(time_delta)
+        self.technology.update(time_delta)
+        self.society.update(time_delta)
+        self.transportation_system.update(time_delta)
         
         # Update agents
-        for agent_id, agent in list(self.agents.items()):
-            try:
-                agent.update(self)
-                logger.debug(f"Updated agent {agent.name} (ID: {agent_id})")
-            except Exception as e:
-                logger.error(f"Error updating agent {agent_id}: {str(e)}", exc_info=True)
+        for agent in self.agents.values():
+            agent.update(time_delta, self.world.get_state())
+            
+        # Let agents decide to create settlements based on their needs and discoveries
+        for agent in self.agents.values():
+            if agent.should_create_settlement():
+                self._create_settlement_from_agent(agent)
+                
+    def _create_settlement_from_agent(self, agent: Agent):
+        """Create a settlement based on an agent's decision."""
+        # Only create if agent has discovered settlement concept
+        if "settlement" not in agent.discovered_concepts:
+            return
+            
+        # Check if agent has enough resources and knowledge
+        if not agent.can_create_settlement():
+            return
+            
+        # Create settlement at agent's location
+        settlement_id = str(uuid.uuid4())
+        self.settlements[settlement_id] = Settlement(
+            id=settlement_id,
+            name=agent.generate_settlement_name(),
+            longitude=agent.longitude,
+            latitude=agent.latitude,
+            population=1,  # Start with just the founding agent
+            culture=agent.generate_culture_name(),
+            type="camp"  # Start as a simple camp
+        )
         
-        # Update civilization systems
-        self.technology.update(self)
-        self.society.update(self)
+        # Add agent to settlement
+        self.settlements[settlement_id].residents.add(agent.id)
         
-        # Log major events every 100 ticks
-        if self.current_tick % 100 == 0:
-            self._log_world_state()
-        
-    def _log_world_state(self):
-        """Log the current state of the world"""
-        logger.info(f"World State at tick {self.current_tick}:")
-        logger.info(f"  Simulation time: {self.simulation_time:.2f} hours")
-        logger.info(f"  Agents: {len(self.agents)}")
-        logger.info(f"  Animals: {len(self.animals.animals)}")
-        logger.info(f"  Inventions: {len(self.technology.discoveries)}")
-        logger.info(f"  Religions: {len(self.society.religions)}")
-        logger.info(f"  Languages: {len(self.society.languages)}")
-        
-        # Log agent details
-        for agent_id, agent in self.agents.items():
-            logger.info(f"  Agent {agent.name} (ID: {agent_id}):")
-            logger.info(f"    Age: {agent.age:.1f}, Health: {agent.health:.2f}")
-            logger.info(f"    Position: ({agent.longitude:.2f}, {agent.latitude:.2f})")
-            logger.info(f"    Needs - Food: {agent.needs.food:.2f}, Water: {agent.needs.water:.2f}")
-        
-    def get_state(self):
-        """Get the current state of the world"""
+        # Log the event
+        self.log_event("settlement_created", {
+            "agent_id": agent.id,
+            "settlement_id": settlement_id,
+            "name": self.settlements[settlement_id].name,
+            "location": (agent.longitude, agent.latitude)
+        })
+
+    def get_state(self) -> Dict:
+        """Get current world state."""
         return {
-            "tick": self.current_tick,
-            "simulation_time": self.simulation_time,
-            "agents": {id: agent.to_dict() for id, agent in self.agents.items()},
-            "animals": self.animals.get_state(),
+            "time": self.time,
+            "season": self.current_season,
+            "weather": self.current_weather,
+            "temperature": self.temperature,
+            "humidity": self.humidity,
+            "wind_speed": self.wind_speed,
+            "wind_direction": self.wind_direction,
+            "precipitation": self.precipitation,
+            "cloud_cover": self.cloud_cover,
+            "air_pressure": self.air_pressure,
+            "visibility": self.visibility,
             "terrain": self.terrain.get_state(),
             "climate": self.climate.get_state(),
+            "resources": self.resources.get_state(),
+            "plants": self.plants.get_state(),
+            "animals": self.animal_system.get_state(),
+            "marine": self.marine_system.get_state(),
             "technology": self.technology.get_state(),
-            "society": self.society.get_state()
+            "society": self.society.get_state(),
+            "transportation": self.transportation_system.get_state()
         }
-        
+
     def get_world_state(self) -> Dict:
         """Get current world state for agents."""
         return {
@@ -279,7 +402,7 @@ class World:
             "transportation": self.transportation_system.get_state(),
             "settlements": {id: settlement.get_state() for id, settlement in self.settlements.items()},
             "agents": {id: agent.get_state() for id, agent in self.agents.items()},
-            "marine": self.marine.get_state(),
+            "marine": self.marine_system.get_state(),
             "environmental_conditions": {
                 "temperature": self.climate.get_temperature_at,
                 "salinity": self.terrain.get_salinity_at,
@@ -290,9 +413,9 @@ class World:
             }
         }
         
-    def get_terrain_at(self, longitude: float, latitude: float) -> TerrainType:
+    def get_terrain_at(self, x: float, y: float) -> TerrainType:
         """Get terrain type at given coordinates."""
-        return self.terrain.get_terrain_at(longitude, latitude)
+        return self.terrain.get_terrain_at(x, y)
         
     def get_climate_at(self, longitude: float, latitude: float) -> ClimateType:
         """Get climate type at given coordinates."""
@@ -334,19 +457,20 @@ class World:
         return self.game_time_start + game_time_elapsed
 
     def get_distance(self, lon1: float, lat1: float, lon2: float, lat2: float) -> float:
-        """Calculate distance between two points using the Haversine formula."""
+        """Calculate distance between two points in kilometers using the Haversine formula."""
+        from math import radians, sin, cos, sqrt, atan2
+        
         # Convert to radians
-        lat1, lon1 = math.radians(lat1), math.radians(lon1)
-        lat2, lon2 = math.radians(lat2), math.radians(lon2)
+        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
         
         # Haversine formula
         dlon = lon2 - lon1
         dlat = lat2 - lat1
-        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-        distance = self.EARTH_RADIUS * c  # Earth's radius in km
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1-a))
+        radius = 6371  # Earth's radius in kilometers
         
-        return distance
+        return radius * c
 
     def get_tile_size(self, latitude: float) -> Tuple[float, float]:
         """Get the size of a tile at a given latitude in km."""
@@ -381,83 +505,6 @@ class World:
     def get_seasonal_factors_at(self, longitude: float, latitude: float) -> Dict[str, float]:
         """Get seasonal factors at given coordinates."""
         return self.terrain.get_seasonal_factors_at(longitude, latitude)
-
-    def spawn_initial_agents(self, count: int = 2):
-        """Spawn initial agents in the world."""
-        agent_ids = []
-        positions = []
-        
-        logger.info(f"Spawning {count} initial agents...")
-        
-        # First two agents are Adam and Eve
-        first_names = ["Adam", "Eve"]
-        first_genders = ["male", "female"]
-        
-        for i in range(count):
-            # Find a suitable spawn location (not water)
-            while True:
-                x = random.randint(0, self.environment.width - 1)
-                y = random.randint(0, self.environment.height - 1)
-                if self.environment.get_terrain_at(x, y).type.value != "water":
-                    break
-
-            # Create agent
-            agent_id = f"agent_{i}"
-            genes = Genes(
-                curiosity=random.random(),
-                strength=random.random(),
-                intelligence=random.random(),
-                social_drive=random.random(),
-                creativity=random.random(),
-                adaptability=random.random()
-            )
-            
-            # Use Adam/Eve for first two agents
-            if i < 2:
-                name = first_names[i]
-                gender = first_genders[i]
-            else:
-                name = self._generate_name()[0]
-                gender = random.choice(["male", "female"])
-            
-            # Initialize cognition system first
-            cognition = AgentCognition(agent_id)
-            self.cognition_systems[agent_id] = cognition
-            
-            # Create agent with the cognition system
-            agent = Agent(
-                id=agent_id,
-                name=name,
-                position=(x, y),
-                genes=genes,
-                gender=gender
-            )
-            
-            # Initialize agent's cognition state
-            agent.cognition_state = cognition.get_state()
-            
-            self.agents[agent_id] = agent
-            
-            # Generate initial resources at agent's location
-            terrain = self.environment.get_terrain_at(x, y)
-            self.resources.generate_resources(x, y, terrain.type.value)
-            
-            agent_ids.append(agent_id)
-            positions.append((x, y))
-            
-            logger.info(f"Created agent {agent.name} (ID: {agent_id}) at position {x}, {y}")
-            self.log_event("agent_spawn", {
-                "agent_id": agent_id,
-                "name": agent.name,
-                "gender": gender,
-                "position": (x, y),
-                "genes": genes.__dict__,
-                "cognition_state": cognition.get_state()
-            })
-            
-        # Create initial society
-        self.society.create_initial_society(agent_ids, positions)
-        logger.info(f"Created initial society with {len(agent_ids)} agents")
 
     def _generate_name(self) -> Tuple[str, str]:
         """Generate a name based on developing language and culture."""
@@ -754,6 +801,7 @@ class World:
                 "water": 0.3
             }.get(terrain.value, 1.0)
             
+            
             # Calculate new position
             dx = random.randint(-1, 1) * speed * terrain_modifier
             dy = random.randint(-1, 1) * speed * terrain_modifier
@@ -1046,10 +1094,10 @@ class World:
 
     def get_animal_json(self, animal_id: str) -> Dict:
         """Generate a comprehensive JSON representation of an animal's complete state."""
-        if animal_id not in self.animals.animals:
+        if animal_id not in self.animal_system.animals:
             return {}
             
-        animal = self.animals.animals[animal_id]
+        animal = self.animal_system.animals[animal_id]
         
         # Get animal's current location and environment
         terrain = self.environment.get_terrain_at(*animal.position)
@@ -1133,7 +1181,7 @@ class World:
             "environment": self.environment,
             "resources": self.resources,
             "agents": {aid: a.to_dict() for aid, a in self.agents.items() if aid != agent.id},
-            "animals": {animal.id: animal.to_dict() for animal in self.animals.animals.values()},
+            "animals": {animal.id: animal.to_dict() for animal in self.animal_system.animals.values()},
             "time": self.game_time,
             "world_size": (self.environment.width, self.environment.height),
             "explored_area": self._get_explored_area(agent.position),
@@ -1219,13 +1267,8 @@ class World:
             max_lat = min(self.max_latitude, lat + search_radius)
             
             # Check each point in the area
-            for test_lon in range(int(min_lon / self.longitude_resolution),
-                                int(max_lon / self.longitude_resolution) + 1):
-                for test_lat in range(int(min_lat / self.latitude_resolution),
-                                    int(max_lat / self.latitude_resolution) + 1):
-                    test_lon = test_lon * self.longitude_resolution
-                    test_lat = test_lat * self.latitude_resolution
-                    
+            for test_lon in np.arange(min_lon, max_lon, self.longitude_resolution):
+                for test_lat in np.arange(min_lat, max_lat, self.latitude_resolution):
                     # Check if point is within radius
                     if self.get_distance(lon, lat, test_lon, test_lat) <= search_radius:
                         if self.get_terrain_at(test_lon, test_lat) != TerrainType.WATER:
@@ -1244,7 +1287,7 @@ class World:
             "climate": self.climate.get_state(),
             "weather": self.weather.get_state(),
             "resources": self.resources.get_state(),
-            "marine": self.marine.get_state()
+            "marine": self.marine_system.get_state()
         }
 
     def load_agent_data(self):
@@ -1284,10 +1327,10 @@ class World:
 
     def get_marine_creature_json(self, creature_id: str) -> Dict:
         """Get JSON representation of a marine creature."""
-        if creature_id not in self.marine.creatures:
+        if creature_id not in self.marine_system.creatures:
             return None
         
-        creature = self.marine.creatures[creature_id]
+        creature = self.marine_system.creatures[creature_id]
         return {
             "id": creature_id,
             "species": creature.species,
@@ -1300,3 +1343,294 @@ class World:
             "reproduction_status": creature.reproduction_status,
             "last_updated": creature.last_updated.isoformat() if creature.last_updated else None
         }
+
+    def __getstate__(self):
+        """Prepare object for serialization."""
+        return {
+            'terrain': self.terrain,
+            'climate': self.climate,
+            'marine': self.marine_system,
+            'min_longitude': self.min_longitude,
+            'max_longitude': self.max_longitude,
+            'min_latitude': self.min_latitude,
+            'max_latitude': self.max_latitude,
+            'longitude_resolution': self.longitude_resolution,
+            'latitude_resolution': self.latitude_resolution
+        }
+        
+    def __setstate__(self, state):
+        """Restore object from serialization."""
+        self.terrain = state['terrain']
+        self.climate = state['climate']
+        self.marine_system = state['marine']
+        self.min_longitude = state['min_longitude']
+        self.max_longitude = state['max_longitude']
+        self.min_latitude = state['min_latitude']
+        self.max_latitude = state['max_latitude']
+        self.longitude_resolution = state['longitude_resolution']
+        self.latitude_resolution = state['latitude_resolution']
+        
+        # Restore world references
+        self.terrain.world = self
+        self.climate.world = self
+        self.marine_system.world = self
+
+    def get_regions(self) -> List[Dict]:
+        """Get all regions in the world for animal initialization.
+        Each region is a dictionary containing:
+        - center: (longitude, latitude) tuple
+        - terrain_type: string describing the terrain
+        - size: approximate size in square kilometers
+        """
+        regions = []
+        
+        # Create regions based on terrain types
+        for lon in range(-180, 181, 5):  # Every 5 degrees
+            for lat in range(-90, 91, 5):
+                terrain = self.terrain.get_terrain_at(lon, lat)
+                if terrain and terrain != "void":  # Check if terrain exists and is not void
+                    regions.append({
+                        "center": (lon, lat),
+                        "terrain_type": terrain.value if hasattr(terrain, 'value') else terrain,  # Handle both enum and string
+                        "size": 5000  # Approximate size in square kilometers
+                    })
+        
+        return regions
+
+    def _save_state(self):
+        """Save the current world state to disk."""
+        try:
+            logger.info("[SAVE] Attempting to save world state...")
+            saves_dir = 'simulation_saves'
+            os.makedirs(saves_dir, exist_ok=True)
+            
+            # Create timestamped save directory
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            save_dir = os.path.join(saves_dir, f'world_state_{timestamp}')
+            os.makedirs(save_dir)
+            
+            # Save each system's state with complete data
+            systems = {
+                'terrain': self.terrain,
+                'climate': self.climate,
+                'resources': self.resources,
+                'plants': self.plants,
+                'animals': self.animal_system,
+                'marine': self.marine_system,
+                'technology': self.technology,
+                'society': self.society,
+                'transportation': self.transportation_system
+            }
+            
+            for name, system in systems.items():
+                try:
+                    # Get complete system state
+                    if hasattr(system, 'get_state'):
+                        state = system.get_state()
+                    elif hasattr(system, 'to_dict'):
+                        state = system.to_dict()
+                    else:
+                        # For systems without state methods, save all attributes
+                        state = {
+                            'type': system.__class__.__name__,
+                            'initialized': True,
+                            'attributes': {k: v for k, v in system.__dict__.items() 
+                                         if not k.startswith('_') and k != 'world'}
+                        }
+                    
+                    # Ensure we have complete data for each system
+                    if name == 'terrain':
+                        state.update({
+                            'height_map': system.height_map.tolist() if hasattr(system, 'height_map') else [],
+                            'biome_map': system.biome_map.tolist() if hasattr(system, 'biome_map') else [],
+                            'water_map': system.water_map.tolist() if hasattr(system, 'water_map') else [],
+                            'resource_map': system.resource_map.tolist() if hasattr(system, 'resource_map') else []
+                        })
+                    elif name == 'marine':
+                        state.update({
+                            'creatures': {cid: creature.to_dict() for cid, creature in system.creatures.items()},
+                            'social_groups': {gid: group.to_dict() for gid, group in system.social_groups.items()},
+                            'territories': {tid: territory.to_dict() for tid, territory in system.territories.items()},
+                            'spatial_grid': system.spatial_grid if hasattr(system, 'spatial_grid') else {}
+                        })
+                    elif name == 'animals':
+                        state.update({
+                            'creatures': {cid: creature.to_dict() for cid, creature in system.creatures.items()},
+                            'social_groups': {gid: group.to_dict() for gid, group in system.social_groups.items()},
+                            'territories': {tid: territory.to_dict() for tid, territory in system.territories.items()},
+                            'mating_pairs': system.mating_pairs if hasattr(system, 'mating_pairs') else {}
+                        })
+                    elif name == 'plants':
+                        state.update({
+                            'plants': {pid: plant.to_dict() for pid, plant in system.plants.items()},
+                            'growth_stages': system.growth_stages if hasattr(system, 'growth_stages') else {},
+                            'biome_distribution': system.biome_distribution if hasattr(system, 'biome_distribution') else {}
+                        })
+                    elif name == 'climate':
+                        state.update({
+                            'temperature_map': system.temperature_map.tolist() if hasattr(system, 'temperature_map') else [],
+                            'precipitation_map': system.precipitation_map.tolist() if hasattr(system, 'precipitation_map') else [],
+                            'wind_map': system.wind_map.tolist() if hasattr(system, 'wind_map') else [],
+                            'current_conditions': system.current_conditions if hasattr(system, 'current_conditions') else {}
+                        })
+                    elif name == 'society':
+                        state.update({
+                            'tribes': {tid: tribe.to_dict() for tid, tribe in system.tribes.items()},
+                            'relationships': system.relationships if hasattr(system, 'relationships') else {},
+                            'social_structures': system.social_structures if hasattr(system, 'social_structures') else {},
+                            'cultural_traits': system.cultural_traits if hasattr(system, 'cultural_traits') else {}
+                        })
+                    elif name == 'technology':
+                        state.update({
+                            'technologies': {tid: tech.to_dict() for tid, tech in system.technologies.items()},
+                            'innovations': {iid: innovation.to_dict() for iid, innovation in system.innovations.items()},
+                            'discoveries': system.discoveries if hasattr(system, 'discoveries') else [],
+                            'research_progress': system.research_progress if hasattr(system, 'research_progress') else {}
+                        })
+                        
+                    save_path = os.path.join(save_dir, f'{name}.json')
+                    with open(save_path, 'w') as f:
+                        json.dump(state, f, indent=2)
+                    logger.info(f"[SAVE] Saved {name} state to {save_path}")
+                except Exception as sys_e:
+                    logger.error(f"[SAVE] Error saving {name}: {sys_e}")
+                    logger.error(traceback.format_exc())
+            
+            # Save world state with complete data
+            world_state = {
+                'time': self.time,
+                'current_tick': self.current_tick,
+                'simulation_time': self.simulation_time,
+                'game_time': self.game_time.isoformat(),
+                'real_time_start': self.real_time_start.isoformat(),
+                'game_time_start': self.game_time_start.isoformat(),
+                'time_scale': self.time_scale,
+                'current_season': self.current_season,
+                'current_weather': self.current_weather,
+                'temperature': self.temperature,
+                'humidity': self.humidity,
+                'wind_speed': self.wind_speed,
+                'wind_direction': self.wind_direction,
+                'precipitation': self.precipitation,
+                'cloud_cover': self.cloud_cover,
+                'air_pressure': self.air_pressure,
+                'visibility': self.visibility,
+                'agents': {aid: agent.to_dict() for aid, agent in self.agents.items()},
+                'settlements': {sid: settlement.to_dict() for sid, settlement in self.settlements.items()},
+                'events': self.events[-1000:],  # Keep last 1000 events
+                'spatial_grid': self.spatial_grid if hasattr(self, 'spatial_grid') else {},
+                'resource_distribution': self.resource_distribution if hasattr(self, 'resource_distribution') else {},
+                'biome_distribution': self.biome_distribution if hasattr(self, 'biome_distribution') else {}
+            }
+            
+            # Save world state
+            world_state_path = os.path.join(save_dir, 'world_state.json')
+            with open(world_state_path, 'w') as f:
+                json.dump(world_state, f, indent=2)
+            logger.info(f"[SAVE] Saved world state to {world_state_path}")
+            
+            # Save metadata with complete system info
+            metadata = {
+                'timestamp': timestamp,
+                'systems': list(systems.keys()),
+                'world_version': '1.0',
+                'save_time': datetime.now().isoformat(),
+                'initialization_count': getattr(self, '_init_count', 0),
+                'system_versions': {
+                    name: getattr(system, 'version', '1.0') for name, system in systems.items()
+                },
+                'data_completeness': {
+                    name: {
+                        'has_state_method': hasattr(system, 'get_state'),
+                        'has_dict_method': hasattr(system, 'to_dict'),
+                        'attributes_saved': len(getattr(system, '__dict__', {}))
+                    } for name, system in systems.items()
+                }
+            }
+            metadata_path = os.path.join(save_dir, 'metadata.json')
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
+            logger.info(f"[SAVE] Successfully saved world state to {save_dir}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"[SAVE] Critical error saving world state: {str(e)}")
+            logger.error(traceback.format_exc())
+            return False
+
+    def _load_state(self):
+        """Load the most recent world state from disk."""
+        try:
+            logger.info("[LOAD] Attempting to load world state...")
+            saves_dir = 'simulation_saves'
+            
+            # Check if saves directory exists
+            if not os.path.exists(saves_dir):
+                logger.info("[LOAD] No simulation_saves directory found.")
+                return False
+            
+            # Get all save directories
+            saves = [d for d in os.listdir(saves_dir) if d.startswith('world_state_')]
+            if not saves:
+                logger.info("[LOAD] No world_state_ saves found.")
+                return False
+            
+            # Get the latest save directory
+            latest_save = max(saves)
+            save_dir = os.path.join(saves_dir, latest_save)
+            
+            # Check if the save directory exists and has required files
+            if not os.path.exists(save_dir):
+                logger.info(f"[LOAD] Save directory {save_dir} does not exist.")
+                return False
+                
+            metadata_path = os.path.join(save_dir, 'metadata.json')
+            if not os.path.exists(metadata_path):
+                logger.info(f"[LOAD] Metadata file not found in {save_dir}")
+                return False
+                
+            logger.info(f"[LOAD] Loading from directory: {save_dir}")
+            
+            # Load metadata
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+            logger.info(f"[LOAD] Loaded metadata: {metadata}")
+            
+            # Load each system's state
+            systems = {
+                'terrain': self.terrain,
+                'climate': self.climate,
+                'resources': self.resources,
+                'plants': self.plants,
+                'animals': self.animal_system,
+                'marine': self.marine_system,
+                'technology': self.technology,
+                'society': self.society,
+                'transportation': self.transportation_system
+            }
+            
+            for name, system in systems.items():
+                state_file = os.path.join(save_dir, f'{name}.json')
+                if os.path.exists(state_file):
+                    try:
+                        with open(state_file, 'r') as f:
+                            state = json.load(f)
+                        if hasattr(system, 'load_state'):
+                            system.load_state(state)
+                        else:
+                            # For simple attributes, update directly
+                            for key, value in state.items():
+                                setattr(system, key, value)
+                        logger.info(f"[LOAD] Loaded {name} state from {state_file}")
+                    except Exception as sys_e:
+                        logger.error(f"[LOAD] Error loading {name}: {sys_e}")
+                else:
+                    logger.warning(f"[LOAD] State file missing for {name}: {state_file}")
+            
+            logger.info(f"[LOAD] Successfully loaded world state from {save_dir}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"[LOAD] Error loading world state: {str(e)}")
+            return False

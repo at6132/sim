@@ -41,205 +41,352 @@ class ClimateType(Enum):
 
 class ClimateSystem:
     def __init__(self, world):
+        """Initialize the climate system."""
         self.world = world
         self.climate_data = {}  # (longitude, latitude) -> Dict
         self.temperature_data = {}  # (longitude, latitude) -> float
         self.precipitation_data = {}  # (longitude, latitude) -> float
         self.humidity_data = {}  # (longitude, latitude) -> float
         self.wind_data = {}  # (longitude, latitude) -> Dict
-        
-        # Initialize climate
         self.initialize_earth_climate()
         
     def initialize_earth_climate(self):
-        """Initialize Earth's climate system."""
-        logger.info("Initializing Earth climate...")
+        """Initialize the Earth's climate system."""
+        logger.info("Initializing Earth climate system...")
         
-        for lon in np.arange(self.world.min_longitude, self.world.max_longitude, self.world.longitude_resolution):
-            for lat in np.arange(self.world.min_latitude, self.world.max_latitude, self.world.latitude_resolution):
-                # Generate base climate data
-                temperature = self._generate_temperature(lon, lat)
-                precipitation = self._generate_precipitation(lon, lat)
-                humidity = self._generate_humidity(lon, lat)
-                wind = self._generate_wind(lon, lat)
-                
-                # Store climate data
-                self.climate_data[(lon, lat)] = {
-                    "temperature": temperature,
-                    "precipitation": precipitation,
-                    "humidity": humidity,
-                    "wind": wind
-                }
-                
-                # Store individual components
-                self.temperature_data[(lon, lat)] = temperature
-                self.precipitation_data[(lon, lat)] = precipitation
-                self.humidity_data[(lon, lat)] = humidity
-                self.wind_data[(lon, lat)] = wind
-                
-        logger.info("Earth climate initialization complete")
+        # Initialize temperature map
+        logger.info("Setting up temperature map...")
+        self._initialize_temperature_map()
+        
+        # Initialize precipitation map
+        logger.info("Setting up precipitation map...")
+        self._initialize_precipitation_map()
+        
+        # Initialize wind map
+        logger.info("Setting up wind map...")
+        self._initialize_wind_map()
+        
+        # Initialize current conditions
+        logger.info("Setting up current conditions...")
+        self._initialize_current_conditions()
+        
+        # Verify initialization
+        if not self.verify_initialization():
+            logger.error("Climate system initialization verification failed")
+            raise RuntimeError("Climate system initialization verification failed")
+            
+        logger.info("Earth climate system initialization complete")
+
+    def verify_initialization(self) -> bool:
+        """Verify that the climate system is properly initialized."""
+        logger.info("Verifying climate system initialization...")
+        
+        # Check temperature map
+        if not hasattr(self, 'temperature_map') or not self.temperature_map.any():
+            logger.error("Temperature map not initialized")
+            return False
+            
+        # Check precipitation map
+        if not hasattr(self, 'precipitation_map') or not self.precipitation_map.any():
+            logger.error("Precipitation map not initialized")
+            return False
+            
+        # Check wind map
+        if not hasattr(self, 'wind_map') or not self.wind_map.any():
+            logger.error("Wind map not initialized")
+            return False
+            
+        # Check current conditions
+        if not hasattr(self, 'current_conditions') or not self.current_conditions:
+            logger.error("Current conditions not initialized")
+            return False
+            
+        logger.info("Climate system initialization verified successfully")
+        return True
+        
+    def _initialize_climate_zones(self):
+        """Initialize climate zones based on temperature and precipitation."""
+        logger.info("Initializing climate zones...")
+        
+        # Initialize polar climates
+        logger.info("Setting up polar climates...")
+        self._initialize_polar_climates()
+        logger.info("Polar climates initialized")
+        
+        # Initialize continental climates
+        logger.info("Setting up continental climates...")
+        self._initialize_continental_climates()
+        logger.info("Continental climates initialized")
+        
+        # Initialize temperate climates
+        logger.info("Setting up temperate climates...")
+        self._initialize_temperate_climates()
+        logger.info("Temperate climates initialized")
+        
+        # Initialize tropical climates
+        logger.info("Setting up tropical climates...")
+        self._initialize_tropical_climates()
+        logger.info("Tropical climates initialized")
+        
+        # Initialize arid climates
+        logger.info("Setting up arid climates...")
+        self._initialize_arid_climates()
+        logger.info("Arid climates initialized")
+        
+        # Initialize highland climates
+        logger.info("Setting up highland climates...")
+        self._initialize_highland_climates()
+        logger.info("Highland climates initialized")
+        
+        logger.info("Climate zones initialization complete")
+        
+    def _initialize_seasonal_variations(self):
+        """Initialize seasonal variations in climate."""
+        logger.info("Initializing seasonal variations...")
+        
+        # Initialize temperature variations
+        logger.info("Setting up temperature variations...")
+        self._initialize_temperature_variations()
+        logger.info("Temperature variations initialized")
+        
+        # Initialize precipitation variations
+        logger.info("Setting up precipitation variations...")
+        self._initialize_precipitation_variations()
+        logger.info("Precipitation variations initialized")
+        
+        # Initialize wind variations
+        logger.info("Setting up wind variations...")
+        self._initialize_wind_variations()
+        logger.info("Wind variations initialized")
+        
+        logger.info("Seasonal variations initialization complete")
+        
+    def _initialize_weather_patterns(self):
+        """Initialize weather patterns."""
+        logger.info("Initializing weather patterns...")
+        
+        # Initialize storm systems
+        logger.info("Setting up storm systems...")
+        self._initialize_storm_systems()
+        logger.info("Storm systems initialized")
+        
+        # Initialize pressure systems
+        logger.info("Setting up pressure systems...")
+        self._initialize_pressure_systems()
+        logger.info("Pressure systems initialized")
+        
+        # Initialize wind patterns
+        logger.info("Setting up wind patterns...")
+        self._initialize_wind_patterns()
+        logger.info("Wind patterns initialized")
+        
+        logger.info("Weather patterns initialization complete")
         
     def _generate_temperature(self, longitude: float, latitude: float) -> float:
         """Generate temperature based on longitude and latitude."""
-        # Basic climate types based on latitude
-        if abs(latitude) > 60:  # Polar regions
-            base_temp = -20 + 30 * math.cos(math.radians(latitude))  # Colder at poles
-            precip = 200 + 100 * math.sin(math.radians(longitude))  # Some variation with longitude
-        elif abs(latitude) > 45:  # Temperate regions
-            if longitude < -100:  # Western North America
-                base_temp = 10 + 20 * math.cos(math.radians(latitude))
-                precip = 1000 + 500 * math.sin(math.radians(longitude))
+        # Base temperature on latitude (solar angle)
+        base_temp = 30 * math.cos(math.radians(latitude))  # 30°C at equator, -30°C at poles
+        
+        # Adjust for ocean currents and continental effects
+        if longitude < -100:  # Western North America
+            if latitude > 40:  # Pacific Northwest
+                base_temp += 5  # Warmer due to Pacific currents
+            elif latitude > 30:  # California
+                base_temp += 8  # Mediterranean climate
+        elif longitude > 100:  # Eastern Asia
+            if latitude > 30:  # Japan/Korea
+                base_temp += 5  # Warmer due to Kuroshio current
+        elif longitude < -20:  # Western Europe
+            if latitude > 40:  # Mediterranean
+                base_temp += 8  # Mediterranean climate
             else:
-                base_temp = 5 + 25 * math.cos(math.radians(latitude))
-                precip = 500 + 300 * math.sin(math.radians(longitude))
-        elif abs(latitude) > 30:  # Subtropical regions
-            if longitude < -100:  # Western North America
-                base_temp = 15 + 25 * math.cos(math.radians(latitude))
-                precip = 400 + 200 * math.sin(math.radians(longitude))
-            else:
-                base_temp = 20 + 25 * math.cos(math.radians(latitude))
-                precip = 1000 + 500 * math.sin(math.radians(longitude))
-        elif abs(latitude) > 15:  # Tropical regions
-            base_temp = 25 + 10 * math.cos(math.radians(latitude))
-            precip = 800 + 400 * math.sin(math.radians(longitude))
-        else:  # Equatorial regions
-            base_temp = 27 + 5 * math.cos(math.radians(latitude))
-            precip = 2000 + 500 * math.sin(math.radians(longitude))
-            
+                base_temp += 5  # Warmer due to Gulf Stream
+                
         # Add elevation effects
         elevation = self.world.terrain.get_elevation_at(longitude, latitude)
         if elevation > 2000:
             base_temp -= (elevation - 2000) * 0.0065  # Temperature decreases 6.5°C per 1000m
-            precip += elevation * 0.1  # More precipitation at higher elevations
             
         # Add seasonal variation
         season = self._get_season(latitude)
         if season == "summer":
             base_temp += 10
-            precip *= 0.8
         elif season == "winter":
             base_temp -= 10
-            precip *= 1.2
             
         return base_temp
         
     def _generate_precipitation(self, longitude: float, latitude: float) -> float:
         """Generate precipitation based on longitude and latitude."""
-        # Basic climate types based on latitude
+        # Base precipitation on latitude and terrain
         if abs(latitude) > 60:  # Polar regions
-            precip = 200 + 100 * math.sin(math.radians(longitude))  # Some variation with longitude
+            precip = 200  # Low precipitation
         elif abs(latitude) > 45:  # Temperate regions
             if longitude < -100:  # Western North America
-                precip = 1000 + 500 * math.sin(math.radians(longitude))
+                precip = 1500  # High precipitation in Pacific Northwest
+            elif longitude > 100:  # Eastern Asia
+                precip = 1200  # High precipitation in East Asia
             else:
-                precip = 500 + 300 * math.sin(math.radians(longitude))
+                precip = 800  # Moderate precipitation
         elif abs(latitude) > 30:  # Subtropical regions
             if longitude < -100:  # Western North America
-                precip = 400 + 200 * math.sin(math.radians(longitude))
+                precip = 300  # Low precipitation in Southwest
+            elif longitude > 100:  # Eastern Asia
+                precip = 1500  # High precipitation in East Asia
             else:
-                precip = 1000 + 500 * math.sin(math.radians(longitude))
+                precip = 1000  # Moderate precipitation
         elif abs(latitude) > 15:  # Tropical regions
-            precip = 800 + 400 * math.sin(math.radians(longitude))
+            if longitude < -100:  # Western North America
+                precip = 500  # Moderate precipitation
+            elif longitude > 100:  # Eastern Asia
+                precip = 2000  # Very high precipitation
+            else:
+                precip = 1500  # High precipitation
         else:  # Equatorial regions
-            precip = 2000 + 500 * math.sin(math.radians(longitude))
+            precip = 2500  # Very high precipitation
             
-        # Add elevation effects
-        elevation = self.world.terrain.get_elevation_at(longitude, latitude)
-        if elevation > 2000:
-            precip += elevation * 0.1  # More precipitation at higher elevations
+        # Adjust for terrain
+        terrain = self.world.terrain.get_terrain_at(longitude, latitude)
+        if terrain in ['mountain', 'hills']:
+            precip *= 1.5  # Orographic precipitation
+        elif terrain in ['desert', 'steppe']:
+            precip *= 0.3  # Low precipitation
+        elif terrain in ['rainforest', 'tropical_rainforest']:
+            precip *= 1.5  # High precipitation
             
         # Add seasonal variation
         season = self._get_season(latitude)
         if season == "summer":
-            precip *= 0.8
+            if abs(latitude) < 30:  # Tropical monsoon
+                precip *= 2.0
+            else:
+                precip *= 1.2
         elif season == "winter":
-            precip *= 1.2
+            if abs(latitude) < 30:  # Tropical monsoon
+                precip *= 0.5
+            else:
+                precip *= 0.8
             
         return precip
         
     def _generate_humidity(self, longitude: float, latitude: float) -> float:
         """Generate humidity based on longitude and latitude."""
-        # Base humidity on temperature and precipitation
-        temperature = self._generate_temperature(longitude, latitude)
-        precipitation = self._generate_precipitation(longitude, latitude)
-        
-        # Higher humidity in tropical regions
-        if abs(latitude) < 30:
-            base_humidity = 0.7 + (precipitation / 2000) * 0.3
-        else:
-            base_humidity = 0.5 + (precipitation / 2000) * 0.3
+        # Base humidity on latitude and terrain
+        if abs(latitude) < 15:  # Equatorial regions
+            base_humidity = 0.8
+        elif abs(latitude) < 30:  # Tropical regions
+            base_humidity = 0.7
+        elif abs(latitude) < 45:  # Subtropical regions
+            base_humidity = 0.6
+        elif abs(latitude) < 60:  # Temperate regions
+            base_humidity = 0.5
+        else:  # Polar regions
+            base_humidity = 0.4
             
-        # Adjust for temperature
-        if temperature > 25:
-            base_humidity *= 1.2  # Warmer air can hold more moisture
-        elif temperature < 0:
-            base_humidity *= 0.8  # Colder air holds less moisture
+        # Adjust for terrain and proximity to water
+        terrain = self.world.terrain.get_terrain_at(longitude, latitude)
+        if terrain in ['rainforest', 'tropical_rainforest', 'swamp', 'marsh']:
+            base_humidity += 0.2
+        elif terrain in ['desert', 'steppe']:
+            base_humidity -= 0.2
+            
+        # Adjust for proximity to large water bodies
+        if self._is_near_large_water(longitude, latitude):
+            base_humidity += 0.1
             
         # Add seasonal variation
         season = self._get_season(latitude)
         if season == "summer":
-            base_humidity *= 1.1
+            base_humidity += 0.1
         elif season == "winter":
-            base_humidity *= 0.9
+            base_humidity -= 0.1
             
-        return min(1.0, max(0.0, base_humidity))  # Ensure between 0 and 1
+        return min(1.0, max(0.0, base_humidity))
+        
+    def _is_near_large_water(self, longitude: float, latitude: float) -> bool:
+        """Check if coordinates are near a large water body."""
+        # Check surrounding tiles for water
+        for dlon in [-1, 0, 1]:
+            for dlat in [-1, 0, 1]:
+                if dlon == 0 and dlat == 0:
+                    continue
+                check_lon = longitude + dlon * self.world.longitude_resolution
+                check_lat = latitude + dlat * self.world.latitude_resolution
+                if self.world.terrain.get_terrain_at(check_lon, check_lat) in ['deep_ocean', 'continental_shelf']:
+                    return True
+        return False
         
     def _generate_wind(self, longitude: float, latitude: float) -> Dict:
         """Generate wind data based on longitude and latitude."""
-        # Base wind speed on latitude (stronger at higher latitudes)
-        base_speed = 5.0 + abs(latitude) * 0.1  # km/h
-        
-        # Add variation based on terrain
-        terrain_type = self.world.terrain.get_terrain_at(longitude, latitude)
-        if terrain_type == 'mountain':
-            base_speed *= 1.5  # Stronger winds in mountains
-        elif terrain_type == 'forest':
+        # Base wind speed on latitude and terrain
+        if abs(latitude) < 15:  # Equatorial regions
+            base_speed = 5.0  # m/s
+        elif abs(latitude) < 30:  # Tropical regions
+            base_speed = 7.0
+        elif abs(latitude) < 45:  # Subtropical regions
+            base_speed = 10.0
+        elif abs(latitude) < 60:  # Temperate regions
+            base_speed = 8.0
+        else:  # Polar regions
+            base_speed = 12.0
+            
+        # Adjust for terrain
+        terrain = self.world.terrain.get_terrain_at(longitude, latitude)
+        if terrain in ['mountain', 'hills']:
+            base_speed *= 1.5  # Higher winds in mountains
+        elif terrain in ['forest', 'rainforest']:
             base_speed *= 0.7  # Reduced winds in forests
             
-        # Generate wind direction (simplified)
-        # Use a combination of latitude-based prevailing winds and random variation
-        if abs(latitude) > 60:  # Polar regions
+        # Add seasonal variation
+        season = self._get_season(latitude)
+        if season == "winter":
+            base_speed *= 1.2
+            
+        # Generate wind direction based on latitude and season
+        if abs(latitude) < 15:  # Equatorial regions
             direction = random.uniform(0, 360)  # Variable winds
-        elif abs(latitude) > 30:  # Temperate regions
-            # Westerlies
-            direction = random.uniform(240, 300)
-        else:  # Tropical regions
-            # Trade winds
-            if latitude > 0:
+        elif abs(latitude) < 30:  # Tropical regions
+            if latitude > 0:  # Northern hemisphere
                 direction = random.uniform(0, 60)  # Northeast trades
-            else:
+            else:  # Southern hemisphere
                 direction = random.uniform(120, 180)  # Southeast trades
-                
+        elif abs(latitude) < 60:  # Temperate regions
+            direction = random.uniform(240, 300)  # Westerlies
+        else:  # Polar regions
+            direction = random.uniform(0, 360)  # Variable winds
+            
         return {
             "speed": base_speed,
-            "direction": direction,
-            "gust_speed": base_speed * random.uniform(1.2, 1.5)
+            "direction": direction
         }
         
     def _get_season(self, latitude: float) -> str:
-        """Determine season based on latitude and current date."""
-        # Get current date
-        now = datetime.now()
-        day_of_year = now.timetuple().tm_yday
+        """Get current season based on latitude and time of year."""
+        # Calculate day of year (0-365)
+        day_of_year = (self.world.time % self.world.year_length) / self.world.day_length
         
-        # Calculate solar angle
-        solar_angle = 23.5 * math.sin(2 * math.pi * (day_of_year - 80) / 365)
-        
-        # Determine season based on latitude and solar angle
-        if abs(latitude) < 23.5:  # Tropical regions
-            return "summer" if abs(latitude - solar_angle) < 10 else "winter"
-        else:  # Temperate and polar regions
-            if latitude > 0:  # Northern hemisphere
-                if solar_angle > 0:
-                    return "summer"
-                else:
-                    return "winter"
-            else:  # Southern hemisphere
-                if solar_angle > 0:
-                    return "winter"
-                else:
-                    return "summer"
-                    
+        # Determine season based on latitude and day of year
+        if abs(latitude) < 15:  # Equatorial regions
+            return "summer"  # No distinct seasons
+        elif latitude > 0:  # Northern hemisphere
+            if day_of_year < 80 or day_of_year > 355:
+                return "winter"
+            elif day_of_year < 172:
+                return "spring"
+            elif day_of_year < 264:
+                return "summer"
+            else:
+                return "autumn"
+        else:  # Southern hemisphere
+            if day_of_year < 80 or day_of_year > 355:
+                return "summer"
+            elif day_of_year < 172:
+                return "autumn"
+            elif day_of_year < 264:
+                return "winter"
+            else:
+                return "spring"
+                
     def get_climate_at(self, longitude: float, latitude: float) -> Dict:
         """Get climate data at given coordinates."""
         lon_grid = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
@@ -257,19 +404,19 @@ class ClimateSystem:
         })
         
     def get_temperature_at(self, longitude: float, latitude: float) -> float:
-        """Get temperature at given coordinates."""
+        """Get temperature at given coordinates in Celsius."""
         lon_grid = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
         lat_grid = round(latitude / self.world.latitude_resolution) * self.world.latitude_resolution
-        return self.temperature_data.get((lon_grid, lat_grid), 15.0)
+        return self.temperature_data.get((lon_grid, lat_grid), 20.0)
         
     def get_precipitation_at(self, longitude: float, latitude: float) -> float:
-        """Get precipitation at given coordinates."""
+        """Get precipitation at given coordinates in mm/year."""
         lon_grid = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
         lat_grid = round(latitude / self.world.latitude_resolution) * self.world.latitude_resolution
-        return self.precipitation_data.get((lon_grid, lat_grid), 500.0)
+        return self.precipitation_data.get((lon_grid, lat_grid), 0.0)
         
     def get_humidity_at(self, longitude: float, latitude: float) -> float:
-        """Get humidity at given coordinates."""
+        """Get humidity at given coordinates (0-1)."""
         lon_grid = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
         lat_grid = round(latitude / self.world.latitude_resolution) * self.world.latitude_resolution
         return self.humidity_data.get((lon_grid, lat_grid), 0.5)
@@ -278,11 +425,7 @@ class ClimateSystem:
         """Get wind data at given coordinates."""
         lon_grid = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
         lat_grid = round(latitude / self.world.latitude_resolution) * self.world.latitude_resolution
-        return self.wind_data.get((lon_grid, lat_grid), {
-            "speed": 5.0,
-            "direction": 0.0,
-            "gust_speed": 7.0
-        })
+        return self.wind_data.get((lon_grid, lat_grid), {"speed": 0.0, "direction": 0.0})
         
     def get_state(self) -> Dict:
         """Get current climate system state."""

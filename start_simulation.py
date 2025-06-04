@@ -1,317 +1,162 @@
-import eventlet
-eventlet.monkey_patch()
+# import eventlet
+# eventlet.monkey_patch()
 
 import logging
 import sys
 import threading
-from flask import Flask, render_template, jsonify, request
+import traceback
+from flask import Flask, render_template, jsonify
 from flask_socketio import SocketIO
 from flask_cors import CORS
-from simulation.main import Simulation
-from simulation.world import World
+from simulation.engine import SimulationEngine
 from simulation.database import DatabaseManager
-import json
-from datetime import datetime
+import webbrowser
 import time
-import random
+import os
 
-# Set up detailed logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('simulation.log', mode='a')
-    ]
-)
+# Set up root logger first
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
 
+# Remove any existing handlers
+for handler in root_logger.handlers[:]:
+    root_logger.removeHandler(handler)
+
+# Create formatters
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Console handler
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(formatter)
+root_logger.addHandler(console_handler)
+
+# File handler
+file_handler = logging.FileHandler('simulation.log', mode='a')
+file_handler.setFormatter(formatter)
+root_logger.addHandler(file_handler)
+
+# Get logger for this module
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
-socketio = SocketIO(app, async_mode='eventlet')
+CORS(app)
+socketio = SocketIO(app, async_mode='threading')
 
 # Initialize database
 db = DatabaseManager()
 
 # Global simulation instance
-simulation = None
+engine = None
 simulation_thread = None
 running = False
-time_scale = 1.0  # 1 real second = 1 game hour
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@socketio.on('connect')
-def handle_connect():
-    logger.info("Client connected")
-    if simulation:
-        socketio.emit('simulation_state', simulation.get_state())
-
-def initialize_world():
-    """Initialize the world with Adam, Eve, animals, and sea creatures."""
-    global simulation
-    
-    logger.info("Initializing world...")
-    
-    # Create simulation with initial configuration
-    config = {
-        'tick_rate': 1.0,
-        'initial_agents': [
-            {
-                'id': 'adam',
-                'name': 'Adam',
-                'longitude': 0.0,
-                'latitude': 0.0,
-                'age': 25.0,
-                'gender': 'male'
-            },
-            {
-                'id': 'eve',
-                'name': 'Eve',
-                'longitude': 0.1,
-                'latitude': 0.1,
-                'age': 25.0,
-                'gender': 'female'
-            }
-        ]
-    }
-    
-    simulation = Simulation(config)
-    
-    # Initialize database with initial state
-    db.save_world_state(simulation.world.get_state())
-    
-    # Spawn animals across continents
-    logger.info("Spawning 2000 animals across continents...")
-    for _ in range(2000):
-        # Get random valid land coordinates
-        lon = random.uniform(-180, 180)
-        lat = random.uniform(-90, 90)
-        while simulation.world.get_terrain_at(lon, lat).is_water:
-            lon = random.uniform(-180, 180)
-            lat = random.uniform(-90, 90)
-        
-        simulation.animal_system.spawn_animal(
-            longitude=lon,
-            latitude=lat,
-            species=random.choice(simulation.animal_system.available_species)
-        )
-    
-    # Spawn sea creatures
-    logger.info("Spawning 10000 sea creatures across oceans...")
-    for _ in range(10000):
-        # Get random valid ocean coordinates
-        lon = random.uniform(-180, 180)
-        lat = random.uniform(-90, 90)
-        while not simulation.world.get_terrain_at(lon, lat).is_water:
-            lon = random.uniform(-180, 180)
-            lat = random.uniform(-90, 90)
-        
-        simulation.marine_system.spawn_creature(
-            longitude=lon,
-            latitude=lat,
-            species=random.choice(simulation.marine_system.available_species)
-        )
-    
-    logger.info("World initialization complete")
-    return simulation
-
-def run_simulation():
-    """Run the simulation in a separate thread."""
+def run_simulation_loop():
+    """Run the main simulation loop."""
     global running
-    tick_count = 0
+    running = True
     
-    try:
-        while running:
-            try:
-                simulation.update()
-                tick_count += 1
-                
-                # Save world state periodically
-                if tick_count % 10 == 0:  # Save every 10 ticks
-                    db.save_world_state(simulation.world.get_state())
-                    
-                    # Save agent states
-                    for agent_id, agent in simulation.world.agents.items():
-                        db.save_agent(agent_id, simulation.world.get_agent_json(agent_id))
-                    
-                    # Save animal states
-                    for animal_id, animal in simulation.world.animals.animals.items():
-                        db.save_animal(animal_id, simulation.world.get_animal_json(animal_id))
-                    
-                    # Save marine creature states
-                    for creature_id, creature in simulation.world.marine.creatures.items():
-                        db.save_marine_creature(creature_id, simulation.world.get_marine_creature_json(creature_id))
-                    
-                    # Save civilization data
-                    db.save_civilization_data({
-                        "inventions": simulation.world.technology.discoveries,
-                        "religions": simulation.world.society.religions,
-                        "languages": simulation.world.society.languages,
-                        "settlements": simulation.world.settlements
-                    })
-                
-                # Emit state updates
-                state = simulation.get_state()
-                socketio.emit('simulation_state', state)
-                
-                # Emit all events with proper formatting
-                for event in simulation.world.events[-50:]:  # Last 50 events
-                    formatted_event = {
-                        'type': event['type'],
-                        'timestamp': event['timestamp'],
-                        'data': event['data']
-                    }
-                    socketio.emit('simulation_event', formatted_event)
-                    
-                    # Log events to console
-                    logger.info(f"[{event['world_time']:.1f}h] {event['type']}: {json.dumps(event['data'])}")
-                
-                # Log every 100 ticks
-                if tick_count % 100 == 0:
-                    logger.info(f"Simulation tick: {tick_count}")
-                    logger.info(f"Number of agents: {len(simulation.world.agents)}")
-                    logger.info(f"Number of animals: {len(simulation.world.animals.animals)}")
-                    
-                    # Log some agent stats
-                    for agent_id, agent in list(simulation.world.agents.items())[:3]:  # Log first 3 agents
-                        logger.info(f"Agent {agent.name} (ID: {agent_id}):")
-                        logger.info(f"  Age: {agent.age:.1f}, Health: {agent.health:.2f}")
-                        logger.info(f"  Position: ({agent.longitude:.2f}, {agent.latitude:.2f})")
-                        logger.info(f"  Needs - Food: {agent.needs.food:.2f}, Water: {agent.needs.water:.2f}")
-                    
-                    # Log civilization progress
-                    logger.info("Civilization Progress:")
-                    logger.info(f"  Inventions: {len(simulation.world.technology.discoveries)}")
-                    logger.info(f"  Religions: {len(simulation.world.society.religions)}")
-                    logger.info(f"  Languages: {len(simulation.world.society.languages)}")
-                
-                time.sleep(0.1)  # Prevent CPU overload
-                
-            except Exception as e:
-                logger.error(f"Error in simulation update: {str(e)}")
-                socketio.emit('simulation_error', {'error': str(e)})
-                time.sleep(1)  # Prevent tight error loop
-    except Exception as e:
-        logger.error(f"Fatal simulation error: {str(e)}")
-        running = False
-        socketio.emit('simulation_error', {'error': f"Fatal error: {str(e)}"})
-
-# API Endpoints
-@app.route('/api/world/state')
-def get_world_state():
-    if simulation is None:
-        # Try to load from database if simulation not running
-        state = db.load_world_state()
-        if state:
-            return jsonify(state)
-        return jsonify({"error": "Simulation not started"}), 503
-    return jsonify(simulation.get_state())
-
-@app.route('/api/world/reset', methods=['POST'])
-def reset_world():
-    global simulation, running
-    logger.info("Resetting world...")
+    logger.info("Starting simulation loop...")
+    while running:
+        try:
+            # Update simulation state
+            engine.world.update(48.0)  # 48 minutes = 0.8 hours
+            
+            # Emit state to frontend
+            socketio.emit('simulation_state', engine.world.to_dict())
+            
+            # Log progress
+            logger.info(f"Simulation tick completed")
+            
+            # Sleep for 1 minute
+            time.sleep(60)
+            
+        except KeyboardInterrupt:
+            logger.info("Simulation stopped by user")
+            break
+        except Exception as e:
+            logger.error(f"Error in simulation loop: {e}")
+            logger.error(traceback.format_exc())
+            break
+    
     running = False
-    if simulation_thread:
-        simulation_thread.join()
-    simulation = initialize_world()
-    return jsonify({"status": "success"})
 
-@app.route('/api/world/timescale', methods=['POST'])
-def set_time_scale():
-    global time_scale
-    data = request.get_json()
-    new_scale = float(data.get('scale', 1.0))
-    logger.info(f"Changing time scale from {time_scale} to {new_scale}")
-    time_scale = new_scale
-    return jsonify({"status": "success", "time_scale": time_scale})
+def start_backend():
+    """Start the Flask backend server."""
+    logger.info("Starting backend server...")
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
 
-@app.route('/api/agents')
-def get_agents():
-    if simulation is None:
-        # Try to load from database if simulation not running
-        return jsonify(db.get_all_agents())
-    return jsonify({
-        agent_id: simulation.world.get_agent_json(agent_id)
-        for agent_id in simulation.world.agents
-    })
-
-@app.route('/api/agent/<agent_id>')
-def get_agent(agent_id):
-    if simulation is None:
-        # Try to load from database if simulation not running
-        agent_data = db.load_agent(agent_id)
-        if agent_data:
-            return jsonify(agent_data)
-        return jsonify({"error": "Agent not found"}), 404
-    
-    if agent_id not in simulation.world.agents:
-        return jsonify({"error": "Agent not found"}), 404
-    return jsonify(simulation.world.get_agent_json(agent_id))
-
-@app.route('/api/animals')
-def get_animals():
-    if simulation is None:
-        # Try to load from database if simulation not running
-        return jsonify(db.get_all_animals())
-    return jsonify({
-        animal_id: simulation.world.get_animal_json(animal_id)
-        for animal_id in simulation.world.animals.animals
-    })
-
-@app.route('/api/marine')
-def get_marine_creatures():
-    if simulation is None:
-        # Try to load from database if simulation not running
-        return jsonify(db.get_all_marine_creatures())
-    return jsonify({
-        creature_id: simulation.world.get_marine_creature_json(creature_id)
-        for creature_id in simulation.world.marine.creatures
-    })
-
-@app.route('/api/civilization')
-def get_civilization():
-    if simulation is None:
-        # Try to load from database if simulation not running
-        civ_data = db.load_civilization_data()
-        if civ_data:
-            return jsonify(civ_data)
-        return jsonify({"error": "No civilization data available"}), 503
-    
-    return jsonify({
-        "inventions": simulation.world.technology.discoveries,
-        "religions": simulation.world.society.religions,
-        "languages": simulation.world.society.languages,
-        "settlements": simulation.world.settlements
-    })
-
-@app.route('/api/events')
-def get_events():
-    limit = request.args.get('limit', default=100, type=int)
-    return jsonify(db.get_recent_events(limit))
+def start_frontend():
+    """Start the frontend in the default web browser."""
+    logger.info("Starting frontend...")
+    webbrowser.open('http://localhost:5000')
 
 def start_simulation():
-    """Start the simulation and web interface."""
-    global running, simulation_thread
+    """Main startup sequence."""
+    global engine, simulation_thread
     
-    logger.info("Starting simulation system...")
-    
-    # Initialize world
-    simulation = initialize_world()
-    
-    # Start simulation thread
-    running = True
-    simulation_thread = threading.Thread(target=run_simulation)
-    simulation_thread.start()
-    
-    # Start web interface
-    logger.info("Starting web interface on http://localhost:5000")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    try:
+        # Step 1: Create simulation engine instance
+        logger.info("Creating simulation engine...")
+        engine = SimulationEngine()
+        
+        # Step 2: Start the simulation engine
+        logger.info("Starting simulation engine...")
+        engine.start()
+        
+        # Step 3: Initialize all systems
+        logger.info("Initializing world systems...")
+        if engine.world:
+            # Initialize terrain first (required by other systems)
+            engine.world.terrain.initialize_terrain()
+            
+            # Initialize climate (required for spawning)
+            engine.world.climate.initialize_earth_climate()
+            
+            # Initialize resources
+            engine.world.resources.initialize_resources()
+            
+            # Initialize plants
+            engine.world.plants.initialize_plants()
+            
+            # Initialize animals
+            engine.world.animal_system.initialize_animals()
+            
+            # Initialize marine life
+            engine.world.marine_system.initialize_marine()
+            
+            # Initialize technology
+            engine.world.technology.initialize_technology()
+            
+            # Initialize society and transportation
+            engine.world.society.initialize_society()
+            engine.world.transportation_system.initialize_transportation()
+            
+            # Create initial agents
+            engine.world.spawn_initial_agents(2)
+            
+            logger.info("World initialization complete - All systems ready")
+        
+        # Step 4: Start simulation loop in a separate thread
+        logger.info("Starting simulation thread...")
+        simulation_thread = threading.Thread(target=run_simulation_loop)
+        simulation_thread.daemon = True
+        simulation_thread.start()
+        
+        # Step 5: Start backend server
+        logger.info("Starting backend server...")
+        start_backend()
+        
+        # Step 6: Start frontend
+        logger.info("Starting frontend...")
+        start_frontend()
+        
+    except KeyboardInterrupt:
+        logger.info("\nSimulation stopped by user")
+    except Exception as e:
+        logger.error(f"Error in startup sequence: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise
 
 if __name__ == "__main__":
     start_simulation() 

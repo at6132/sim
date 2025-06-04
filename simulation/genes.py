@@ -30,11 +30,10 @@ class Genes:
     hunting_skill: float = 1.0  # Hunting skill
     taming_skill: float = 1.0  # Taming skill
     
-    def __init__(self, parent_genes: Optional['Genes'] = None):
-        """Initialize genes, optionally inheriting from parent."""
-        if parent_genes:
-            self._inherit_from_parent(parent_genes)
-        else:
+    def __post_init__(self):
+        """Initialize genes after dataclass initialization."""
+        # Only randomize if all values are still at their defaults
+        if all(getattr(self, field) == 1.0 for field in self.__dataclass_fields__):
             self._randomize_genes()
             
     def _randomize_genes(self):
