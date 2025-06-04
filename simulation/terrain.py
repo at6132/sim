@@ -717,4 +717,84 @@ class TerrainSystem:
             'terrain_data': self.terrain_data,
             'elevation_data': self.elevation_data,
             'resource_data': self.resource_data
-        } 
+        }
+
+    def update(self, time_delta: float):
+        """Update terrain over time."""
+        logger.info(f"Updating terrain for {time_delta} minutes...")
+        
+        # Update erosion
+        self._update_erosion(time_delta)
+        
+        # Update vegetation
+        self._update_vegetation(time_delta)
+        
+        # Update water bodies
+        self._update_water_bodies(time_delta)
+        
+        logger.info("Terrain update complete")
+
+    def _update_erosion(self, time_delta: float):
+        """Update terrain erosion over time."""
+        for lon in np.arange(-180, 180, self.world.longitude_resolution):
+            for lat in np.arange(-90, 90, self.world.latitude_resolution):
+                elevation = self.elevation_data.get((lon, lat), 0)
+                slope = self.get_slope_at(lon, lat)
+                precipitation = self.world.climate.get_precipitation(lon, lat)
+                
+                # Erosion rate increases with slope and precipitation
+                erosion_rate = 0.0001 * slope * precipitation * time_delta
+                new_elevation = max(0, elevation - erosion_rate)
+                
+                self.elevation_data[(lon, lat)] = new_elevation
+
+    def _update_vegetation(self, time_delta: float):
+        """Update vegetation growth over time."""
+        for lon in np.arange(-180, 180, self.world.longitude_resolution):
+            for lat in np.arange(-90, 90, self.world.latitude_resolution):
+                current_vegetation = self.terrain_data.get((lon, lat), {}).get('vegetation', 0)
+                temperature = self.world.climate.get_temperature(lon, lat)
+                precipitation = self.world.climate.get_precipitation(lon, lat)
+                
+                # Growth rate depends on temperature and precipitation
+                growth_rate = 0.001 * (temperature / 20) * (precipitation / 50) * time_delta
+                new_vegetation = min(1.0, current_vegetation + growth_rate)
+                
+                self.terrain_data[(lon, lat)]['vegetation'] = new_vegetation
+
+    def _update_water_bodies(self, time_delta: float):
+        """Update water bodies over time."""
+        for lon in np.arange(-180, 180, self.world.longitude_resolution):
+            for lat in np.arange(-90, 90, self.world.latitude_resolution):
+                current_water = self.terrain_data.get((lon, lat), {}).get('water', 0)
+                precipitation = self.world.climate.get_precipitation(lon, lat)
+                evaporation = 0.1 * time_delta  # Base evaporation rate
+                
+                # Adjust evaporation based on temperature
+                temperature = self.world.climate.get_temperature(lon, lat)
+                evaporation *= (1 + temperature / 30)  # More evaporation at higher temperatures
+                
+                # Update water level
+                new_water = max(0, current_water + precipitation - evaporation)
+                self.terrain_data[(lon, lat)]['water'] = new_water
+
+    def _calculate_slope(self, lon: float, lat: float) -> float:
+        """Calculate the slope at a given location."""
+        current_elevation = self.elevation_data.get((lon, lat), 0)
+        
+        # Check neighboring cells
+        neighbors = [
+            (lon + self.world.longitude_resolution, lat),
+            (lon - self.world.longitude_resolution, lat),
+            (lon, lat + self.world.latitude_resolution),
+            (lon, lat - self.world.latitude_resolution)
+        ]
+        
+        max_slope = 0
+        for nlon, nlat in neighbors:
+            if -180 <= nlon <= 180 and -90 <= nlat <= 90:
+                neighbor_elevation = self.elevation_data.get((nlon, nlat), 0)
+                slope = abs(current_elevation - neighbor_elevation)
+                max_slope = max(max_slope, slope)
+        
+        return max_slope 

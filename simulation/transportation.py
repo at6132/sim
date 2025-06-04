@@ -3,8 +3,9 @@ from enum import Enum
 import math
 import logging
 from datetime import datetime, timedelta
+from simulation.utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger('TransportationSystem')
 
 class TransportationType(Enum):
     # Land Transportation
@@ -53,8 +54,9 @@ class TransportationType(Enum):
 
 class TransportationSystem:
     def __init__(self, world):
-        """Initialize the transportation system."""
         self.world = world
+        self.logger = get_logger('TransportationSystem')
+        self.logger.info("Initializing TransportationSystem...")
         self.roads = {}
         self.paths = {}
         self.ports = {}
@@ -64,88 +66,90 @@ class TransportationSystem:
             "water": {"nodes": {}, "edges": {}},
             "air": {"nodes": {}, "edges": {}}
         }
-        self.initialize_transportation()
+        self.initialize()
         
-    def initialize_transportation(self):
-        """Initialize transportation networks and routes."""
-        logger.info("Initializing transportation system...")
+    def initialize(self):
+        """Initialize the transportation system."""
+        self.logger.info("Starting transportation system initialization...")
         
-        # Initialize basic transportation infrastructure
-        logger.info("Setting up basic transportation infrastructure...")
-        self._initialize_paths()
-        
-        # Initialize trade routes
-        logger.info("Setting up trade routes...")
-        self._initialize_trade_routes()
-        
-        # Initialize transport networks
-        logger.info("Setting up transport networks...")
-        self._initialize_transport_networks()
-        
-        # Initialize ports
-        logger.info("Setting up ports...")
-        self._initialize_ports()
-        
-        # Initialize technology tree
-        logger.info("Setting up transportation technology tree...")
-        self.technology_tree = self._initialize_technology_tree()
-        
-        # Initialize travel speeds
-        logger.info("Setting up travel speeds...")
-        self.travel_speeds = self._initialize_travel_speeds()
-        
-        # Verify initialization
-        if not self.verify_initialization():
-            logger.error("Transportation system initialization verification failed")
-            raise RuntimeError("Transportation system initialization verification failed")
+        try:
+            # Initialize road network
+            self.logger.info("Initializing road network...")
+            self._initialize_paths()
             
-        logger.info("Transportation system initialization complete")
+            # Initialize water routes
+            self.logger.info("Initializing water routes...")
+            self._initialize_trade_routes()
+            
+            # Initialize air routes
+            self.logger.info("Initializing air routes...")
+            self._initialize_transport_networks()
+            
+            # Initialize ports
+            self.logger.info("Setting up ports...")
+            self._initialize_ports()
+            
+            # Initialize technology tree
+            self.logger.info("Setting up transportation technology tree...")
+            self.technology_tree = self._initialize_technology_tree()
+            
+            # Initialize travel speeds
+            self.logger.info("Setting up travel speeds...")
+            self.travel_speeds = self._initialize_travel_speeds()
+            
+            # Verify initialization
+            if not self.verify_initialization():
+                self.logger.error("Transportation system initialization verification failed")
+                raise RuntimeError("Transportation system initialization verification failed")
+            
+            self.logger.info("Transportation system initialization complete")
+            
+        except Exception as e:
+            self.logger.error(f"Error during transportation system initialization: {str(e)}")
+            self.logger.error(traceback.format_exc())
+            raise
         
     def verify_initialization(self) -> bool:
         """Verify that the transportation system is properly initialized."""
-        logger.info("Verifying transportation system initialization...")
+        self.logger.info("Verifying transportation system initialization...")
         
-        # Check roads
-        if not hasattr(self, 'roads') or not self.roads:
-            logger.error("Roads not initialized")
-            return False
+        try:
+            # Check road network
+            if not hasattr(self, 'roads') or not self.roads:
+                self.logger.error("Roads not initialized")
+                return False
+                
+            # Check water routes
+            if not hasattr(self, 'trade_routes') or not self.trade_routes:
+                self.logger.error("Trade routes not initialized")
+                return False
+                
+            # Check air routes
+            if not hasattr(self, 'transport_networks') or not self.transport_networks:
+                self.logger.error("Transport networks not initialized")
+                return False
+                
+            # Check technology tree
+            if not hasattr(self, 'technology_tree') or not self.technology_tree:
+                self.logger.error("Technology tree not initialized")
+                return False
+                
+            # Check travel speeds
+            if not hasattr(self, 'travel_speeds') or not self.travel_speeds:
+                self.logger.error("Travel speeds not initialized")
+                return False
+                
+            self.logger.info("Transportation system initialization verification successful")
+            return True
             
-        # Check paths
-        if not hasattr(self, 'paths') or not self.paths:
-            logger.error("Paths not initialized")
+        except Exception as e:
+            self.logger.error(f"Error during transportation system verification: {str(e)}")
+            self.logger.error(traceback.format_exc())
             return False
-            
-        # Check ports
-        if not hasattr(self, 'ports') or not self.ports:
-            logger.error("Ports not initialized")
-            return False
-            
-        # Check trade routes
-        if not hasattr(self, 'trade_routes') or not self.trade_routes:
-            logger.error("Trade routes not initialized")
-            return False
-            
-        # Check transport networks
-        if not hasattr(self, 'transport_networks') or not self.transport_networks:
-            logger.error("Transport networks not initialized")
-            return False
-            
-        # Check technology tree
-        if not hasattr(self, 'technology_tree') or not self.technology_tree:
-            logger.error("Technology tree not initialized")
-            return False
-            
-        # Check travel speeds
-        if not hasattr(self, 'travel_speeds') or not self.travel_speeds:
-            logger.error("Travel speeds not initialized")
-            return False
-            
-        logger.info("Transportation system initialization verified successfully")
-        return True
         
     def _initialize_paths(self):
         """Initialize transportation paths between settlements."""
-        logger.info("Initializing transportation paths...")
+        self.logger.info("Initializing transportation paths...")
         
         # Get all settlements
         settlements = self.world.settlements
@@ -167,9 +171,9 @@ class TransportationSystem:
                         "status": "active",
                         "traffic": 0.0
                     }
-                    logger.debug(f"Created path {path_id} between settlements {settlement_id} and {target_id}")
+                    self.logger.debug(f"Created path {path_id} between settlements {settlement_id} and {target_id}")
         
-        logger.info(f"Created {len(self.paths)} transportation paths")
+        self.logger.info(f"Created {len(self.paths)} transportation paths")
         
     def _find_nearest_settlements(self, settlement, max_distance: float) -> List[Dict]:
         """Find nearest settlements within max_distance."""
@@ -223,7 +227,7 @@ class TransportationSystem:
         
     def _initialize_trade_routes(self):
         """Initialize trade routes between settlements."""
-        logger.info("Initializing trade routes...")
+        self.logger.info("Initializing trade routes...")
         
         # Create trade routes between settlements
         for settlement in self.world.settlements.values():
@@ -250,30 +254,30 @@ class TransportationSystem:
                             "traffic": 0.0,
                             "goods": {}  # Will be populated with traded goods
                         }
-                        logger.debug(f"Created trade route {route_id} between settlements {settlement.id} and {target.id}")
+                        self.logger.debug(f"Created trade route {route_id} between settlements {settlement.id} and {target.id}")
         
-        logger.info(f"Created {len(self.trade_routes)} trade routes")
+        self.logger.info(f"Created {len(self.trade_routes)} trade routes")
         
     def _initialize_transport_networks(self):
         """Initialize transport networks."""
-        logger.info("Initializing transport networks...")
+        self.logger.info("Initializing transport networks...")
         
         # Initialize land network
-        logger.info("Setting up land transport network...")
+        self.logger.info("Setting up land transport network...")
         self._initialize_land_network()
-        logger.info("Land transport network initialized")
+        self.logger.info("Land transport network initialized")
         
         # Initialize water network
-        logger.info("Setting up water transport network...")
+        self.logger.info("Setting up water transport network...")
         self._initialize_water_network()
-        logger.info("Water transport network initialized")
+        self.logger.info("Water transport network initialized")
         
         # Initialize air network
-        logger.info("Setting up air transport network...")
+        self.logger.info("Setting up air transport network...")
         self._initialize_air_network()
-        logger.info("Air transport network initialized")
+        self.logger.info("Air transport network initialized")
         
-        logger.info("Transport networks initialization complete")
+        self.logger.info("Transport networks initialization complete")
         
     def _initialize_land_network(self):
         """Initialize land transport network."""
@@ -751,12 +755,12 @@ class TransportationSystem:
     def start_research(self, transport_type: TransportationType):
         """Start researching a new transportation type."""
         if not self.can_research(transport_type):
-            logger.warning(f"Cannot research {transport_type.value}: prerequisites not met")
+            self.logger.warning(f"Cannot research {transport_type.value}: prerequisites not met")
             return
             
         self.current_research = transport_type
         self.research_progress = 0.0
-        logger.info(f"Started researching {transport_type.value}")
+        self.logger.info(f"Started researching {transport_type.value}")
         
     def update_research(self, research_points: float):
         """Update research progress."""
@@ -774,7 +778,7 @@ class TransportationSystem:
             
         self.researched_types.add(self.current_research)
         self.available_types.add(self.current_research)
-        logger.info(f"Completed research on {self.current_research.value}")
+        self.logger.info(f"Completed research on {self.current_research.value}")
         
         self.current_research = None
         self.research_progress = 0.0
@@ -891,7 +895,7 @@ class TransportationSystem:
 
     def _initialize_paths(self):
         """Initialize transportation paths between settlements."""
-        logger.info("Initializing transportation paths...")
+        self.logger.info("Initializing transportation paths...")
         
         # Create paths between settlements
         for settlement in self.world.settlements.values():
@@ -906,7 +910,7 @@ class TransportationSystem:
                     if path:
                         self.paths[path_id] = path
                         
-        logger.info("Transportation paths initialization complete")
+        self.logger.info("Transportation paths initialization complete")
         
     def _find_nearest_settlements(self, settlement, max_distance: float) -> List[Dict]:
         """Find nearest settlements within max_distance."""
@@ -963,7 +967,7 @@ class TransportationSystem:
 
     def _initialize_trade_routes(self):
         """Initialize trade routes between settlements."""
-        logger.info("Initializing trade routes...")
+        self.logger.info("Initializing trade routes...")
         
         # Create trade routes between settlements
         for settlement in self.world.settlements.values():
@@ -991,11 +995,11 @@ class TransportationSystem:
                             "goods": {}  # Will be populated with traded goods
                         }
                         
-        logger.info("Trade routes initialization complete") 
+        self.logger.info("Trade routes initialization complete") 
 
     def _initialize_transport_networks(self):
         """Initialize transport networks connecting different transportation systems."""
-        logger.info("Initializing transport networks...")
+        self.logger.info("Initializing transport networks...")
         
         # Initialize networks for different transport types
         self.transport_networks = {
@@ -1038,7 +1042,7 @@ class TransportationSystem:
             for connection in port['connections']:
                 self.transport_networks['water']['connections'][port_pos].append(connection)
                 
-        logger.info("Transport networks initialization complete") 
+        self.logger.info("Transport networks initialization complete") 
 
     def _calculate_distance(self, point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
         """Calculate the distance between two points."""

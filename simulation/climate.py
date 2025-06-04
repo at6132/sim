@@ -482,4 +482,183 @@ class ClimateSystem:
             effects["movement"] *= 0.6
             effects["health"] *= 0.7
             
-        return effects 
+        return effects
+
+    def _initialize_temperature_map(self):
+        """Initialize the temperature map based on latitude and elevation."""
+        logger.info("Initializing temperature map...")
+        for lon in np.arange(-180, 180, self.world.longitude_resolution):
+            for lat in np.arange(-90, 90, self.world.latitude_resolution):
+                # Base temperature varies with latitude
+                base_temp = 30 - abs(lat) * 0.5  # 30°C at equator, decreasing towards poles
+                
+                # Adjust for elevation
+                elevation = self.world.terrain.get_elevation(lon, lat)
+                elevation_factor = -0.0065 * elevation  # -6.5°C per 1000m
+                
+                # Add seasonal variation
+                season_factor = 10 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))  # 10°C seasonal variation
+                
+                # Add random variation
+                random_factor = np.random.normal(0, 2)  # 2°C standard deviation
+                
+                temperature = base_temp + elevation_factor + season_factor + random_factor
+                self.temperature_map[(lon, lat)] = temperature
+        logger.info("Temperature map initialized")
+
+    def _initialize_precipitation_map(self):
+        """Initialize the precipitation map based on temperature and terrain."""
+        logger.info("Initializing precipitation map...")
+        for lon in np.arange(-180, 180, self.world.longitude_resolution):
+            for lat in np.arange(-90, 90, self.world.latitude_resolution):
+                # Base precipitation varies with latitude
+                base_precip = 100 * np.cos(lat * np.pi / 180)  # More precipitation near equator
+                
+                # Adjust for elevation (more precipitation at higher elevations)
+                elevation = self.world.terrain.get_elevation(lon, lat)
+                elevation_factor = elevation * 0.1  # 0.1mm per meter
+                
+                # Adjust for temperature (more precipitation in warmer areas)
+                temperature = self.temperature_map.get((lon, lat), 20)
+                temp_factor = max(0, temperature - 10) * 2  # 2mm per degree above 10°C
+                
+                # Add random variation
+                random_factor = np.random.normal(0, 20)  # 20mm standard deviation
+                
+                precipitation = max(0, base_precip + elevation_factor + temp_factor + random_factor)
+                self.precipitation_map[(lon, lat)] = precipitation
+        logger.info("Precipitation map initialized")
+
+    def _initialize_wind_map(self):
+        """Initialize the wind map based on pressure gradients."""
+        logger.info("Initializing wind map...")
+        for lon in np.arange(-180, 180, self.world.longitude_resolution):
+            for lat in np.arange(-90, 90, self.world.latitude_resolution):
+                # Base wind speed varies with latitude
+                base_speed = 5 + abs(lat) * 0.1  # Stronger winds at higher latitudes
+                
+                # Add seasonal variation
+                season_factor = 2 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))
+                
+                # Add random variation
+                random_factor = np.random.normal(0, 1)  # 1 m/s standard deviation
+                
+                wind_speed = max(0, base_speed + season_factor + random_factor)
+                
+                # Wind direction (in degrees)
+                wind_direction = (lon + 180) % 360  # Basic eastward flow
+                
+                self.wind_map[(lon, lat)] = (wind_speed, wind_direction)
+        logger.info("Wind map initialized")
+
+    def _initialize_current_conditions(self):
+        """Initialize current weather conditions."""
+        logger.info("Initializing current conditions...")
+        for lon in np.arange(-180, 180, self.world.longitude_resolution):
+            for lat in np.arange(-90, 90, self.world.latitude_resolution):
+                temperature = self.temperature_map.get((lon, lat), 20)
+                precipitation = self.precipitation_map.get((lon, lat), 0)
+                wind_speed, wind_direction = self.wind_map.get((lon, lat), (0, 0))
+                
+                # Determine weather type
+                if precipitation > 50:
+                    weather = "rain"
+                elif precipitation > 20:
+                    weather = "cloudy"
+                elif temperature < 0:
+                    weather = "snow"
+                else:
+                    weather = "clear"
+                
+                self.current_conditions[(lon, lat)] = {
+                    "temperature": temperature,
+                    "precipitation": precipitation,
+                    "wind_speed": wind_speed,
+                    "wind_direction": wind_direction,
+                    "weather": weather
+                }
+        logger.info("Current conditions initialized")
+
+    def update(self, time_delta: float):
+        """Update climate conditions over time."""
+        logger.info(f"Updating climate conditions for {time_delta} minutes...")
+        self.current_time += time_delta
+        
+        # Update temperature map
+        self._update_temperature_map(time_delta)
+        
+        # Update precipitation map
+        self._update_precipitation_map(time_delta)
+        
+        # Update wind map
+        self._update_wind_map(time_delta)
+        
+        # Update current conditions
+        self._update_current_conditions()
+        
+        logger.info("Climate conditions updated")
+
+    def _update_temperature_map(self, time_delta: float):
+        """Update temperature map over time."""
+        for (lon, lat), temp in self.temperature_map.items():
+            # Daily cycle
+            daily_factor = 5 * np.sin(2 * np.pi * (self.current_time % (24 * 60)) / (24 * 60))
+            
+            # Seasonal cycle
+            seasonal_factor = 10 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))
+            
+            # Random variation
+            random_factor = np.random.normal(0, 0.1) * time_delta
+            
+            self.temperature_map[(lon, lat)] = temp + daily_factor + seasonal_factor + random_factor
+
+    def _update_precipitation_map(self, time_delta: float):
+        """Update precipitation map over time."""
+        for (lon, lat), precip in self.precipitation_map.items():
+            # Seasonal variation
+            seasonal_factor = 50 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))
+            
+            # Random variation
+            random_factor = np.random.normal(0, 5) * time_delta
+            
+            self.precipitation_map[(lon, lat)] = max(0, precip + seasonal_factor + random_factor)
+
+    def _update_wind_map(self, time_delta: float):
+        """Update wind map over time."""
+        for (lon, lat), (speed, direction) in self.wind_map.items():
+            # Seasonal variation in speed
+            speed_factor = 2 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))
+            
+            # Random variation
+            random_speed = np.random.normal(0, 0.5) * time_delta
+            random_direction = np.random.normal(0, 5) * time_delta
+            
+            new_speed = max(0, speed + speed_factor + random_speed)
+            new_direction = (direction + random_direction) % 360
+            
+            self.wind_map[(lon, lat)] = (new_speed, new_direction)
+
+    def _update_current_conditions(self):
+        """Update current weather conditions based on maps."""
+        for (lon, lat) in self.temperature_map.keys():
+            temperature = self.temperature_map[(lon, lat)]
+            precipitation = self.precipitation_map[(lon, lat)]
+            wind_speed, wind_direction = self.wind_map[(lon, lat)]
+            
+            # Determine weather type
+            if precipitation > 50:
+                weather = "rain"
+            elif precipitation > 20:
+                weather = "cloudy"
+            elif temperature < 0:
+                weather = "snow"
+            else:
+                weather = "clear"
+            
+            self.current_conditions[(lon, lat)] = {
+                "temperature": temperature,
+                "precipitation": precipitation,
+                "wind_speed": wind_speed,
+                "wind_direction": wind_direction,
+                "weather": weather
+            } 

@@ -10,33 +10,14 @@ from flask_socketio import SocketIO
 from flask_cors import CORS
 from simulation.engine import SimulationEngine
 from simulation.database import DatabaseManager
+from simulation.utils.logging_config import setup_logging, get_logger
 import webbrowser
 import time
 import os
+from simulation.server import start_backend
 
-# Set up root logger first
-root_logger = logging.getLogger()
-root_logger.setLevel(logging.INFO)
-
-# Remove any existing handlers
-for handler in root_logger.handlers[:]:
-    root_logger.removeHandler(handler)
-
-# Create formatters
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# Console handler
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(formatter)
-root_logger.addHandler(console_handler)
-
-# File handler
-file_handler = logging.FileHandler('simulation.log', mode='a')
-file_handler.setFormatter(formatter)
-root_logger.addHandler(file_handler)
-
-# Get logger for this module
-logger = logging.getLogger(__name__)
+# Set up logging
+logger = setup_logging(log_level=logging.INFO)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -89,7 +70,10 @@ def start_backend():
 def start_frontend():
     """Start the frontend in the default web browser."""
     logger.info("Starting frontend...")
+    # Wait a moment for the backend to initialize
+    time.sleep(2)
     webbrowser.open('http://localhost:5000')
+    logger.info("Frontend started")
 
 def start_simulation():
     """Main startup sequence."""
@@ -143,9 +127,11 @@ def start_simulation():
         simulation_thread.daemon = True
         simulation_thread.start()
         
-        # Step 5: Start backend server
+        # Step 5: Start backend server in a separate thread
         logger.info("Starting backend server...")
-        start_backend()
+        backend_thread = threading.Thread(target=start_backend)
+        backend_thread.daemon = True
+        backend_thread.start()
         
         # Step 6: Start frontend
         logger.info("Starting frontend...")

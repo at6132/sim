@@ -6,6 +6,7 @@ from datetime import datetime
 import logging
 import uuid
 import time
+from simulation.utils.logging_config import get_logger
 
 logger = logging.getLogger(__name__)
 
@@ -655,6 +656,8 @@ class Society:
 class SocietySystem:
     def __init__(self, world):
         self.world = world
+        self.logger = get_logger('SocietySystem')
+        self.logger.info("Initializing SocietySystem...")
         self.social_groups = {}
         self.settlements = {}
         self.religions = {}
@@ -669,81 +672,75 @@ class SocietySystem:
         self.art_forms = {}
         self.governments = {}
         
-    def initialize_society(self):
+    def initialize(self):
         """Initialize the society system."""
-        logger.info("Initializing society system...")
+        self.logger.info("Starting society system initialization...")
         
-        # Initialize social structures
-        logger.info("Setting up social structures...")
-        self.social_groups = {}
-        logger.info("Social structures initialized")
-        
-        # Initialize settlements
-        logger.info("Setting up settlements...")
-        self.settlements = {}
-        logger.info("Settlements initialized")
-        
-        # Initialize cultural systems
-        logger.info("Setting up cultural systems...")
-        self.religions = {}
-        self.cultures = {}
-        self.languages = {}
-        self.art_forms = {}
-        logger.info("Cultural systems initialized")
-        
-        # Initialize governance
-        logger.info("Setting up governance systems...")
-        self.governments = {}
-        logger.info("Governance systems initialized")
-        
-        # Initialize trade and development
-        logger.info("Setting up trade and development systems...")
-        self.trade_routes = {}
-        self.cultural_developments = {}
-        logger.info("Trade and development systems initialized")
-        
-        # Initialize tracking variables
-        logger.info("Initializing tracking variables...")
-        self.language_development = 0.0
-        self.technology_level = 0.0
-        self.civilization_level = 0.0
-        self.events = []
-        logger.info("Tracking variables initialized")
-        
-        logger.info("Society system initialization complete")
-        
-    def verify_initialization(self) -> bool:
-        """Verify that all required components are initialized."""
-        logger.info("Verifying society system initialization...")
-        
-        # Check social structures
-        if not self.social_groups:
-            logger.warning("No social groups initialized")
-            return False
+        try:
+            # Initialize population
+            self.logger.info("Initializing population...")
+            self._initialize_population()
             
-        # Check settlements
-        if not self.settlements:
-            logger.warning("No settlements initialized")
-            return False
+            # Initialize settlements
+            self.logger.info("Initializing settlements...")
+            self._initialize_settlements()
             
-        # Check cultural systems
-        if not self.religions or not self.cultures or not self.languages:
-            logger.warning("Cultural systems not fully initialized")
-            return False
+            # Initialize social structures
+            self.logger.info("Initializing social structures...")
+            self._initialize_social_structures()
             
-        # Check governance
-        if not self.governments:
-            logger.warning("Governance systems not initialized")
-            return False
+            # Verify initialization
+            if not self.verify_initialization():
+                self.logger.error("Society system initialization verification failed")
+                raise RuntimeError("Society system initialization verification failed")
             
-        # Check trade and development
-        if not self.trade_routes or not self.cultural_developments:
-            logger.warning("Trade and development systems not initialized")
-            return False
+            self.logger.info("Society system initialization complete")
             
-        logger.info("Society system initialization verified successfully")
-        return True
+        except Exception as e:
+            self.logger.error(f"Error during society system initialization: {str(e)}")
+            self.logger.error(traceback.format_exc())
+            raise
+
+    def verify_initialization(self):
+        """Verify that the society system is properly initialized."""
+        self.logger.info("Verifying society system initialization...")
         
+        try:
+            # Check population
+            if not hasattr(self, 'population') or not self.population:
+                self.logger.error("Population not properly initialized")
+                return False
+                
+            # Check settlements
+            if not hasattr(self, 'settlements') or not self.settlements:
+                self.logger.error("Settlements not properly initialized")
+                return False
+                
+            # Check social structures
+            if not hasattr(self, 'social_structures') or not self.social_structures:
+                self.logger.error("Social structures not properly initialized")
+                return False
+                
+            self.logger.info("Society system initialization verification successful")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error during society system verification: {str(e)}")
+            self.logger.error(traceback.format_exc())
+            return False
+
+    def _initialize_population(self):
+        # Implementation of _initialize_population method
+        pass
+
+    def _initialize_settlements(self):
+        # Implementation of _initialize_settlements method
+        pass
+
+    def _initialize_social_structures(self):
+        # Implementation of _initialize_social_structures method
+        pass
+
     def update(self, time_delta: float):
         """Update society system state."""
         # Update cultural evolution

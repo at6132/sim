@@ -98,10 +98,13 @@ class SimulationEngine:
         self.last_update = time.time()
         self.update_interval = 1.0  # seconds
         self.simulation_speed = 1.0  # time multiplier
+        self.thread = None
+        logger.info("SimulationEngine initialized")
         
     def start(self):
         """Start the simulation."""
         if self.running:
+            logger.warning("Simulation already running")
             return
             
         # Try to load existing world first
@@ -113,4 +116,63 @@ class SimulationEngine:
             
         self.running = True
         self.last_update = time.time()
-        logger.info("Simulation started")
+        
+        # Start simulation in a separate thread
+        self.thread = threading.Thread(target=self.run_loop)
+        self.thread.daemon = True
+        self.thread.start()
+        logger.info("Simulation started in background thread")
+
+    def update(self, time_step=48.0):
+        """Advance the simulation by a given time step (in minutes)."""
+        if not self.running or not self.world:
+            logger.warning("SimulationEngine.update() called while not running or world is None")
+            return
+            
+        try:
+            logger.info(f"Updating simulation by {time_step} minutes...")
+            self.world.update(time_step)
+            self.last_update = time.time()
+            logger.info("Simulation update complete")
+        except Exception as e:
+            logger.error(f"Error during simulation update: {e}")
+            logger.error(traceback.format_exc())
+            self.stop()
+
+    def stop(self):
+        """Stop the simulation."""
+        if not self.running:
+            logger.info("Simulation already stopped")
+            return
+            
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=5.0)
+            if self.thread.is_alive():
+                logger.warning("Simulation thread did not stop gracefully")
+        logger.info("Simulation stopped")
+
+    def run_loop(self, time_step=48.0, real_time_interval=60.0):
+        """Run the simulation update loop until stopped."""
+        logger.info("Starting simulation engine loop...")
+        while self.running:
+            try:
+                self.update(time_step)
+                time.sleep(real_time_interval)
+            except Exception as e:
+                logger.error(f"Error in simulation loop: {e}")
+                logger.error(traceback.format_exc())
+                self.running = False
+                break
+        logger.info("Simulation engine loop exited")
+
+    def get_state(self):
+        """Get current simulation state."""
+        if not self.world:
+            return {"status": "not_initialized"}
+        return {
+            "status": "running" if self.running else "stopped",
+            "world": self.world.to_dict(),
+            "last_update": self.last_update,
+            "simulation_speed": self.simulation_speed
+        }
