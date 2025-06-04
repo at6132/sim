@@ -2,87 +2,61 @@ import logging
 import sys
 import os
 from logging.handlers import RotatingFileHandler
+from typing import Optional
 
-def setup_logging(log_level=logging.INFO, log_file='simulation.log'):
-    """
-    Set up logging configuration for the entire simulation.
-    
-    Args:
-        log_level: The logging level to use (default: INFO)
-        log_file: The file to write logs to (default: simulation.log)
-    """
+def setup_logging():
+    """Configure logging for the simulation."""
     # Create logs directory if it doesn't exist
-    log_dir = 'logs'
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    logs_dir = 'logs'
+    os.makedirs(logs_dir, exist_ok=True)
     
-    log_path = os.path.join(log_dir, log_file)
-    
-    # Set up root logger
+    # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(log_level)
-    
-    # Remove any existing handlers
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
+    root_logger.setLevel(logging.INFO)
     
     # Create formatters
-    detailed_formatter = logging.Formatter(
+    file_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    simple_formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s'
+    console_formatter = logging.Formatter(
+        '%(levelname)s: %(message)s'
     )
     
-    # Console handler (simple format)
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(simple_formatter)
-    console_handler.setLevel(log_level)
+    # Create file handler
+    file_handler = logging.handlers.RotatingFileHandler(
+        os.path.join(logs_dir, 'simulation.log'),
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5
+    )
+    file_handler.setFormatter(file_formatter)
+    file_handler.setLevel(logging.INFO)
+    
+    # Create console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(console_formatter)
+    console_handler.setLevel(logging.INFO)
+    
+    # Add handlers to root logger
+    root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
     
-    # File handler (detailed format)
-    file_handler = RotatingFileHandler(
-        log_path,
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    file_handler.setFormatter(detailed_formatter)
-    file_handler.setLevel(log_level)
-    root_logger.addHandler(file_handler)
-    
-    # Set up specific loggers for each system
-    systems = [
-        'SocietySystem',
-        'TransportationSystem',
-        'MarineSystem',
-        'ClimateSystem',
-        'TerrainSystem',
-        'ResourceSystem',
-        'PlantSystem',
-        'AnimalSystem'
+    # Configure specific loggers
+    loggers = [
+        'simulation.world',
+        'simulation.engine',
+        'simulation.terrain',
+        'simulation.climate',
+        'simulation.resources',
+        'simulation.agents',
+        'simulation.society',
+        'simulation.transportation'
     ]
     
-    for system in systems:
-        logger = logging.getLogger(system)
-        logger.setLevel(log_level)
-        # Don't propagate to root logger to avoid duplicate messages
-        logger.propagate = False
-        
-        # Add handlers
-        logger.addHandler(console_handler)
-        logger.addHandler(file_handler)
-    
-    return root_logger
+    for logger_name in loggers:
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(logging.INFO)
+        logger.propagate = True  # Ensure logs propagate to root logger
 
-def get_logger(name):
-    """
-    Get a logger instance for a specific component.
-    
-    Args:
-        name: The name of the component/module
-        
-    Returns:
-        logging.Logger: A configured logger instance
-    """
+def get_logger(name: str) -> logging.Logger:
+    """Get a logger with the specified name."""
     return logging.getLogger(name) 

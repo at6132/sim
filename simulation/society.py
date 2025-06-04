@@ -655,19 +655,22 @@ class Society:
 
 class SocietySystem:
     def __init__(self, world):
-        """Initialize the society system."""
         self.world = world
+        self.logger = get_logger(__name__)
+        
+        # Initialize society components
         self.tribes = {}  # tribe_id -> tribe_data
         self.religions = {}  # religion_id -> religion_data
         self.languages = {}  # language_id -> language_data
         self.settlements = {}  # settlement_id -> settlement_data
         self.social_groups = {}  # group_id -> group_data
         self.cultural_traits = {}  # trait_id -> trait_data
-        logger.info("Society system initialized")
         
+        self.logger.info("Society system initialized")
+    
     def initialize_society(self):
         """Initialize the society system with basic structures."""
-        logger.info("Initializing society system...")
+        self.logger.info("Initializing society system...")
         
         # Initialize tribes
         self._initialize_tribes()
@@ -687,96 +690,128 @@ class SocietySystem:
         # Initialize cultural traits
         self._initialize_cultural_traits()
         
-        logger.info("Society system initialization complete")
-        
+        self.logger.info("Society system initialization complete")
+    
     def _initialize_tribes(self):
         """Initialize basic tribes."""
-        logger.info("Initializing tribes...")
+        self.logger.info("Initializing tribes...")
+        
         # Create initial tribes
         self.tribes = {
-            "tribe_1": {
-                "name": "First Tribe",
-                "members": set(),
-                "culture": "primitive",
-                "beliefs": ["animism"],
-                "traditions": ["hunting", "gathering"]
+            'tribe_1': {
+                'name': 'Northern Hunters',
+                'population': 100,
+                'territory': [(0, 0), (1, 1)],
+                'culture': 'hunter_gatherer',
+                'resources': {'food': 50, 'tools': 20}
+            },
+            'tribe_2': {
+                'name': 'River Farmers',
+                'population': 150,
+                'territory': [(2, 2), (3, 3)],
+                'culture': 'agricultural',
+                'resources': {'food': 100, 'tools': 30}
             }
         }
-        logger.info("Tribes initialized")
-        
+    
     def _initialize_religions(self):
         """Initialize basic religions."""
-        logger.info("Initializing religions...")
-        # Create initial religions
+        self.logger.info("Initializing religions...")
+        
         self.religions = {
-            "religion_1": {
-                "name": "Nature Worship",
-                "followers": set(),
-                "beliefs": ["animism", "nature spirits"],
-                "practices": ["offerings", "rituals"]
+            'religion_1': {
+                'name': 'Nature Worship',
+                'followers': 80,
+                'beliefs': ['animism', 'nature_spirits'],
+                'practices': ['seasonal_rituals', 'sacred_sites']
+            },
+            'religion_2': {
+                'name': 'Ancestor Worship',
+                'followers': 120,
+                'beliefs': ['ancestral_spirits', 'reincarnation'],
+                'practices': ['ancestral_offerings', 'lineage_tracking']
             }
         }
-        logger.info("Religions initialized")
-        
+    
     def _initialize_languages(self):
         """Initialize basic languages."""
-        logger.info("Initializing languages...")
-        # Create initial languages
+        self.logger.info("Initializing languages...")
+        
         self.languages = {
-            "language_1": {
-                "name": "Proto-Language",
-                "speakers": set(),
-                "vocabulary": {},
-                "grammar": "primitive"
+            'lang_1': {
+                'name': 'Northern Tongue',
+                'speakers': 90,
+                'vocabulary': {'basic': 100, 'advanced': 50},
+                'dialects': ['north', 'south']
+            },
+            'lang_2': {
+                'name': 'River Speech',
+                'speakers': 110,
+                'vocabulary': {'basic': 120, 'advanced': 60},
+                'dialects': ['east', 'west']
             }
         }
-        logger.info("Languages initialized")
-        
+    
     def _initialize_settlements(self):
         """Initialize basic settlements."""
-        logger.info("Initializing settlements...")
-        # Create initial settlements
+        self.logger.info("Initializing settlements...")
+        
         self.settlements = {
-            "settlement_1": {
-                "name": "First Camp",
-                "location": (0, 0),  # (longitude, latitude)
-                "population": 0,
-                "buildings": [],
-                "resources": {}
+            'settlement_1': {
+                'name': 'Northern Camp',
+                'population': 50,
+                'location': (0, 0),
+                'type': 'hunting_camp',
+                'resources': {'shelter': 20, 'food': 30}
+            },
+            'settlement_2': {
+                'name': 'River Village',
+                'population': 75,
+                'location': (2, 2),
+                'type': 'farming_village',
+                'resources': {'shelter': 30, 'food': 50}
             }
         }
-        logger.info("Settlements initialized")
-        
+    
     def _initialize_social_groups(self):
         """Initialize basic social groups."""
-        logger.info("Initializing social groups...")
-        # Create initial social groups
+        self.logger.info("Initializing social groups...")
+        
         self.social_groups = {
-            "group_1": {
-                "name": "Hunters",
-                "members": set(),
-                "role": "hunting",
-                "status": "respected"
+            'group_1': {
+                'name': 'Hunters Guild',
+                'members': 30,
+                'purpose': 'hunting',
+                'influence': 0.6
+            },
+            'group_2': {
+                'name': 'Farmers Collective',
+                'members': 45,
+                'purpose': 'farming',
+                'influence': 0.7
             }
         }
-        logger.info("Social groups initialized")
-        
+    
     def _initialize_cultural_traits(self):
         """Initialize basic cultural traits."""
-        logger.info("Initializing cultural traits...")
-        # Create initial cultural traits
+        self.logger.info("Initializing cultural traits...")
+        
         self.cultural_traits = {
-            "trait_1": {
-                "name": "Hunting Tradition",
-                "description": "Strong tradition of hunting",
-                "effects": {"hunting_efficiency": 1.2}
+            'trait_1': {
+                'name': 'Seasonal Migration',
+                'prevalence': 0.8,
+                'impact': {'mobility': 0.7, 'stability': 0.3}
+            },
+            'trait_2': {
+                'name': 'Agricultural Innovation',
+                'prevalence': 0.6,
+                'impact': {'productivity': 0.8, 'stability': 0.6}
             }
         }
-        logger.info("Cultural traits initialized")
-        
+    
     def update(self, time_delta: float):
-        """Update society system state."""
-        logger.info(f"Updating society system for {time_delta} minutes...")
+        """Update society state."""
+        self.logger.debug(f"Updating society with time delta: {time_delta}")
         
         # Update tribes
         self._update_tribes(time_delta)
@@ -795,65 +830,70 @@ class SocietySystem:
         
         # Update cultural traits
         self._update_cultural_traits(time_delta)
-        
-        logger.info("Society system update complete")
-        
+    
     def _update_tribes(self, time_delta: float):
         """Update tribe states."""
         for tribe_id, tribe in self.tribes.items():
-            # Update tribe population
-            self._update_tribe_population(tribe_id)
+            # Update population
+            growth_rate = 0.01 * time_delta
+            tribe['population'] *= (1 + growth_rate)
             
-            # Update tribe culture
-            self._update_tribe_culture(tribe_id)
-            
+            # Update resources
+            for resource, amount in tribe['resources'].items():
+                if resource == 'food':
+                    tribe['resources'][resource] *= (1 - 0.05 * time_delta)
+                else:
+                    tribe['resources'][resource] *= (1 - 0.02 * time_delta)
+    
     def _update_religions(self, time_delta: float):
         """Update religion states."""
         for religion_id, religion in self.religions.items():
             # Update follower count
-            self._update_religion_followers(religion_id)
-            
-            # Update religious practices
-            self._update_religious_practices(religion_id)
-            
+            conversion_rate = 0.005 * time_delta
+            religion['followers'] *= (1 + conversion_rate)
+    
     def _update_languages(self, time_delta: float):
         """Update language states."""
         for language_id, language in self.languages.items():
             # Update vocabulary
-            self._update_language_vocabulary(language_id)
-            
-            # Update grammar
-            self._update_language_grammar(language_id)
-            
+            for level, count in language['vocabulary'].items():
+                growth_rate = 0.002 * time_delta
+                language['vocabulary'][level] *= (1 + growth_rate)
+    
     def _update_settlements(self, time_delta: float):
         """Update settlement states."""
         for settlement_id, settlement in self.settlements.items():
             # Update population
-            self._update_settlement_population(settlement_id)
-            
-            # Update buildings
-            self._update_settlement_buildings(settlement_id)
+            growth_rate = 0.01 * time_delta
+            settlement['population'] *= (1 + growth_rate)
             
             # Update resources
-            self._update_settlement_resources(settlement_id)
-            
+            for resource, amount in settlement['resources'].items():
+                if resource == 'food':
+                    settlement['resources'][resource] *= (1 - 0.05 * time_delta)
+                else:
+                    settlement['resources'][resource] *= (1 - 0.02 * time_delta)
+    
     def _update_social_groups(self, time_delta: float):
         """Update social group states."""
         for group_id, group in self.social_groups.items():
             # Update membership
-            self._update_group_membership(group_id)
+            growth_rate = 0.005 * time_delta
+            group['members'] *= (1 + growth_rate)
             
-            # Update group status
-            self._update_group_status(group_id)
-            
+            # Update influence
+            influence_change = 0.001 * time_delta
+            group['influence'] = min(1.0, group['influence'] + influence_change)
+    
     def _update_cultural_traits(self, time_delta: float):
         """Update cultural trait states."""
         for trait_id, trait in self.cultural_traits.items():
-            # Update trait effects
-            self._update_trait_effects(trait_id)
-            
+            # Update prevalence
+            change_rate = 0.001 * time_delta
+            trait['prevalence'] = min(1.0, trait['prevalence'] + change_rate)
+    
     def get_state(self) -> Dict:
-        """Get current society system state."""
+        """Get the current state of the society system."""
         return {
             'tribes': self.tribes,
             'religions': self.religions,

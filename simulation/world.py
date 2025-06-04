@@ -75,9 +75,25 @@ class World:
         """Initialize the world."""
         logger.info("Initializing world...")
         
-        # Define coordinate ranges
+        # Initialize coordinate bounds
+        self.min_longitude = -180.0
+        self.max_longitude = 180.0
+        self.min_latitude = -90.0
+        self.max_latitude = 90.0
+        self.longitude_resolution = 1.0  # 1 degree
+        self.latitude_resolution = 1.0   # 1 degree
+        
+        # Initialize coordinate ranges
         self.longitude_range = range(-180, 181, 1)  # 1-degree resolution
         self.latitude_range = range(-90, 91, 1)     # 1-degree resolution
+        
+        # Initialize resource maps
+        self.mineral_map = {}
+        self.water_map = {}
+        self.vegetation_map = {}
+        
+        # Initialize initialization counter
+        self._init_count = 0
         
         # Initialize systems
         self.terrain = TerrainSystem(self)

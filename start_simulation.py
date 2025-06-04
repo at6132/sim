@@ -88,6 +88,11 @@ def main():
         server_thread = threading.Thread(target=start_backend, daemon=True)
         server_thread.start()
         
+        # Start simulation loop in a separate thread
+        logger.info("Starting simulation loop...")
+        simulation_thread = threading.Thread(target=run_simulation_loop, daemon=True)
+        simulation_thread.start()
+        
         # Start frontend
         start_frontend()
         

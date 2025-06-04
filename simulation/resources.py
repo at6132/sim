@@ -5,6 +5,7 @@ import random
 from datetime import datetime
 import logging
 import numpy as np
+from .utils.logging_config import get_logger
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +64,30 @@ class Resource:
 
 class ResourceSystem:
     def __init__(self, world):
-        """Initialize the resource system."""
-        logger.info("Initializing resource system...")
         self.world = world
+        self.logger = get_logger(__name__)
+        
+        # Initialize resource maps
+        self.mineral_map = {}
+        self.water_map = {}
+        self.vegetation_map = {}
+        
+        # Resource types and their properties
+        self.mineral_types = {
+            'iron': {'abundance': 0.1, 'value': 1.0},
+            'copper': {'abundance': 0.05, 'value': 1.5},
+            'gold': {'abundance': 0.01, 'value': 5.0},
+            'coal': {'abundance': 0.15, 'value': 0.8},
+            'oil': {'abundance': 0.08, 'value': 2.0}
+        }
+        
+        self.vegetation_types = {
+            'forest': {'density': 0.8, 'growth_rate': 0.1},
+            'grassland': {'density': 0.5, 'growth_rate': 0.2},
+            'desert': {'density': 0.1, 'growth_rate': 0.05},
+            'tundra': {'density': 0.3, 'growth_rate': 0.08}
+        }
+        
         self.resources = {}  # (longitude, latitude) -> Dict[str, float]
         self.resource_regeneration_rate = 0.1  # Resources regenerate at 10% per tick
         self.resource_capacity = 1000  # Maximum amount of each resource
@@ -117,7 +139,7 @@ class ResourceSystem:
         self.initialize_resources()
         logger.info("Resource distribution initialized")
         
-        logger.info("Resource system initialization complete")
+        logger.info("Resource system initialized")
         
     def add_resource(self, resource: Resource) -> None:
         """Add a resource to the manager"""
@@ -438,29 +460,100 @@ class ResourceSystem:
         }
         
     def initialize_resources(self):
-        """Initialize the resource system."""
-        logger.info("Initializing resource system...")
-        total_steps = len(self.world.longitude_range) * len(self.world.latitude_range)
+        """Initialize all resource maps."""
+        self.logger.info("Initializing resource system...")
+        
+        # Calculate total steps for progress tracking
+        total_steps = (self.world.max_longitude - self.world.min_longitude) * \
+                     (self.world.max_latitude - self.world.min_latitude)
         current_step = 0
         
-        for lon in self.world.longitude_range:
-            for lat in self.world.latitude_range:
+        # Initialize resources for each coordinate
+        for lon in range(self.world.min_longitude, self.world.max_longitude):
+            for lat in range(self.world.min_latitude, self.world.max_latitude):
+                coord = (lon, lat)
+                
                 # Initialize mineral resources
-                self.world.mineral_map[lon][lat] = self._generate_mineral_deposit(lon, lat)
+                self.mineral_map[coord] = self._generate_mineral_resources(coord)
                 
                 # Initialize water resources
-                self.world.water_map[lon][lat] = self._generate_water_source(lon, lat)
+                self.water_map[coord] = self._generate_water_resources(coord)
                 
                 # Initialize vegetation
-                self.world.vegetation_map[lon][lat] = self._generate_vegetation(lon, lat)
+                self.vegetation_map[coord] = self._generate_vegetation(coord)
                 
                 # Update progress
                 current_step += 1
                 if current_step % 100 == 0:
                     progress = (current_step / total_steps) * 100
-                    logger.info(f"Resource initialization progress: {progress:.1f}%")
+                    self.logger.info(f"Resource initialization progress: {progress:.1f}%")
         
-        logger.info("Resource system initialized successfully")
+        self.logger.info("Resource system initialization complete")
+    
+    def _generate_mineral_resources(self, coord: Tuple[int, int]) -> Dict:
+        """Generate mineral resources for a coordinate."""
+        resources = {}
+        for mineral, properties in self.mineral_types.items():
+            # Use coordinate-based noise for resource distribution
+            noise = np.random.normal(0, 1)
+            abundance = properties['abundance'] * (1 + 0.2 * noise)
+            if abundance > 0.5:  # Threshold for resource presence
+                resources[mineral] = {
+                    'amount': abundance,
+                    'value': properties['value']
+                }
+        return resources
+    
+    def _generate_water_resources(self, coord: Tuple[int, int]) -> Dict:
+        """Generate water resources for a coordinate."""
+        # Base water availability on terrain and climate
+        terrain = self.world.terrain.get_terrain(coord)
+        climate = self.world.climate.get_climate(coord)
+        
+        water_amount = 0.0
+        if terrain['type'] == 'ocean':
+            water_amount = 1.0
+        elif terrain['type'] == 'lake':
+            water_amount = 0.8
+        elif terrain['type'] == 'river':
+            water_amount = 0.6
+        else:
+            # Adjust based on precipitation
+            water_amount = climate['precipitation'] * 0.5
+        
+        return {
+            'amount': water_amount,
+            'type': terrain['type'] if water_amount > 0 else 'none'
+        }
+    
+    def _generate_vegetation(self, coord: Tuple[int, int]) -> Dict:
+        """Generate vegetation for a coordinate."""
+        # Base vegetation on climate and terrain
+        climate = self.world.climate.get_climate(coord)
+        terrain = self.world.terrain.get_terrain(coord)
+        
+        if terrain['type'] in ['ocean', 'lake', 'river']:
+            return {'type': 'none', 'density': 0.0}
+        
+        # Determine vegetation type based on temperature and precipitation
+        temp = climate['temperature']
+        precip = climate['precipitation']
+        
+        if temp < 0:
+            veg_type = 'tundra'
+        elif temp > 30 and precip < 0.2:
+            veg_type = 'desert'
+        elif precip > 0.6:
+            veg_type = 'forest'
+        else:
+            veg_type = 'grassland'
+        
+        properties = self.vegetation_types[veg_type]
+        return {
+            'type': veg_type,
+            'density': properties['density'],
+            'growth_rate': properties['growth_rate']
+        }
 
     def verify_initialization(self) -> bool:
         """Verify that the resource system is properly initialized."""

@@ -54,17 +54,20 @@ class TransportationType(Enum):
 
 class TransportationSystem:
     def __init__(self, world):
-        """Initialize the transportation system."""
         self.world = world
+        self.logger = get_logger(__name__)
+        
+        # Initialize transportation components
         self.roads = {}  # road_id -> road_data
         self.paths = {}  # path_id -> path_data
         self.vehicles = {}  # vehicle_id -> vehicle_data
         self.transport_routes = {}  # route_id -> route_data
-        logger.info("Transportation system initialized")
         
+        self.logger.info("Transportation system initialized")
+    
     def initialize_transportation(self):
         """Initialize the transportation system with basic structures."""
-        logger.info("Initializing transportation system...")
+        self.logger.info("Initializing transportation system...")
         
         # Initialize roads
         self._initialize_roads()
@@ -78,74 +81,103 @@ class TransportationSystem:
         # Initialize transport routes
         self._initialize_transport_routes()
         
-        logger.info("Transportation system initialization complete")
-        
+        self.logger.info("Transportation system initialization complete")
+    
     def _initialize_roads(self):
         """Initialize basic roads."""
-        logger.info("Initializing roads...")
-        # Create initial roads
+        self.logger.info("Initializing roads...")
+        
         self.roads = {
-            "road_1": {
-                "name": "First Road",
-                "start": (0, 0),  # (longitude, latitude)
-                "end": (1, 1),
-                "type": "dirt",
-                "condition": 1.0,
-                "traffic": 0.0
+            'road_1': {
+                'name': 'Northern Trade Route',
+                'start': (0, 0),
+                'end': (2, 2),
+                'type': 'dirt_road',
+                'condition': 0.8,
+                'traffic': 0.3
+            },
+            'road_2': {
+                'name': 'River Road',
+                'start': (2, 2),
+                'end': (4, 4),
+                'type': 'stone_road',
+                'condition': 0.9,
+                'traffic': 0.5
             }
         }
-        logger.info("Roads initialized")
-        
+    
     def _initialize_paths(self):
         """Initialize basic paths."""
-        logger.info("Initializing paths...")
-        # Create initial paths
+        self.logger.info("Initializing paths...")
+        
         self.paths = {
-            "path_1": {
-                "name": "First Path",
-                "start": (0, 0),
-                "end": (0.5, 0.5),
-                "type": "footpath",
-                "condition": 1.0,
-                "usage": 0.0
+            'path_1': {
+                'name': 'Hunting Trail',
+                'start': (0, 0),
+                'end': (1, 1),
+                'type': 'footpath',
+                'condition': 0.6,
+                'usage': 0.4
+            },
+            'path_2': {
+                'name': 'Gathering Path',
+                'start': (2, 2),
+                'end': (3, 3),
+                'type': 'footpath',
+                'condition': 0.7,
+                'usage': 0.3
             }
         }
-        logger.info("Paths initialized")
-        
+    
     def _initialize_vehicles(self):
         """Initialize basic vehicles."""
-        logger.info("Initializing vehicles...")
-        # Create initial vehicles
+        self.logger.info("Initializing vehicles...")
+        
         self.vehicles = {
-            "vehicle_1": {
-                "name": "First Cart",
-                "type": "cart",
-                "capacity": 100.0,
-                "speed": 5.0,
-                "condition": 1.0,
-                "location": (0, 0)
+            'vehicle_1': {
+                'name': 'Trade Cart',
+                'type': 'cart',
+                'capacity': 100,
+                'speed': 5,
+                'condition': 0.8,
+                'location': (0, 0)
+            },
+            'vehicle_2': {
+                'name': 'River Boat',
+                'type': 'boat',
+                'capacity': 200,
+                'speed': 8,
+                'condition': 0.9,
+                'location': (2, 2)
             }
         }
-        logger.info("Vehicles initialized")
-        
+    
     def _initialize_transport_routes(self):
         """Initialize basic transport routes."""
-        logger.info("Initializing transport routes...")
-        # Create initial routes
+        self.logger.info("Initializing transport routes...")
+        
         self.transport_routes = {
-            "route_1": {
-                "name": "First Route",
-                "stops": [(0, 0), (1, 1)],
-                "type": "road",
-                "distance": 1.41,
-                "travel_time": 0.28  # hours
+            'route_1': {
+                'name': 'Northern Trade Route',
+                'type': 'land',
+                'stops': [(0, 0), (1, 1), (2, 2)],
+                'vehicle': 'vehicle_1',
+                'frequency': 1.0,  # trips per day
+                'cargo': {'goods': 50, 'passengers': 10}
+            },
+            'route_2': {
+                'name': 'River Trade Route',
+                'type': 'water',
+                'stops': [(2, 2), (3, 3), (4, 4)],
+                'vehicle': 'vehicle_2',
+                'frequency': 2.0,  # trips per day
+                'cargo': {'goods': 100, 'passengers': 20}
             }
         }
-        logger.info("Transport routes initialized")
-        
+    
     def update(self, time_delta: float):
-        """Update transportation system state."""
-        logger.info(f"Updating transportation system for {time_delta} minutes...")
+        """Update transportation state."""
+        self.logger.debug(f"Updating transportation with time delta: {time_delta}")
         
         # Update roads
         self._update_roads(time_delta)
@@ -158,47 +190,79 @@ class TransportationSystem:
         
         # Update transport routes
         self._update_transport_routes(time_delta)
-        
-        logger.info("Transportation system update complete")
-        
+    
     def _update_roads(self, time_delta: float):
         """Update road states."""
         for road_id, road in self.roads.items():
-            # Update road condition
-            self._update_road_condition(road_id, time_delta)
+            # Update condition
+            wear_rate = 0.001 * time_delta * road['traffic']
+            road['condition'] = max(0.0, road['condition'] - wear_rate)
             
-            # Update road traffic
-            self._update_road_traffic(road_id, time_delta)
-            
+            # Update traffic
+            traffic_change = 0.002 * time_delta
+            road['traffic'] = min(1.0, road['traffic'] + traffic_change)
+    
     def _update_paths(self, time_delta: float):
         """Update path states."""
         for path_id, path in self.paths.items():
-            # Update path condition
-            self._update_path_condition(path_id, time_delta)
+            # Update condition
+            wear_rate = 0.002 * time_delta * path['usage']
+            path['condition'] = max(0.0, path['condition'] - wear_rate)
             
-            # Update path usage
-            self._update_path_usage(path_id, time_delta)
-            
+            # Update usage
+            usage_change = 0.001 * time_delta
+            path['usage'] = min(1.0, path['usage'] + usage_change)
+    
     def _update_vehicles(self, time_delta: float):
         """Update vehicle states."""
         for vehicle_id, vehicle in self.vehicles.items():
-            # Update vehicle condition
-            self._update_vehicle_condition(vehicle_id, time_delta)
+            # Update condition
+            wear_rate = 0.001 * time_delta
+            vehicle['condition'] = max(0.0, vehicle['condition'] - wear_rate)
             
-            # Update vehicle location
-            self._update_vehicle_location(vehicle_id, time_delta)
-            
+            # Update location based on assigned route
+            for route in self.transport_routes.values():
+                if route['vehicle'] == vehicle_id:
+                    self._update_vehicle_location(vehicle, route, time_delta)
+    
+    def _update_vehicle_location(self, vehicle: Dict, route: Dict, time_delta: float):
+        """Update vehicle location along its route."""
+        if not route['stops']:
+            return
+        
+        # Calculate progress along route
+        progress = (time_delta * route['frequency']) % 1.0
+        
+        # Get current and next stop
+        current_stop_idx = int(progress * (len(route['stops']) - 1))
+        next_stop_idx = min(current_stop_idx + 1, len(route['stops']) - 1)
+        
+        # Interpolate position between stops
+        current_stop = route['stops'][current_stop_idx]
+        next_stop = route['stops'][next_stop_idx]
+        
+        segment_progress = (progress * (len(route['stops']) - 1)) % 1.0
+        vehicle['location'] = (
+            current_stop[0] + (next_stop[0] - current_stop[0]) * segment_progress,
+            current_stop[1] + (next_stop[1] - current_stop[1]) * segment_progress
+        )
+    
     def _update_transport_routes(self, time_delta: float):
         """Update transport route states."""
         for route_id, route in self.transport_routes.items():
-            # Update route traffic
-            self._update_route_traffic(route_id, time_delta)
+            # Update cargo
+            for cargo_type, amount in route['cargo'].items():
+                if cargo_type == 'goods':
+                    route['cargo'][cargo_type] *= (1 - 0.05 * time_delta)
+                else:  # passengers
+                    route['cargo'][cargo_type] *= (1 - 0.02 * time_delta)
             
-            # Update route condition
-            self._update_route_condition(route_id, time_delta)
-            
+            # Update frequency based on demand
+            demand_change = 0.001 * time_delta
+            route['frequency'] = min(5.0, route['frequency'] + demand_change)
+    
     def get_state(self) -> Dict:
-        """Get current transportation system state."""
+        """Get the current state of the transportation system."""
         return {
             'roads': self.roads,
             'paths': self.paths,
