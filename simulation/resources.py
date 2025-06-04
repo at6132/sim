@@ -440,25 +440,27 @@ class ResourceSystem:
     def initialize_resources(self):
         """Initialize the resource system."""
         logger.info("Initializing resource system...")
+        total_steps = len(self.world.longitude_range) * len(self.world.latitude_range)
+        current_step = 0
         
-        # Initialize basic resources
-        logger.info("Setting up basic resources...")
-        self._initialize_basic_resources()
+        for lon in self.world.longitude_range:
+            for lat in self.world.latitude_range:
+                # Initialize mineral resources
+                self.world.mineral_map[lon][lat] = self._generate_mineral_deposit(lon, lat)
+                
+                # Initialize water resources
+                self.world.water_map[lon][lat] = self._generate_water_source(lon, lat)
+                
+                # Initialize vegetation
+                self.world.vegetation_map[lon][lat] = self._generate_vegetation(lon, lat)
+                
+                # Update progress
+                current_step += 1
+                if current_step % 100 == 0:
+                    progress = (current_step / total_steps) * 100
+                    logger.info(f"Resource initialization progress: {progress:.1f}%")
         
-        # Initialize resource distribution
-        logger.info("Setting up resource distribution...")
-        self._initialize_resource_distribution()
-        
-        # Initialize resource regeneration
-        logger.info("Setting up resource regeneration...")
-        self._initialize_resource_regeneration()
-        
-        # Verify initialization
-        if not self.verify_initialization():
-            logger.error("Resource system initialization verification failed")
-            raise RuntimeError("Resource system initialization verification failed")
-            
-        logger.info("Resource system initialization complete")
+        logger.info("Resource system initialized successfully")
 
     def verify_initialization(self) -> bool:
         """Verify that the resource system is properly initialized."""

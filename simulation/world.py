@@ -93,10 +93,10 @@ class World:
         self.transportation_system = TransportationSystem(self)
         
     def update(self, time_delta: float):
-        """Update world state."""
-        self.time += time_delta
+        """Update the world state."""
+        logger.info("Updating world state...")
         
-        # Update systems
+        # Update all systems
         self.terrain.update(time_delta)
         self.climate.update(time_delta)
         self.resources.update(time_delta)
@@ -107,11 +107,12 @@ class World:
         self.society.update(time_delta)
         self.transportation_system.update(time_delta)
         
-        # Update agents with current world state
-        world_state = self.get_state()
+        # Update all agents
         for agent in self.agents:
-            agent.update(time_delta, world_state)
-            
+            agent.update(self.get_state(), time_delta)
+        
+        logger.info("World state update complete")
+        
     def get_state(self):
         """Get current world state."""
         return {

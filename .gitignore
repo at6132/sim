@@ -28,6 +28,7 @@ wheels/
 # Logs
 logs/
 *.log
+simulation.log
 
 # IDE
 .idea/

@@ -14,7 +14,8 @@ from simulation.utils.logging_config import setup_logging, get_logger
 import webbrowser
 import time
 import os
-from simulation.server import start_backend
+from simulation.server import app, socketio
+from simulation.routes import *  # Import all routes
 
 # Configure logging
 logging.basicConfig(
@@ -85,10 +86,15 @@ def start_frontend():
 
 def main():
     """Main entry point for the simulation."""
+    global engine
     try:
         # Initialize simulation engine
         logger.info("Initializing simulation engine...")
         engine = SimulationEngine()
+        
+        # Start the engine
+        logger.info("Starting simulation engine...")
+        engine.start()
         
         # Start backend server in a separate thread
         logger.info("Starting backend server...")

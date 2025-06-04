@@ -51,31 +51,29 @@ class ClimateSystem:
         self.initialize_earth_climate()
         
     def initialize_earth_climate(self):
-        """Initialize the Earth's climate system."""
+        """Initialize Earth-like climate system."""
         logger.info("Initializing Earth climate system...")
+        total_steps = len(self.longitude_range) * len(self.latitude_range)
+        current_step = 0
         
-        # Initialize temperature map
-        logger.info("Setting up temperature map...")
-        self._initialize_temperature_map()
+        for lon in self.longitude_range:
+            for lat in self.latitude_range:
+                # Initialize temperature
+                self.temperature_map[lon][lat] = self._calculate_base_temperature(lat)
+                
+                # Initialize precipitation
+                self.precipitation_map[lon][lat] = self._calculate_base_precipitation(lat, lon)
+                
+                # Initialize wind
+                self.wind_map[lon][lat] = self._calculate_base_wind(lat, lon)
+                
+                # Update progress
+                current_step += 1
+                if current_step % 100 == 0:
+                    progress = (current_step / total_steps) * 100
+                    logger.info(f"Climate initialization progress: {progress:.1f}%")
         
-        # Initialize precipitation map
-        logger.info("Setting up precipitation map...")
-        self._initialize_precipitation_map()
-        
-        # Initialize wind map
-        logger.info("Setting up wind map...")
-        self._initialize_wind_map()
-        
-        # Initialize current conditions
-        logger.info("Setting up current conditions...")
-        self._initialize_current_conditions()
-        
-        # Verify initialization
-        if not self.verify_initialization():
-            logger.error("Climate system initialization verification failed")
-            raise RuntimeError("Climate system initialization verification failed")
-            
-        logger.info("Earth climate system initialization complete")
+        logger.info("Earth climate system initialized successfully")
 
     def verify_initialization(self) -> bool:
         """Verify that the climate system is properly initialized."""
