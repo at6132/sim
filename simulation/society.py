@@ -655,66 +655,210 @@ class Society:
 
 class SocietySystem:
     def __init__(self, world):
-        self.world = world
-        self.tribes = {}
-        self.religions = {}
-        self.languages = {}
-        self.settlements = {}
-        self.social_groups = {}
-        self.cultural_traits = {}
-        self.logger = logging.getLogger(__name__)
-
-    def initialize_society(self):
         """Initialize the society system."""
-        self.logger.info("Initializing society system...")
+        self.world = world
+        self.tribes = {}  # tribe_id -> tribe_data
+        self.religions = {}  # religion_id -> religion_data
+        self.languages = {}  # language_id -> language_data
+        self.settlements = {}  # settlement_id -> settlement_data
+        self.social_groups = {}  # group_id -> group_data
+        self.cultural_traits = {}  # trait_id -> trait_data
+        logger.info("Society system initialized")
         
-        # Initialize basic social structures
+    def initialize_society(self):
+        """Initialize the society system with basic structures."""
+        logger.info("Initializing society system...")
+        
+        # Initialize tribes
         self._initialize_tribes()
+        
+        # Initialize religions
         self._initialize_religions()
+        
+        # Initialize languages
         self._initialize_languages()
+        
+        # Initialize settlements
         self._initialize_settlements()
+        
+        # Initialize social groups
         self._initialize_social_groups()
+        
+        # Initialize cultural traits
         self._initialize_cultural_traits()
         
-        self.logger.info("Society system initialized successfully")
-
+        logger.info("Society system initialization complete")
+        
     def _initialize_tribes(self):
-        """Initialize basic tribal structures."""
-        self.logger.info("Initializing tribes...")
-        # Implementation here
-
+        """Initialize basic tribes."""
+        logger.info("Initializing tribes...")
+        # Create initial tribes
+        self.tribes = {
+            "tribe_1": {
+                "name": "First Tribe",
+                "members": set(),
+                "culture": "primitive",
+                "beliefs": ["animism"],
+                "traditions": ["hunting", "gathering"]
+            }
+        }
+        logger.info("Tribes initialized")
+        
     def _initialize_religions(self):
-        """Initialize basic religious structures."""
-        self.logger.info("Initializing religions...")
-        # Implementation here
-
+        """Initialize basic religions."""
+        logger.info("Initializing religions...")
+        # Create initial religions
+        self.religions = {
+            "religion_1": {
+                "name": "Nature Worship",
+                "followers": set(),
+                "beliefs": ["animism", "nature spirits"],
+                "practices": ["offerings", "rituals"]
+            }
+        }
+        logger.info("Religions initialized")
+        
     def _initialize_languages(self):
-        """Initialize basic language structures."""
-        self.logger.info("Initializing languages...")
-        # Implementation here
-
+        """Initialize basic languages."""
+        logger.info("Initializing languages...")
+        # Create initial languages
+        self.languages = {
+            "language_1": {
+                "name": "Proto-Language",
+                "speakers": set(),
+                "vocabulary": {},
+                "grammar": "primitive"
+            }
+        }
+        logger.info("Languages initialized")
+        
     def _initialize_settlements(self):
-        """Initialize basic settlement structures."""
-        self.logger.info("Initializing settlements...")
-        # Implementation here
-
+        """Initialize basic settlements."""
+        logger.info("Initializing settlements...")
+        # Create initial settlements
+        self.settlements = {
+            "settlement_1": {
+                "name": "First Camp",
+                "location": (0, 0),  # (longitude, latitude)
+                "population": 0,
+                "buildings": [],
+                "resources": {}
+            }
+        }
+        logger.info("Settlements initialized")
+        
     def _initialize_social_groups(self):
-        """Initialize basic social group structures."""
-        self.logger.info("Initializing social groups...")
-        # Implementation here
-
+        """Initialize basic social groups."""
+        logger.info("Initializing social groups...")
+        # Create initial social groups
+        self.social_groups = {
+            "group_1": {
+                "name": "Hunters",
+                "members": set(),
+                "role": "hunting",
+                "status": "respected"
+            }
+        }
+        logger.info("Social groups initialized")
+        
     def _initialize_cultural_traits(self):
         """Initialize basic cultural traits."""
-        self.logger.info("Initializing cultural traits...")
-        # Implementation here
-
-    def get_state(self):
-        """Get current society state."""
+        logger.info("Initializing cultural traits...")
+        # Create initial cultural traits
+        self.cultural_traits = {
+            "trait_1": {
+                "name": "Hunting Tradition",
+                "description": "Strong tradition of hunting",
+                "effects": {"hunting_efficiency": 1.2}
+            }
+        }
+        logger.info("Cultural traits initialized")
+        
+    def update(self, time_delta: float):
+        """Update society system state."""
+        logger.info(f"Updating society system for {time_delta} minutes...")
+        
+        # Update tribes
+        self._update_tribes(time_delta)
+        
+        # Update religions
+        self._update_religions(time_delta)
+        
+        # Update languages
+        self._update_languages(time_delta)
+        
+        # Update settlements
+        self._update_settlements(time_delta)
+        
+        # Update social groups
+        self._update_social_groups(time_delta)
+        
+        # Update cultural traits
+        self._update_cultural_traits(time_delta)
+        
+        logger.info("Society system update complete")
+        
+    def _update_tribes(self, time_delta: float):
+        """Update tribe states."""
+        for tribe_id, tribe in self.tribes.items():
+            # Update tribe population
+            self._update_tribe_population(tribe_id)
+            
+            # Update tribe culture
+            self._update_tribe_culture(tribe_id)
+            
+    def _update_religions(self, time_delta: float):
+        """Update religion states."""
+        for religion_id, religion in self.religions.items():
+            # Update follower count
+            self._update_religion_followers(religion_id)
+            
+            # Update religious practices
+            self._update_religious_practices(religion_id)
+            
+    def _update_languages(self, time_delta: float):
+        """Update language states."""
+        for language_id, language in self.languages.items():
+            # Update vocabulary
+            self._update_language_vocabulary(language_id)
+            
+            # Update grammar
+            self._update_language_grammar(language_id)
+            
+    def _update_settlements(self, time_delta: float):
+        """Update settlement states."""
+        for settlement_id, settlement in self.settlements.items():
+            # Update population
+            self._update_settlement_population(settlement_id)
+            
+            # Update buildings
+            self._update_settlement_buildings(settlement_id)
+            
+            # Update resources
+            self._update_settlement_resources(settlement_id)
+            
+    def _update_social_groups(self, time_delta: float):
+        """Update social group states."""
+        for group_id, group in self.social_groups.items():
+            # Update membership
+            self._update_group_membership(group_id)
+            
+            # Update group status
+            self._update_group_status(group_id)
+            
+    def _update_cultural_traits(self, time_delta: float):
+        """Update cultural trait states."""
+        for trait_id, trait in self.cultural_traits.items():
+            # Update trait effects
+            self._update_trait_effects(trait_id)
+            
+    def get_state(self) -> Dict:
+        """Get current society system state."""
         return {
-            "tribes": {tid: tribe.to_dict() for tid, tribe in self.tribes.items()},
-            "religions": {rid: religion.to_dict() for rid, religion in self.religions.items()},
-            "languages": {lid: language.to_dict() for lid, language in self.languages.items()},
-            "settlements": {sid: settlement.to_dict() for sid, settlement in self.settlements.items()},
-            "social_groups": {gid: group.to_dict() for gid, group in self.social_groups.items()},
-            "cultural_traits": self.cultural_traits
+            'tribes': self.tribes,
+            'religions': self.religions,
+            'languages': self.languages,
+            'settlements': self.settlements,
+            'social_groups': self.social_groups,
+            'cultural_traits': self.cultural_traits
         } 

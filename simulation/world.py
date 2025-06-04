@@ -38,8 +38,11 @@ import numpy as np
 import pickle
 import traceback
 import concurrent.futures
+from .utils.logging_config import get_logger
+from .agents import AgentSystem
+from .transportation import TransportationSystem
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class World:
     @classmethod
@@ -70,62 +73,54 @@ class World:
 
     def __init__(self):
         """Initialize the world."""
-        self.agents = []
-        self.time = 0
-        self.day_length = 24 * 60  # minutes
-        self.year_length = 365 * self.day_length
-        self.longitude_resolution = 1.0
-        self.latitude_resolution = 1.0
-        self.min_longitude = -180
-        self.max_longitude = 180
-        self.min_latitude = -90
-        self.max_latitude = 90
+        logger.info("Initializing world...")
+        
+        # Define coordinate ranges
+        self.longitude_range = range(-180, 181, 1)  # 1-degree resolution
+        self.latitude_range = range(-90, 91, 1)     # 1-degree resolution
         
         # Initialize systems
         self.terrain = TerrainSystem(self)
         self.climate = ClimateSystem(self)
         self.resources = ResourceSystem(self)
-        self.plants = PlantSystem(self)
-        self.animal_system = AnimalSystem(self)
-        self.marine_system = MarineSystem(self)
-        self.technology = TechnologySystem(self)
+        self.agents = AgentSystem(self)
         self.society = SocietySystem(self)
-        self.transportation_system = TransportationSystem(self)
+        self.transportation = TransportationSystem(self)
+        
+        # Initialize world state
+        self.time = 0.0  # Current time in minutes
+        self.day_length = 24 * 60  # 24 hours in minutes
+        self.year_length = 365 * self.day_length  # 365 days in minutes
+        
+        logger.info("World initialization complete")
         
     def update(self, time_delta: float):
         """Update the world state."""
-        logger.info("Updating world state...")
+        logger.info(f"Updating world state for {time_delta} minutes...")
+        
+        # Update time
+        self.time += time_delta
         
         # Update all systems
         self.terrain.update(time_delta)
         self.climate.update(time_delta)
         self.resources.update(time_delta)
-        self.plants.update(time_delta)
-        self.animal_system.update(time_delta)
-        self.marine_system.update(time_delta)
-        self.technology.update(time_delta)
+        self.agents.update(time_delta)
         self.society.update(time_delta)
-        self.transportation_system.update(time_delta)
-        
-        # Update all agents
-        for agent in self.agents:
-            agent.update(self.get_state(), time_delta)
+        self.transportation.update(time_delta)
         
         logger.info("World state update complete")
         
-    def get_state(self):
-        """Get current world state."""
+    def get_state(self) -> Dict:
+        """Get the current world state."""
         return {
             'time': self.time,
             'terrain': self.terrain.get_state(),
             'climate': self.climate.get_state(),
             'resources': self.resources.get_state(),
-            'plants': self.plants.get_state(),
-            'animals': self.animal_system.get_state(),
-            'marine': self.marine_system.get_state(),
-            'technology': self.technology.get_state(),
+            'agents': self.agents.get_state(),
             'society': self.society.get_state(),
-            'transportation': self.transportation_system.get_state()
+            'transportation': self.transportation.get_state()
         }
         
     def to_dict(self):
@@ -175,7 +170,7 @@ class World:
         
         # Initialize society and transportation after all other systems
         self.society.initialize_society()
-        self.transportation_system.initialize_transportation()
+        self.transportation.initialize_transportation()
         
         # Create initial agents (Avi and Yehudit)
         self._create_initial_agents()
@@ -232,7 +227,7 @@ class World:
             return False
             
         # Verify transportation system
-        if not hasattr(self.transportation_system, 'roads') or not self.transportation_system.roads:
+        if not hasattr(self.transportation, 'roads') or not self.transportation.roads:
             logger.error("Transportation system not properly initialized")
             return False
             
@@ -311,65 +306,6 @@ class World:
             
         logger.info(f"Spawned {num_agents} agents with IDs: {', '.join(agent.id for agent in self.agents)}")
 
-    def update(self, time_delta: float):
-        """Update world state."""
-        # Update time
-        self.time += time_delta
-        
-        # Update systems
-        self.terrain.update(time_delta)
-        self.climate.update(time_delta)
-        self.weather.update(time_delta)
-        self.resources.update(time_delta)
-        self.plants.update(time_delta)
-        self.animal_system.update(time_delta)
-        self.marine_system.update(time_delta)
-        self.technology.update(time_delta)
-        self.society.update(time_delta)
-        self.transportation_system.update(time_delta)
-        
-        # Update agents
-        for agent in self.agents:
-            agent.update(time_delta, self.get_state())
-            
-        # Let agents decide to create settlements based on their needs and discoveries
-        for agent in self.agents:
-            if agent.should_create_settlement():
-                self._create_settlement_from_agent(agent)
-                
-    def _create_settlement_from_agent(self, agent: Agent):
-        """Create a settlement based on an agent's decision."""
-        # Only create if agent has discovered settlement concept
-        if "settlement" not in agent.discovered_concepts:
-            return
-            
-        # Check if agent has enough resources and knowledge
-        if not agent.can_create_settlement():
-            return
-            
-        # Create settlement at agent's location
-        settlement_id = str(uuid.uuid4())
-        self.settlements[settlement_id] = Settlement(
-            id=settlement_id,
-            name=agent.generate_settlement_name(),
-            longitude=agent.longitude,
-            latitude=agent.latitude,
-            population=1,  # Start with just the founding agent
-            culture=agent.generate_culture_name(),
-            type="camp"  # Start as a simple camp
-        )
-        
-        # Add agent to settlement
-        self.settlements[settlement_id].residents.add(agent.id)
-        
-        # Log the event
-        self.log_event("settlement_created", {
-            "agent_id": agent.id,
-            "settlement_id": settlement_id,
-            "name": self.settlements[settlement_id].name,
-            "location": (agent.longitude, agent.latitude)
-        })
-
     def get_world_state(self) -> Dict:
         """Get current world state for agents."""
         return {
@@ -378,7 +314,7 @@ class World:
             "climate": self.climate.get_state(),
             "weather": self.weather.get_state(),
             "resources": self.resources.get_state(),
-            "transportation": self.transportation_system.get_state(),
+            "transportation": self.transportation.get_state(),
             "settlements": {id: settlement.get_state() for id, settlement in self.settlements.items()},
             "agents": {id: agent.get_state() for id, agent in self.agents.items()},
             "marine": self.marine_system.get_state(),
@@ -1398,7 +1334,7 @@ class World:
                 'marine': self.marine_system,
                 'technology': self.technology,
                 'society': self.society,
-                'transportation': self.transportation_system
+                'transportation': self.transportation
             }
             
             for name, system in systems.items():
@@ -1586,7 +1522,7 @@ class World:
                 'marine': self.marine_system,
                 'technology': self.technology,
                 'society': self.society,
-                'transportation': self.transportation_system
+                'transportation': self.transportation
             }
             
             for name, system in systems.items():

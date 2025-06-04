@@ -1,19 +1,23 @@
 from flask import Flask, render_template, jsonify
 import threading
 import time
-from typing import Dict
+from typing import Dict, Optional
 from .world import World
 import logging
 import traceback
+from .utils.logging_config import get_logger
 
 # Get logger for this module
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 app = Flask(__name__)
 # Try to load a saved world state first; if none exists, create a new World
 world = World.load_from_save() or World()
 simulation_thread = None
 is_running = False
+
+# Global engine instance
+engine = None
 
 def simulation_loop():
     """Main simulation loop."""
@@ -93,86 +97,32 @@ def run_simulation():
 class SimulationEngine:
     def __init__(self):
         """Initialize the simulation engine."""
+        global engine
+        self.world = World()
         self.running = False
-        self.world = None
-        self.last_update = time.time()
-        self.update_interval = 1.0  # seconds
-        self.simulation_speed = 1.0  # time multiplier
-        self.thread = None
-        logger.info("SimulationEngine initialized")
+        engine = self  # Set global instance
+        logger.info("Simulation engine initialized")
         
     def start(self):
-        """Start the simulation."""
-        if self.running:
-            logger.warning("Simulation already running")
-            return
-            
-        # Try to load existing world first
-        logger.info("Attempting to load existing world...")
-        self.world = World.load_from_save()
-        if not self.world:
-            logger.info("No saved world found, creating new world...")
-            self.world = World()
-            
+        """Start the simulation engine."""
         self.running = True
-        self.last_update = time.time()
+        logger.info("Simulation engine started")
         
-        # Start simulation in a separate thread
-        self.thread = threading.Thread(target=self.run_loop)
-        self.thread.daemon = True
-        self.thread.start()
-        logger.info("Simulation started in background thread")
-
-    def update(self, time_step=48.0):
-        """Advance the simulation by a given time step (in minutes)."""
-        if not self.running or not self.world:
-            logger.warning("SimulationEngine.update() called while not running or world is None")
-            return
-            
-        try:
-            logger.info(f"Updating simulation by {time_step} minutes...")
-            self.world.update(time_step)
-            self.last_update = time.time()
-            logger.info("Simulation update complete")
-        except Exception as e:
-            logger.error(f"Error during simulation update: {e}")
-            logger.error(traceback.format_exc())
-            self.stop()
-
     def stop(self):
-        """Stop the simulation."""
+        """Stop the simulation engine."""
+        self.running = False
+        logger.info("Simulation engine stopped")
+        
+    def update(self, time_delta: float):
+        """Update the simulation state."""
         if not self.running:
-            logger.info("Simulation already stopped")
             return
             
-        self.running = False
-        if self.thread:
-            self.thread.join(timeout=5.0)
-            if self.thread.is_alive():
-                logger.warning("Simulation thread did not stop gracefully")
-        logger.info("Simulation stopped")
-
-    def run_loop(self, time_step=48.0, real_time_interval=60.0):
-        """Run the simulation update loop until stopped."""
-        logger.info("Starting simulation engine loop...")
-        while self.running:
-            try:
-                self.update(time_step)
-                time.sleep(real_time_interval)
-            except Exception as e:
-                logger.error(f"Error in simulation loop: {e}")
-                logger.error(traceback.format_exc())
-                self.running = False
-                break
-        logger.info("Simulation engine loop exited")
-
-    def get_state(self):
-        """Get current simulation state."""
-        if not self.world:
-            return {"status": "not_initialized"}
+        self.world.update(time_delta)
+        
+    def get_state(self) -> Dict:
+        """Get the current simulation state."""
         return {
-            "status": "running" if self.running else "stopped",
-            "world": self.world.to_dict(),
-            "last_update": self.last_update,
-            "simulation_speed": self.simulation_speed
+            'world': self.world.get_state(),
+            'running': self.running
         }

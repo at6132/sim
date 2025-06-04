@@ -17,22 +17,9 @@ import os
 from simulation.server import app, socketio
 from simulation.routes import *  # Import all routes
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('simulation.log')
-    ]
-)
-
-logger = logging.getLogger(__name__)
-
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app)
-socketio = SocketIO(app, async_mode='threading')
+# Configure logging using the project's logging setup
+setup_logging()
+logger = get_logger(__name__)
 
 # Initialize database
 db = DatabaseManager()

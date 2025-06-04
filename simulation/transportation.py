@@ -54,52 +54,156 @@ class TransportationType(Enum):
 
 class TransportationSystem:
     def __init__(self, world):
-        self.world = world
-        self.roads = {}
-        self.paths = {}
-        self.vehicles = {}
-        self.transport_routes = {}
-        self.logger = logging.getLogger(__name__)
-
-    def initialize_transportation(self):
         """Initialize the transportation system."""
-        self.logger.info("Initializing transportation system...")
+        self.world = world
+        self.roads = {}  # road_id -> road_data
+        self.paths = {}  # path_id -> path_data
+        self.vehicles = {}  # vehicle_id -> vehicle_data
+        self.transport_routes = {}  # route_id -> route_data
+        logger.info("Transportation system initialized")
         
-        # Initialize basic transportation structures
+    def initialize_transportation(self):
+        """Initialize the transportation system with basic structures."""
+        logger.info("Initializing transportation system...")
+        
+        # Initialize roads
         self._initialize_roads()
-        self._initialize_paths()
-        self._initialize_vehicles()
-        self._initialize_routes()
         
-        self.logger.info("Transportation system initialized successfully")
-
+        # Initialize paths
+        self._initialize_paths()
+        
+        # Initialize vehicles
+        self._initialize_vehicles()
+        
+        # Initialize transport routes
+        self._initialize_transport_routes()
+        
+        logger.info("Transportation system initialization complete")
+        
     def _initialize_roads(self):
-        """Initialize basic road network."""
-        self.logger.info("Initializing roads...")
-        # Implementation here
-
+        """Initialize basic roads."""
+        logger.info("Initializing roads...")
+        # Create initial roads
+        self.roads = {
+            "road_1": {
+                "name": "First Road",
+                "start": (0, 0),  # (longitude, latitude)
+                "end": (1, 1),
+                "type": "dirt",
+                "condition": 1.0,
+                "traffic": 0.0
+            }
+        }
+        logger.info("Roads initialized")
+        
     def _initialize_paths(self):
-        """Initialize basic path network."""
-        self.logger.info("Initializing paths...")
-        # Implementation here
-
+        """Initialize basic paths."""
+        logger.info("Initializing paths...")
+        # Create initial paths
+        self.paths = {
+            "path_1": {
+                "name": "First Path",
+                "start": (0, 0),
+                "end": (0.5, 0.5),
+                "type": "footpath",
+                "condition": 1.0,
+                "usage": 0.0
+            }
+        }
+        logger.info("Paths initialized")
+        
     def _initialize_vehicles(self):
-        """Initialize basic vehicle types."""
-        self.logger.info("Initializing vehicles...")
-        # Implementation here
-
-    def _initialize_routes(self):
+        """Initialize basic vehicles."""
+        logger.info("Initializing vehicles...")
+        # Create initial vehicles
+        self.vehicles = {
+            "vehicle_1": {
+                "name": "First Cart",
+                "type": "cart",
+                "capacity": 100.0,
+                "speed": 5.0,
+                "condition": 1.0,
+                "location": (0, 0)
+            }
+        }
+        logger.info("Vehicles initialized")
+        
+    def _initialize_transport_routes(self):
         """Initialize basic transport routes."""
-        self.logger.info("Initializing transport routes...")
-        # Implementation here
-
-    def get_state(self):
-        """Get current transportation state."""
+        logger.info("Initializing transport routes...")
+        # Create initial routes
+        self.transport_routes = {
+            "route_1": {
+                "name": "First Route",
+                "stops": [(0, 0), (1, 1)],
+                "type": "road",
+                "distance": 1.41,
+                "travel_time": 0.28  # hours
+            }
+        }
+        logger.info("Transport routes initialized")
+        
+    def update(self, time_delta: float):
+        """Update transportation system state."""
+        logger.info(f"Updating transportation system for {time_delta} minutes...")
+        
+        # Update roads
+        self._update_roads(time_delta)
+        
+        # Update paths
+        self._update_paths(time_delta)
+        
+        # Update vehicles
+        self._update_vehicles(time_delta)
+        
+        # Update transport routes
+        self._update_transport_routes(time_delta)
+        
+        logger.info("Transportation system update complete")
+        
+    def _update_roads(self, time_delta: float):
+        """Update road states."""
+        for road_id, road in self.roads.items():
+            # Update road condition
+            self._update_road_condition(road_id, time_delta)
+            
+            # Update road traffic
+            self._update_road_traffic(road_id, time_delta)
+            
+    def _update_paths(self, time_delta: float):
+        """Update path states."""
+        for path_id, path in self.paths.items():
+            # Update path condition
+            self._update_path_condition(path_id, time_delta)
+            
+            # Update path usage
+            self._update_path_usage(path_id, time_delta)
+            
+    def _update_vehicles(self, time_delta: float):
+        """Update vehicle states."""
+        for vehicle_id, vehicle in self.vehicles.items():
+            # Update vehicle condition
+            self._update_vehicle_condition(vehicle_id, time_delta)
+            
+            # Update vehicle location
+            self._update_vehicle_location(vehicle_id, time_delta)
+            
+    def _update_transport_routes(self, time_delta: float):
+        """Update transport route states."""
+        for route_id, route in self.transport_routes.items():
+            # Update route traffic
+            self._update_route_traffic(route_id, time_delta)
+            
+            # Update route condition
+            self._update_route_condition(route_id, time_delta)
+            
+    def get_state(self) -> Dict:
+        """Get current transportation system state."""
         return {
-            "roads": {rid: road.to_dict() for rid, road in self.roads.items()},
-            "paths": {pid: path.to_dict() for pid, path in self.paths.items()},
-            "vehicles": {vid: vehicle.to_dict() for vid, vehicle in self.vehicles.items()},
-            "transport_routes": {rid: route.to_dict() for rid, route in self.transport_routes.items()}
+            'roads': self.roads,
+            'paths': self.paths,
+            'vehicles': self.vehicles,
+            'transport_routes': self.transport_routes
         }
 
     def verify_initialization(self) -> bool:
