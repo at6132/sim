@@ -16,8 +16,17 @@ import time
 import os
 from simulation.server import start_backend
 
-# Set up logging
-logger = setup_logging(log_level=logging.INFO)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('simulation.log')
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -68,81 +77,38 @@ def start_backend():
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
 
 def start_frontend():
-    """Start the frontend in the default web browser."""
+    """Start the frontend in a web browser."""
     logger.info("Starting frontend...")
-    # Wait a moment for the backend to initialize
+    # Wait for backend to initialize
     time.sleep(2)
     webbrowser.open('http://localhost:5000')
-    logger.info("Frontend started")
 
-def start_simulation():
-    """Main startup sequence."""
-    global engine, simulation_thread
-    
+def main():
+    """Main entry point for the simulation."""
     try:
-        # Step 1: Create simulation engine instance
-        logger.info("Creating simulation engine...")
+        # Initialize simulation engine
+        logger.info("Initializing simulation engine...")
         engine = SimulationEngine()
         
-        # Step 2: Start the simulation engine
-        logger.info("Starting simulation engine...")
-        engine.start()
-        
-        # Step 3: Initialize all systems
-        logger.info("Initializing world systems...")
-        if engine.world:
-            # Initialize terrain first (required by other systems)
-            engine.world.terrain.initialize_terrain()
-            
-            # Initialize climate (required for spawning)
-            engine.world.climate.initialize_earth_climate()
-            
-            # Initialize resources
-            engine.world.resources.initialize_resources()
-            
-            # Initialize plants
-            engine.world.plants.initialize_plants()
-            
-            # Initialize animals
-            engine.world.animal_system.initialize_animals()
-            
-            # Initialize marine life
-            engine.world.marine_system.initialize_marine()
-            
-            # Initialize technology
-            engine.world.technology.initialize_technology()
-            
-            # Initialize society and transportation
-            engine.world.society.initialize_society()
-            engine.world.transportation_system.initialize_transportation()
-            
-            # Create initial agents
-            engine.world.spawn_initial_agents(2)
-            
-            logger.info("World initialization complete - All systems ready")
-        
-        # Step 4: Start simulation loop in a separate thread
-        logger.info("Starting simulation thread...")
-        simulation_thread = threading.Thread(target=run_simulation_loop)
-        simulation_thread.daemon = True
-        simulation_thread.start()
-        
-        # Step 5: Start backend server in a separate thread
+        # Start backend server in a separate thread
         logger.info("Starting backend server...")
-        backend_thread = threading.Thread(target=start_backend)
-        backend_thread.daemon = True
-        backend_thread.start()
+        server_thread = threading.Thread(target=start_backend, daemon=True)
+        server_thread.start()
         
-        # Step 6: Start frontend
-        logger.info("Starting frontend...")
+        # Start frontend
         start_frontend()
         
+        # Keep main thread alive
+        while True:
+            time.sleep(1)
+            
     except KeyboardInterrupt:
-        logger.info("\nSimulation stopped by user")
+        logger.info("Shutting down simulation...")
+        if engine:
+            engine.stop()
     except Exception as e:
-        logger.error(f"Error in startup sequence: {str(e)}")
-        logger.error(traceback.format_exc())
+        logger.error(f"Error in simulation: {str(e)}")
         raise
 
 if __name__ == "__main__":
-    start_simulation() 
+    main() 
