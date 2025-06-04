@@ -70,75 +70,78 @@ class World:
 
     def __init__(self):
         """Initialize the world."""
-        # Set up world dimensions (real-world coordinates)
-        self.min_longitude = -180.0  # Westernmost longitude
-        self.max_longitude = 180.0   # Easternmost longitude
-        self.min_latitude = -90.0    # Southernmost latitude
-        self.max_latitude = 90.0     # Northernmost latitude
-        self.longitude_resolution = 0.1  # Degrees per tile
-        self.latitude_resolution = 0.1   # Degrees per tile
-        
-        # Set up time-related attributes
-        self.time = 0.0  # Current time in seconds
-        self.year_length = 365.25 * 24 * 3600  # Length of a year in seconds
-        self.day_length = 24 * 3600  # Length of a day in seconds
-        self.season_length = self.year_length / 4  # Length of a season in seconds
-        
-        # Initialize basic attributes
-        self.agents = {}  # Initialize agents dictionary
-        self.settlements = {}  # Initialize settlements dictionary
-        self.current_time = datetime.now()
-        self.events = []
-        self.regions = []
-        
-        # Calculate grid dimensions based on resolution
-        self.grid_width = int((self.max_longitude - self.min_longitude) / self.longitude_resolution)
-        self.grid_height = int((self.max_latitude - self.min_latitude) / self.latitude_resolution)
-        
-        # Set world size
-        self.world_size = (self.grid_width, self.grid_height)
-        
-        # Initialize time-related attributes
-        self.current_tick = 0  # Current simulation tick
-        self.simulation_time = 0.0  # Total simulation time in hours
-        self.game_time = datetime.now()  # Current game time
-        self.real_time_start = datetime.now()  # When the simulation started
-        self.game_time_start = datetime.now()  # When the game time started
-        self.time_scale = 1.0  # Time scaling factor
-        
-        # Initialize world state
-        self.current_season = "spring"
-        self.current_weather = "clear"
-        self.temperature = 20.0  # Celsius
-        self.humidity = 0.5  # 0-1
-        self.wind_speed = 0.0  # m/s
-        self.wind_direction = 0.0  # degrees
-        self.precipitation = 0.0  # mm
-        self.cloud_cover = 0.0  # 0-1
-        self.air_pressure = 1013.25  # hPa
-        self.visibility = 10.0  # km
+        self.agents = []
+        self.time = 0
+        self.day_length = 24 * 60  # minutes
+        self.year_length = 365 * self.day_length
+        self.longitude_resolution = 1.0
+        self.latitude_resolution = 1.0
+        self.min_longitude = -180
+        self.max_longitude = 180
+        self.min_latitude = -90
+        self.max_latitude = 90
         
         # Initialize systems
         self.terrain = TerrainSystem(self)
         self.climate = ClimateSystem(self)
-        self.weather = WeatherSystem(self)
         self.resources = ResourceSystem(self)
-        self.society = SocietySystem(self)
+        self.plants = PlantSystem(self)
         self.animal_system = AnimalSystem(self)
         self.marine_system = MarineSystem(self)
-        self.transportation_system = TransportationSystem(self)
-        self.plants = PlantSystem(self)
         self.technology = TechnologySystem(self)
+        self.society = SocietySystem(self)
+        self.transportation_system = TransportationSystem(self)
         
-        # Track initialization count
-        self._init_count = 0
+    def update(self, time_delta: float):
+        """Update world state."""
+        self.time += time_delta
         
-        # Try to load saved state first
-        if not self._load_state():
-            logger.info("No saved state found, initializing new world...")
-            self._initialize_world()
-            self._save_state()
+        # Update systems
+        self.terrain.update(time_delta)
+        self.climate.update(time_delta)
+        self.resources.update(time_delta)
+        self.plants.update(time_delta)
+        self.animal_system.update(time_delta)
+        self.marine_system.update(time_delta)
+        self.technology.update(time_delta)
+        self.society.update(time_delta)
+        self.transportation_system.update(time_delta)
         
+        # Update agents with current world state
+        world_state = self.get_state()
+        for agent in self.agents:
+            agent.update(time_delta, world_state)
+            
+    def get_state(self):
+        """Get current world state."""
+        return {
+            'time': self.time,
+            'terrain': self.terrain.get_state(),
+            'climate': self.climate.get_state(),
+            'resources': self.resources.get_state(),
+            'plants': self.plants.get_state(),
+            'animals': self.animal_system.get_state(),
+            'marine': self.marine_system.get_state(),
+            'technology': self.technology.get_state(),
+            'society': self.society.get_state(),
+            'transportation': self.transportation_system.get_state()
+        }
+        
+    def to_dict(self):
+        """Convert world state to dictionary."""
+        return self.get_state()
+        
+    def spawn_initial_agents(self, count: int = 1):
+        """Spawn initial agents."""
+        for _ in range(count):
+            # Find suitable spawn location
+            lon = random.uniform(self.min_longitude, self.max_longitude)
+            lat = random.uniform(self.min_latitude, self.max_latitude)
+            
+            # Create and add agent
+            agent = Agent(lon, lat)
+            self.agents.append(agent)
+            
     def _initialize_world(self):
         """Initialize the world and all its systems."""
         if self._init_count > 0:
@@ -272,8 +275,8 @@ class World:
         )
         
         # Add agents to world
-        self.agents[agent1.id] = agent1
-        self.agents[agent2.id] = agent2
+        self.agents.append(agent1)
+        self.agents.append(agent2)
         
         logger.info(f"Created initial agents with IDs: {agent1.id}, {agent2.id}")
 
@@ -303,9 +306,9 @@ class World:
             )
             
             # Add agent to world
-            self.agents[agent.id] = agent
+            self.agents.append(agent)
             
-        logger.info(f"Spawned {num_agents} agents with IDs: {', '.join(agent.id for agent in self.agents.values())}")
+        logger.info(f"Spawned {num_agents} agents with IDs: {', '.join(agent.id for agent in self.agents)}")
 
     def update(self, time_delta: float):
         """Update world state."""
@@ -325,11 +328,11 @@ class World:
         self.transportation_system.update(time_delta)
         
         # Update agents
-        for agent in self.agents.values():
-            agent.update(time_delta, self.world.get_state())
+        for agent in self.agents:
+            agent.update(time_delta, self.get_state())
             
         # Let agents decide to create settlements based on their needs and discoveries
-        for agent in self.agents.values():
+        for agent in self.agents:
             if agent.should_create_settlement():
                 self._create_settlement_from_agent(agent)
                 
@@ -365,31 +368,6 @@ class World:
             "name": self.settlements[settlement_id].name,
             "location": (agent.longitude, agent.latitude)
         })
-
-    def get_state(self) -> Dict:
-        """Get current world state."""
-        return {
-            "time": self.time,
-            "season": self.current_season,
-            "weather": self.current_weather,
-            "temperature": self.temperature,
-            "humidity": self.humidity,
-            "wind_speed": self.wind_speed,
-            "wind_direction": self.wind_direction,
-            "precipitation": self.precipitation,
-            "cloud_cover": self.cloud_cover,
-            "air_pressure": self.air_pressure,
-            "visibility": self.visibility,
-            "terrain": self.terrain.get_state(),
-            "climate": self.climate.get_state(),
-            "resources": self.resources.get_state(),
-            "plants": self.plants.get_state(),
-            "animals": self.animal_system.get_state(),
-            "marine": self.marine_system.get_state(),
-            "technology": self.technology.get_state(),
-            "society": self.society.get_state(),
-            "transportation": self.transportation_system.get_state()
-        }
 
     def get_world_state(self) -> Dict:
         """Get current world state for agents."""
@@ -670,7 +648,7 @@ class World:
             gender=child.gender
         )
         
-        self.agents[child.id] = agent
+        self.agents.append(agent)
         
         self.log_event("child_birth", {
             "child_id": child.id,
@@ -903,7 +881,7 @@ class World:
         if agent_id in self.agents:
             # Save final state before removal
             self.save_agent_data(agent_id)
-            del self.agents[agent_id]
+            self.agents.remove(agent_id)
             
         self.log_event("agent_death", {"agent_id": agent_id})
 

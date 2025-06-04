@@ -1,6 +1,7 @@
 from flask import jsonify, render_template
 from flask_socketio import emit
 import logging
+from .server import app, socketio
 
 logger = logging.getLogger(__name__)
 
@@ -9,13 +10,38 @@ from .main import simulation
 
 @app.route('/')
 def index():
+    """Render main simulation view."""
     return render_template('index.html')
 
 @socketio.on('connect')
 def handle_connect():
+    """Handle client connection."""
     logger.info("Client connected")
     if simulation:
         emit('simulation_state', simulation.get_state())
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection."""
+    logger.info("Client disconnected")
+
+@socketio.on('start_simulation')
+def handle_start():
+    """Handle simulation start request."""
+    from .engine import engine
+    if engine:
+        engine.start()
+        return {"status": "started"}
+    return {"error": "Engine not initialized"}
+
+@socketio.on('stop_simulation')
+def handle_stop():
+    """Handle simulation stop request."""
+    from .engine import engine
+    if engine:
+        engine.stop()
+        return {"status": "stopped"}
+    return {"error": "Engine not initialized"}
 
 @app.route('/api/world')
 def get_world():

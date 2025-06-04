@@ -99,7 +99,7 @@ OPENAI_API_KEY=your_api_key_here
 
 1. Start the simulation server:
 ```bash
-python api.py
+python start_simulation.py
 ```
 
 2. Open your browser and navigate to:
