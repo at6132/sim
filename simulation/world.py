@@ -83,8 +83,10 @@ class World:
         self.max_latitude = 90.0
         
         # Initialize time tracking
+        self.real_time_start = datetime.now()
         self.game_time_start = datetime.now()
-        self.game_time = 0.0  # Current game time in hours
+        self.game_time = datetime.now()  # Current game time as datetime
+        self.simulation_time = 0.0  # Simulation time in hours
         self.time_scale = 1.0  # Time scaling factor
         self.current_tick = 0  # Current simulation tick
         
@@ -190,10 +192,17 @@ class World:
         
         self.logger.info("World state initialization complete")
 
+    def get_current_game_time(self) -> datetime:
+        """Get current game time as datetime."""
+        real_time_elapsed = datetime.now() - self.real_time_start
+        game_time_elapsed = timedelta(hours=real_time_elapsed.total_seconds() * self.time_scale)
+        return self.game_time_start + game_time_elapsed
+        
     def update(self, time_delta: float):
         """Update world state."""
         # Update game time
-        self.game_time += time_delta * self.time_scale
+        self.simulation_time += time_delta
+        self.game_time = self.get_current_game_time()
         self.current_tick += 1
         
         # Update subsystems
@@ -213,9 +222,12 @@ class World:
     def get_world_state(self) -> Dict:
         """Get current world state."""
         return {
-            "time": self.game_time,
+            "time": self.game_time.isoformat(),
+            "simulation_time": self.simulation_time,
             "tick": self.current_tick,
             "time_scale": self.time_scale,
+            "real_time_start": self.real_time_start.isoformat(),
+            "game_time_start": self.game_time_start.isoformat(),
             "environment": self.environment.get_state(),
             "terrain": self.terrain.get_state(),
             "climate": self.climate.get_state(),
@@ -251,16 +263,43 @@ class World:
         return self.get_state()
         
     def spawn_initial_agents(self, count: int = 1):
-        """Spawn initial agents."""
+        """Spawn initial agents in the world."""
+        self.logger.info(f"Spawning {count} initial agents...")
+        
         for _ in range(count):
-            # Find suitable spawn location
-            lon = random.uniform(self.min_longitude, self.max_longitude)
-            lat = random.uniform(self.min_latitude, self.max_latitude)
+            # Get spawn location
+            lon, lat = self.get_spawn_location()
             
-            # Create and add agent
-            agent = Agent(lon, lat)
-            self.agents.append(agent)
+            # Create agent through agent system
+            self.agents.create_agent(lon, lat)
             
+        self.logger.info("Initial agent spawning complete")
+        
+    def _spawn_child(self, parent_id: str) -> Optional[str]:
+        """Spawn a child agent from a parent."""
+        parent = self.agents.get_agent(parent_id)
+        if not parent:
+            return None
+            
+        # Get spawn location near parent
+        lon, lat = self.get_spawn_location(
+            center_lon=parent.longitude,
+            center_lat=parent.latitude,
+            radius=0.1  # Spawn very close to parent
+        )
+        
+        # Create child through agent system
+        child_id = self.agents.create_agent(
+            longitude=lon,
+            latitude=lat,
+            parent_id=parent_id
+        )
+        
+        if child_id:
+            self.logger.info(f"Spawned child agent {child_id} from parent {parent_id}")
+            
+        return child_id
+
     def verify_initialization(self) -> bool:
         """Verify that all systems are properly initialized."""
         logger.info("Verifying world initialization...")
@@ -334,12 +373,8 @@ class World:
         return (self.min_longitude <= longitude <= self.max_longitude and
                 self.min_latitude <= latitude <= self.max_latitude)
                 
-    def get_spawn_location(self) -> Tuple[float, float]:
+    def get_spawn_location(self, center_lon: float = 0.0, center_lat: float = 0.0, radius: float = 1.0) -> Tuple[float, float]:
         """Get a random spawn location within the initial spawn area."""
-        center_lon = self.initial_spawn["longitude"]
-        center_lat = self.initial_spawn["latitude"]
-        radius = self.initial_spawn["radius"]
-        
         # Generate random point within radius
         angle = random.uniform(0, 2 * math.pi)
         distance = random.uniform(0, radius)
@@ -349,12 +384,6 @@ class World:
         lat = center_lat + (distance * math.sin(angle))
         
         return (lon, lat)
-
-    def get_current_game_time(self) -> datetime:
-        """Convert real time to game time."""
-        real_time_elapsed = datetime.now() - self.real_time_start
-        game_time_elapsed = timedelta(hours=real_time_elapsed.total_seconds() * self.time_scale)
-        return self.game_time_start + game_time_elapsed
 
     def get_distance(self, lon1: float, lat1: float, lon2: float, lat2: float) -> float:
         """Calculate distance between two points in kilometers using the Haversine formula."""
@@ -534,51 +563,6 @@ class World:
             first_name = self._generate_name()[0]
             last_name = father.last_name  # Default to father's last name
             return first_name, last_name
-
-    def _spawn_child(self, child):
-        """Spawn a new child agent."""
-        # Find a suitable spawn location near the mother
-        mother = self.agents[child.mother_id]
-        father = self.agents[child.father_id]
-        x, y = mother.position
-        
-        # Try to find a nearby empty spot
-        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-            new_x = x + dx
-            new_y = y + dy
-            if (0 <= new_x < self.environment.width and 
-                0 <= new_y < self.environment.height and
-                self.environment.get_terrain_at(new_x, new_y).type.value != "water"):
-                break
-        else:
-            # If no nearby spot, use mother's position
-            new_x, new_y = x, y
-
-        # Generate name based on parents' culture and language
-        first_name, last_name = self._generate_child_name(mother, father)
-        
-        # Initialize cognition system first
-        cognition = AgentCognition(child.id)
-        self.cognition_systems[child.id] = cognition
-        
-        # Create new agent
-        agent = Agent(
-            id=child.id,
-            name=f"{first_name} {last_name}",
-            position=(new_x, new_y),
-            genes=child.genes,
-            gender=child.gender
-        )
-        
-        self.agents.append(agent)
-        
-        self.log_event("child_birth", {
-            "child_id": child.id,
-            "name": f"{first_name} {last_name}",
-            "mother_id": child.mother_id,
-            "father_id": child.father_id,
-            "position": (new_x, new_y)
-        })
 
     def _get_agent_state(self, agent: Agent) -> Dict:
         """Get current state of an agent for the frontend."""
