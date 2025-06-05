@@ -72,52 +72,94 @@ class World:
             return None
 
     def __init__(self):
-        """Initialize the world."""
-        logger.info("Initializing world...")
+        """Initialize the world with all necessary subsystems."""
+        self.logger = get_logger(__name__)
+        self.logger.info("Initializing world...")
         
-        # Initialize coordinate bounds
+        # Define world bounds
         self.min_longitude = -180.0
         self.max_longitude = 180.0
         self.min_latitude = -90.0
         self.max_latitude = 90.0
-        self.longitude_resolution = 1.0  # 1 degree
-        self.latitude_resolution = 1.0   # 1 degree
         
-        # Initialize coordinate ranges
-        self.longitude_range = range(-180, 181, 1)  # 1-degree resolution
-        self.latitude_range = range(-90, 91, 1)     # 1-degree resolution
+        # Initialize time tracking
+        self.time = datetime.now()
+        self.day_length = 24.0  # hours
+        self.year_length = 365.25  # days
         
-        # Initialize resource maps
-        self.mineral_map = {}
-        self.water_map = {}
-        self.vegetation_map = {}
-        
-        # Initialize initialization counter
-        self._init_count = 0
-        
-        # Initialize systems
+        # Initialize subsystems
+        self.logger.info("Initializing terrain system...")
         self.terrain = TerrainSystem(self)
+        
+        self.logger.info("Initializing climate system...")
         self.climate = ClimateSystem(self)
+        
+        self.logger.info("Initializing resource system...")
         self.resources = ResourceSystem(self)
+        
+        self.logger.info("Initializing agent system...")
         self.agents = AgentSystem(self)
+        
+        self.logger.info("Initializing society system...")
         self.society = SocietySystem(self)
+        
+        self.logger.info("Initializing transportation system...")
         self.transportation = TransportationSystem(self)
         
+        # Initialize initial spawn point
+        self.initial_spawn = {
+            "longitude": 0.0,
+            "latitude": 0.0
+        }
+        
+        # Initialize world state tracking
+        self.events = []
+        self.explored_areas = set()
+        self.discovered_resources = set()
+        self.known_territories = set()
+        
         # Initialize world state
-        self.time = 0.0  # Current time in minutes
-        self.day_length = 24 * 60  # 24 hours in minutes
-        self.year_length = 365 * self.day_length  # 365 days in minutes
+        self._initialize_world()
         
-        logger.info("World initialization complete")
+        self.logger.info("World initialization complete")
+
+    def _initialize_world(self):
+        """Initialize the world state."""
+        self.logger.info("Initializing world state...")
         
+        # Initialize terrain
+        self.terrain.initialize_terrain()
+        
+        # Initialize climate
+        self.climate.initialize_earth_climate()
+        
+        # Initialize resources
+        self.resources.initialize_resources()
+        
+        # Initialize agents
+        self.agents.initialize_agents()
+        
+        # Initialize society
+        self.society.initialize_society()
+        
+        # Initialize transportation
+        self.transportation.initialize_transportation()
+        
+        # Verify initialization
+        if not self.verify_initialization():
+            self.logger.error("World initialization verification failed")
+            raise RuntimeError("World initialization failed verification")
+        
+        self.logger.info("World state initialization complete")
+
     def update(self, time_delta: float):
         """Update the world state."""
-        logger.info(f"Updating world state for {time_delta} minutes...")
+        self.logger.debug(f"Updating world with time delta: {time_delta}")
         
         # Update time
-        self.time += time_delta
+        self.time = self.time + timedelta(hours=time_delta)
         
-        # Update all systems
+        # Update subsystems
         self.terrain.update(time_delta)
         self.climate.update(time_delta)
         self.resources.update(time_delta)
@@ -125,20 +167,24 @@ class World:
         self.society.update(time_delta)
         self.transportation.update(time_delta)
         
-        logger.info("World state update complete")
-        
+        self.logger.debug("World update complete")
+
     def get_state(self) -> Dict:
-        """Get the current world state."""
+        """Get the current state of the world."""
         return {
-            'time': self.time,
+            'time': self.time.isoformat(),
             'terrain': self.terrain.get_state(),
             'climate': self.climate.get_state(),
             'resources': self.resources.get_state(),
             'agents': self.agents.get_state(),
             'society': self.society.get_state(),
-            'transportation': self.transportation.get_state()
+            'transportation': self.transportation.get_state(),
+            'events': self.events[-100:],  # Keep last 100 events
+            'explored_areas': list(self.explored_areas),
+            'discovered_resources': list(self.discovered_resources),
+            'known_territories': list(self.known_territories)
         }
-        
+
     def to_dict(self):
         """Convert world state to dictionary."""
         return self.get_state()
@@ -154,50 +200,6 @@ class World:
             agent = Agent(lon, lat)
             self.agents.append(agent)
             
-    def _initialize_world(self):
-        """Initialize the world and all its systems."""
-        if self._init_count > 0:
-            logger.warning("World already initialized, skipping initialization")
-            return
-            
-        logger.info("Initializing world...")
-        self._init_count += 1
-        
-        # Initialize terrain first (required by other systems)
-        self.terrain.initialize_terrain()
-        
-        # Initialize climate (required for spawning)
-        self.climate.initialize_earth_climate()
-        
-        # Initialize resources
-        self.resources.initialize_resources()
-        
-        # Initialize plants with initial populations
-        self.plants.initialize_plants()
-        
-        # Initialize animals with initial populations
-        self.animal_system.initialize_animals()
-        
-        # Initialize marine life with initial populations
-        self.marine_system.initialize_marine()
-        
-        # Initialize technology
-        self.technology.initialize_technology()
-        
-        # Initialize society and transportation after all other systems
-        self.society.initialize_society()
-        self.transportation.initialize_transportation()
-        
-        # Create initial agents (Avi and Yehudit)
-        self._create_initial_agents()
-        
-        # Verify all systems are properly initialized
-        if not self.verify_initialization():
-            logger.error("World initialization verification failed")
-            raise RuntimeError("World initialization verification failed")
-        
-        logger.info("World initialization complete")
-        
     def verify_initialization(self) -> bool:
         """Verify that all systems are properly initialized."""
         logger.info("Verifying world initialization...")
@@ -249,78 +251,6 @@ class World:
             
         logger.info("World initialization verified successfully")
         return True
-
-    def _create_initial_agents(self) -> None:
-        """Create initial agents without names."""
-        logger.info("Creating initial agents without names")
-        
-        # Create first agent
-        agent1 = Agent(
-            id="agent_1",
-            name="",  # Empty name, will be developed through interactions
-            age=20,
-            gender="unknown",
-            genes=Genes(),  # Use default Genes initialization
-            needs=AgentNeeds(),
-            memory=Memory(),
-            emotions=EmotionSystem(),
-            health=1.0,
-            philosophy=Philosophy(),
-            longitude=0.0,
-            latitude=0.0
-        )
-        
-        # Create second agent
-        agent2 = Agent(
-            id="agent_2",
-            name="",  # Empty name, will be developed through interactions
-            age=20,
-            gender="unknown",
-            genes=Genes(),  # Use default Genes initialization
-            needs=AgentNeeds(),
-            memory=Memory(),
-            emotions=EmotionSystem(),
-            health=1.0,
-            philosophy=Philosophy(),
-            longitude=1.0,
-            latitude=1.0
-        )
-        
-        # Add agents to world
-        self.agents.append(agent1)
-        self.agents.append(agent2)
-        
-        logger.info(f"Created initial agents with IDs: {agent1.id}, {agent2.id}")
-
-    def spawn_initial_agents(self, num_agents: int = 2) -> None:
-        """Spawn initial agents without names."""
-        logger.info(f"Spawning {num_agents} initial agents without names")
-        
-        for i in range(num_agents):
-            # Generate random position
-            longitude = random.uniform(-180, 180)
-            latitude = random.uniform(-90, 90)
-            
-            # Create agent
-            agent = Agent(
-                id=f"agent_{i}",
-                name="",  # Empty name, will be developed through interactions
-                age=20,
-                gender="unknown",
-                genes=Genes(),
-                needs=AgentNeeds(),
-                memory=Memory(),
-                emotions=EmotionSystem(),
-                health=1.0,
-                philosophy=Philosophy(),
-                longitude=longitude,
-                latitude=latitude
-            )
-            
-            # Add agent to world
-            self.agents.append(agent)
-            
-        logger.info(f"Spawned {num_agents} agents with IDs: {', '.join(agent.id for agent in self.agents)}")
 
     def get_world_state(self) -> Dict:
         """Get current world state for agents."""

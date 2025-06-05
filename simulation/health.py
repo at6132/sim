@@ -5,6 +5,7 @@ import random
 import logging
 import time
 from datetime import datetime
+from .utils.logging_config import get_logger
 
 logger = logging.getLogger(__name__)
 
@@ -104,11 +105,12 @@ class HealthSystem:
         self.evolutions: Dict[str, MedicalEvolution] = {}
         self.facilities: Dict[str, HealthcareFacility] = {}
         self.medical_knowledge: Dict[DiseaseType, float] = {dtype: 0.0 for dtype in DiseaseType}
+        self.logger = get_logger(__name__)
         self.initialize_system()
         
     def initialize_system(self):
         """Initialize the health system with basic capabilities."""
-        logger.info("Initializing health system...")
+        self.logger.info("Initializing health system...")
         
         # Create basic healthcare facilities
         self.facilities["main_hospital"] = HealthcareFacility(
@@ -126,7 +128,10 @@ class HealthSystem:
         # Initialize basic treatments
         self._initialize_basic_treatments()
         
-        logger.info("Health system initialization complete")
+        # Initialize medical knowledge
+        self._initialize_medical_knowledge()
+        
+        self.logger.info("Health system initialization complete")
         
     def _initialize_basic_diseases(self):
         """Initialize basic diseases."""
@@ -206,6 +211,37 @@ class HealthSystem:
             created_at=time.time(),
             last_used=time.time()
         )
+        
+    def _initialize_medical_knowledge(self):
+        """Initialize basic medical knowledge."""
+        self.logger.info("Initializing medical knowledge...")
+        
+        # Define basic medical knowledge
+        basic_knowledge = {
+            "wound_care": {
+                "name": "Wound Care",
+                "level": 0.3,
+                "treatments": ["basic_medication"],
+                "conditions": ["initial_condition"]
+            },
+            "herbal_remedies": {
+                "name": "Herbal Remedies",
+                "level": 0.4,
+                "treatments": ["basic_medication"],
+                "conditions": ["common_cold", "influenza"]
+            },
+            "bone_setting": {
+                "name": "Bone Setting",
+                "level": 0.2,
+                "treatments": ["basic_surgery"],
+                "conditions": ["bacterial_infection"]
+            }
+        }
+        
+        # Add medical knowledge to system
+        for knowledge_id, knowledge_data in basic_knowledge.items():
+            self.medical_knowledge[knowledge_id] = knowledge_data
+            self.logger.info(f"Added medical knowledge: {knowledge_data['name']}")
         
     def create_disease(self, name: str, type: DiseaseType, description: str,
                       symptoms: List[str], transmission_rate: float, mortality_rate: float,

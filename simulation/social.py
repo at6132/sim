@@ -5,6 +5,7 @@ import random
 import logging
 import time
 from datetime import datetime
+from .utils.logging_config import get_logger
 
 logger = logging.getLogger(__name__)
 
@@ -37,161 +38,290 @@ class SocialNorm:
     consequences: Dict[str, Any] = field(default_factory=dict)  # Consequences of norm violation
     created_at: float = field(default_factory=time.time)
 
-class SocialSystem:
+class Social:
     def __init__(self, world):
-        """Initialize the social system."""
         self.world = world
-        self.structures: Dict[str, SocialStructure] = {}
-        self.interactions: Dict[str, SocialInteraction] = {}
-        self.norms: Dict[str, SocialNorm] = {}
-        self.initialize_system()
+        self.logger = get_logger(__name__)
         
-    def initialize_system(self):
-        """Initialize the social system with minimal structure."""
-        logger.info("Initializing social system...")
+        # Initialize social components
+        self.relationships = {}  # relationship_id -> Relationship
+        self.groups = {}  # group_id -> Group
+        self.traditions = {}  # tradition_id -> Tradition
+        self.beliefs = {}  # belief_id -> Belief
+        self.customs = {}  # custom_id -> Custom
         
-        # Create a basic social structure - but don't prescribe its type
-        self.structures["initial_structure"] = SocialStructure(
-            type="emergent",  # Let the simulation determine the type
-            name="Initial Structure",
-            description="Primary social organization"
-        )
+        self.logger.info("Social system initialized")
+    
+    def initialize_social(self):
+        """Initialize the social system with basic structures."""
+        self.logger.info("Initializing social system...")
         
-        logger.info("Social system initialization complete")
+        # Initialize relationships
+        self._initialize_relationships()
         
-    def create_structure(self, type: str, name: str, description: str,
-                        properties: Dict[str, Any] = None) -> SocialStructure:
-        """Create new social structure with custom properties."""
-        structure = SocialStructure(
-            type=type,
-            name=name,
-            description=description,
-            properties=properties or {}
-        )
+        # Initialize groups
+        self._initialize_groups()
         
-        structure_id = f"structure_{len(self.structures)}"
-        self.structures[structure_id] = structure
-        logger.info(f"Created new social structure: {name} of type {type}")
-        return structure
+        # Initialize traditions
+        self._initialize_traditions()
         
-    def create_interaction(self, type: str, participants: Dict[str, Any],
-                          properties: Dict[str, Any] = None) -> SocialInteraction:
-        """Create new social interaction with custom properties."""
-        interaction = SocialInteraction(
-            type=type,
-            participants=participants,
-            properties=properties or {}
-        )
+        # Initialize beliefs
+        self._initialize_beliefs()
         
-        interaction_id = f"interaction_{len(self.interactions)}"
-        self.interactions[interaction_id] = interaction
-        logger.info(f"Created new social interaction of type {type}")
-        return interaction
+        # Initialize customs
+        self._initialize_customs()
         
-    def create_norm(self, type: str, description: str,
-                   properties: Dict[str, Any] = None,
-                   conditions: Dict[str, Any] = None,
-                   consequences: Dict[str, Any] = None) -> SocialNorm:
-        """Create new social norm with custom properties."""
-        norm = SocialNorm(
-            type=type,
-            description=description,
-            properties=properties or {},
-            conditions=conditions or {},
-            consequences=consequences or {}
-        )
+        self.logger.info("Social system initialization complete")
+    
+    def _initialize_relationships(self):
+        """Initialize basic relationships."""
+        self.logger.info("Initializing relationships...")
         
-        norm_id = f"norm_{len(self.norms)}"
-        self.norms[norm_id] = norm
-        logger.info(f"Created new social norm of type {type}")
-        return norm
-        
-    def add_member_to_structure(self, structure: str, member: str,
-                              properties: Dict[str, Any] = None) -> bool:
-        """Add member to a social structure with custom properties."""
-        if structure not in self.structures:
-            logger.error(f"Structure {structure} does not exist")
-            return False
-            
-        self.structures[structure].members[member] = properties or {}
-        logger.info(f"Added member {member} to structure {structure}")
-        return True
-        
-    def update_structures(self, time_delta: float):
-        """Update social structures."""
-        # Let the simulation determine how structures evolve
-        self._update_structure_interactions(time_delta)
-        
-        # Update member relationships based on emergent rules
-        self._update_member_relationships(time_delta)
-        
-        # Check for emergent social events
-        self._check_social_events(time_delta)
-        
-    def _update_structure_interactions(self, time_delta: float):
-        """Update structure interactions based on emergent rules."""
-        for structure in self.structures.values():
-            # Let the simulation determine interaction patterns
-            pass
-            
-    def _update_member_relationships(self, time_delta: float):
-        """Update member relationships based on emergent rules."""
-        for structure in self.structures.values():
-            # Let the simulation determine relationship evolution
-            pass
-            
-    def _check_social_events(self, time_delta: float):
-        """Check for emergent social events."""
-        # Let the simulation determine what events occur
-        pass
-        
-    def update(self, time_delta: float):
-        """Update social system state."""
-        # Update structures
-        self.update_structures(time_delta)
-        
-        # Update interactions
-        self._update_structure_interactions(time_delta)
-        
-        # Check for events
-        self._check_social_events(time_delta)
-        
-    def to_dict(self) -> Dict:
-        """Convert social system state to dictionary for serialization."""
-        return {
-            "structures": {
-                structure_id: {
-                    "type": structure.type,
-                    "name": structure.name,
-                    "description": structure.description,
-                    "properties": structure.properties,
-                    "members": structure.members,
-                    "interactions": structure.interactions,
-                    "created_at": structure.created_at,
-                    "last_update": structure.last_update
-                }
-                for structure_id, structure in self.structures.items()
+        # Define basic relationship types
+        basic_relationships = {
+            "family": {
+                "name": "Family",
+                "type": "kinship",
+                "strength": 0.8,
+                "trust": 0.9,
+                "loyalty": 0.9
             },
-            "interactions": {
-                interaction_id: {
-                    "type": interaction.type,
-                    "participants": interaction.participants,
-                    "properties": interaction.properties,
-                    "effects": interaction.effects,
-                    "created_at": interaction.created_at,
-                    "last_occurred": interaction.last_occurred
-                }
-                for interaction_id, interaction in self.interactions.items()
+            "friend": {
+                "name": "Friend",
+                "type": "social",
+                "strength": 0.6,
+                "trust": 0.7,
+                "loyalty": 0.6
             },
-            "norms": {
-                norm_id: {
-                    "type": norm.type,
-                    "description": norm.description,
-                    "properties": norm.properties,
-                    "conditions": norm.conditions,
-                    "consequences": norm.consequences,
-                    "created_at": norm.created_at
-                }
-                for norm_id, norm in self.norms.items()
+            "ally": {
+                "name": "Ally",
+                "type": "political",
+                "strength": 0.7,
+                "trust": 0.6,
+                "loyalty": 0.7
             }
+        }
+        
+        # Add relationships to system
+        for relationship_id, relationship_data in basic_relationships.items():
+            self.relationships[relationship_id] = relationship_data
+            self.logger.info(f"Added relationship: {relationship_data['name']}")
+    
+    def _initialize_groups(self):
+        """Initialize basic social groups."""
+        self.logger.info("Initializing social groups...")
+        
+        # Define basic group types
+        basic_groups = {
+            "family": {
+                "name": "Family Group",
+                "type": "kinship",
+                "size": 4,
+                "cohesion": 0.8,
+                "hierarchy": "patriarchal"
+            },
+            "tribe": {
+                "name": "Tribe",
+                "type": "social",
+                "size": 50,
+                "cohesion": 0.6,
+                "hierarchy": "council"
+            },
+            "clan": {
+                "name": "Clan",
+                "type": "kinship",
+                "size": 100,
+                "cohesion": 0.7,
+                "hierarchy": "elders"
+            }
+        }
+        
+        # Add groups to system
+        for group_id, group_data in basic_groups.items():
+            self.groups[group_id] = group_data
+            self.logger.info(f"Added group: {group_data['name']}")
+    
+    def _initialize_traditions(self):
+        """Initialize basic traditions."""
+        self.logger.info("Initializing traditions...")
+        
+        # Define basic traditions
+        basic_traditions = {
+            "coming_of_age": {
+                "name": "Coming of Age",
+                "type": "ritual",
+                "importance": 0.8,
+                "frequency": "once",
+                "participants": "youth"
+            },
+            "harvest_festival": {
+                "name": "Harvest Festival",
+                "type": "celebration",
+                "importance": 0.7,
+                "frequency": "yearly",
+                "participants": "all"
+            },
+            "ancestor_worship": {
+                "name": "Ancestor Worship",
+                "type": "religious",
+                "importance": 0.9,
+                "frequency": "monthly",
+                "participants": "family"
+            }
+        }
+        
+        # Add traditions to system
+        for tradition_id, tradition_data in basic_traditions.items():
+            self.traditions[tradition_id] = tradition_data
+            self.logger.info(f"Added tradition: {tradition_data['name']}")
+    
+    def _initialize_beliefs(self):
+        """Initialize basic beliefs."""
+        self.logger.info("Initializing beliefs...")
+        
+        # Define basic beliefs
+        basic_beliefs = {
+            "nature_spirits": {
+                "name": "Nature Spirits",
+                "type": "spiritual",
+                "strength": 0.7,
+                "followers": 0.6
+            },
+            "ancestral_guidance": {
+                "name": "Ancestral Guidance",
+                "type": "spiritual",
+                "strength": 0.8,
+                "followers": 0.7
+            },
+            "tribal_unity": {
+                "name": "Tribal Unity",
+                "type": "social",
+                "strength": 0.9,
+                "followers": 0.8
+            }
+        }
+        
+        # Add beliefs to system
+        for belief_id, belief_data in basic_beliefs.items():
+            self.beliefs[belief_id] = belief_data
+            self.logger.info(f"Added belief: {belief_data['name']}")
+    
+    def _initialize_customs(self):
+        """Initialize basic customs."""
+        self.logger.info("Initializing customs...")
+        
+        # Define basic customs
+        basic_customs = {
+            "greeting": {
+                "name": "Greeting Custom",
+                "type": "social",
+                "frequency": "daily",
+                "importance": 0.6
+            },
+            "sharing": {
+                "name": "Sharing Custom",
+                "type": "economic",
+                "frequency": "weekly",
+                "importance": 0.8
+            },
+            "hospitality": {
+                "name": "Hospitality Custom",
+                "type": "social",
+                "frequency": "as_needed",
+                "importance": 0.7
+            }
+        }
+        
+        # Add customs to system
+        for custom_id, custom_data in basic_customs.items():
+            self.customs[custom_id] = custom_data
+            self.logger.info(f"Added custom: {custom_data['name']}")
+    
+    def update(self, time_delta: float):
+        """Update the social system state."""
+        self.logger.debug(f"Updating social system with time delta: {time_delta}")
+        
+        # Update relationships
+        self._update_relationships(time_delta)
+        
+        # Update groups
+        self._update_groups(time_delta)
+        
+        # Update traditions
+        self._update_traditions(time_delta)
+        
+        # Update beliefs
+        self._update_beliefs(time_delta)
+        
+        # Update customs
+        self._update_customs(time_delta)
+        
+        self.logger.debug("Social system update complete")
+    
+    def _update_relationships(self, time_delta: float):
+        """Update relationship states."""
+        for relationship_id, relationship in self.relationships.items():
+            # Update relationship strength
+            if "strength" in relationship:
+                # Relationships strengthen or weaken over time
+                change_rate = 0.001 * time_delta  # 0.1% per hour
+                relationship["strength"] = max(0.0, min(1.0, relationship["strength"] + change_rate))
+                
+                # Update trust and loyalty based on strength
+                relationship["trust"] = max(0.0, min(1.0, relationship["strength"] * 0.9))
+                relationship["loyalty"] = max(0.0, min(1.0, relationship["strength"] * 0.8))
+    
+    def _update_groups(self, time_delta: float):
+        """Update group states."""
+        for group_id, group in self.groups.items():
+            # Update group cohesion
+            if "cohesion" in group:
+                # Group cohesion changes over time
+                change_rate = 0.0005 * time_delta  # 0.05% per hour
+                group["cohesion"] = max(0.0, min(1.0, group["cohesion"] + change_rate))
+                
+                # Update group size based on cohesion
+                if "size" in group:
+                    growth_rate = 0.0001 * time_delta * group["cohesion"]  # 0.01% per hour
+                    group["size"] = max(1, int(group["size"] * (1 + growth_rate)))
+    
+    def _update_traditions(self, time_delta: float):
+        """Update tradition states."""
+        for tradition_id, tradition in self.traditions.items():
+            # Update tradition importance
+            if "importance" in tradition:
+                # Tradition importance changes over time
+                change_rate = 0.0002 * time_delta  # 0.02% per hour
+                tradition["importance"] = max(0.0, min(1.0, tradition["importance"] + change_rate))
+    
+    def _update_beliefs(self, time_delta: float):
+        """Update belief states."""
+        for belief_id, belief in self.beliefs.items():
+            # Update belief strength
+            if "strength" in belief:
+                # Belief strength changes over time
+                change_rate = 0.0003 * time_delta  # 0.03% per hour
+                belief["strength"] = max(0.0, min(1.0, belief["strength"] + change_rate))
+                
+                # Update followers based on strength
+                if "followers" in belief:
+                    belief["followers"] = max(0.0, min(1.0, belief["strength"] * 0.9))
+    
+    def _update_customs(self, time_delta: float):
+        """Update custom states."""
+        for custom_id, custom in self.customs.items():
+            # Update custom importance
+            if "importance" in custom:
+                # Custom importance changes over time
+                change_rate = 0.0004 * time_delta  # 0.04% per hour
+                custom["importance"] = max(0.0, min(1.0, custom["importance"] + change_rate))
+    
+    def get_state(self) -> Dict:
+        """Get the current state of the social system."""
+        return {
+            'relationships': self.relationships,
+            'groups': self.groups,
+            'traditions': self.traditions,
+            'beliefs': self.beliefs,
+            'customs': self.customs
         } 
