@@ -279,6 +279,12 @@ class World:
         self.cloud_cover = cw.cloud_cover
         self.air_pressure = cw.pressure
         self.visibility = cw.visibility
+
+        # Autosave the world state after each tick
+        try:
+            self._save_state()
+        except Exception as e:
+            logger.error(f"[SAVE] Failed to save state during update: {e}")
         
     def get_world_state(self) -> Dict:
         """Get current world state."""
