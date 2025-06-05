@@ -95,6 +95,7 @@ class World:
         self.simulation_time = 0.0  # Simulation time in hours
         self.time_scale = 1.0  # Time scaling factor
         self.current_tick = 0  # Current simulation tick
+        self.running = False  # Simulation running state
 
         # Calendar tracking
         self.time = 0.0  # Simulation time counter used by other systems

@@ -16,7 +16,7 @@ def index():
     return render_template('index.html')
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect(auth=None):
     """Handle client connection."""
     logger.info("Client connected")
     engine = get_engine()

@@ -644,19 +644,40 @@ class ClimateSystem:
             self.precipitation_map[i][j] = max(0, precip + seasonal_factor + random_factor)
 
     def _update_wind_map(self, time_delta: float):
-        """Update wind map over time."""
-        for (i, j), (speed, direction) in np.ndenumerate(self.wind_map):
-            # Seasonal variation in speed
-            speed_factor = 2 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))
-            
-            # Random variation
-            random_speed = np.random.normal(0, 0.5) * time_delta
-            random_direction = np.random.normal(0, 5) * time_delta
-            
-            new_speed = max(0, speed + speed_factor + random_speed)
-            new_direction = (direction + random_direction) % 360
-            
-            self.wind_map[i][j] = (new_speed, new_direction)
+        """Update wind conditions across the map."""
+        logger.info("Updating wind conditions...")
+        
+        # Create a new wind map with the same shape
+        new_wind_map = np.zeros_like(self.wind_map)
+        
+        # Update each point
+        for i in range(self.wind_map.shape[0]):
+            for j in range(self.wind_map.shape[1]):
+                # Get current wind speed
+                current_speed = self.wind_map[i, j]
+                
+                # Calculate new wind speed based on time and location
+                lat = self.latitude_range[j]
+                lon = self.longitude_range[i]
+                
+                # Base wind speed on latitude (stronger at higher latitudes)
+                base_speed = abs(lat) * 0.1
+                
+                # Add some random variation
+                variation = np.random.normal(0, 0.1)
+                
+                # Calculate new speed
+                new_speed = base_speed + variation
+                
+                # Ensure non-negative
+                new_speed = max(0.0, new_speed)
+                
+                # Store in new map
+                new_wind_map[i, j] = new_speed
+        
+        # Update the wind map
+        self.wind_map = new_wind_map
+        logger.info("Wind conditions updated")
 
     def _update_current_conditions(self):
         """Update current weather conditions based on maps."""
