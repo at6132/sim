@@ -83,9 +83,10 @@ class World:
         self.max_latitude = 90.0
         
         # Initialize time tracking
-        self.time = datetime.now()
-        self.day_length = 24.0  # hours
-        self.year_length = 365.25  # days
+        self.game_time_start = datetime.now()
+        self.game_time = 0.0  # Current game time in hours
+        self.time_scale = 1.0  # Time scaling factor
+        self.current_tick = 0  # Current simulation tick
         
         # Initialize subsystems
         self.logger.info("Initializing environment system...")
@@ -123,6 +124,9 @@ class World:
         
         self.logger.info("Initializing technology system...")
         self.technology = TechnologySystem(self)
+        
+        # Initialize cognition systems map
+        self.cognition_systems = {}
         
         # Initialize initial spawn point
         self.initial_spawn = {
@@ -187,26 +191,49 @@ class World:
         self.logger.info("World state initialization complete")
 
     def update(self, time_delta: float):
-        """Update the world state."""
-        self.logger.debug(f"Updating world with time delta: {time_delta}")
-        
-        # Update time
-        self.time = self.time + timedelta(hours=time_delta)
+        """Update world state."""
+        # Update game time
+        self.game_time += time_delta * self.time_scale
+        self.current_tick += 1
         
         # Update subsystems
+        self.environment.update(time_delta)
         self.terrain.update(time_delta)
         self.climate.update(time_delta)
         self.resources.update(time_delta)
         self.agents.update(time_delta)
         self.society.update(time_delta)
         self.transportation.update(time_delta)
+        self.plants.update(time_delta)
+        self.animal_system.update(time_delta)
+        self.marine_system.update(time_delta)
+        self.weather.update(time_delta)
+        self.technology.update(time_delta)
         
-        self.logger.debug("World update complete")
+    def get_world_state(self) -> Dict:
+        """Get current world state."""
+        return {
+            "time": self.game_time,
+            "tick": self.current_tick,
+            "time_scale": self.time_scale,
+            "environment": self.environment.get_state(),
+            "terrain": self.terrain.get_state(),
+            "climate": self.climate.get_state(),
+            "resources": self.resources.get_state(),
+            "agents": self.agents.get_state(),
+            "society": self.society.get_state(),
+            "transportation": self.transportation.get_state(),
+            "plants": self.plants.get_state(),
+            "animals": self.animal_system.get_state(),
+            "marine": self.marine_system.get_state(),
+            "weather": self.weather.get_state(),
+            "technology": self.technology.get_state()
+        }
 
     def get_state(self) -> Dict:
         """Get the current state of the world."""
         return {
-            'time': self.time.isoformat(),
+            'time': self.game_time,
             'terrain': self.terrain.get_state(),
             'climate': self.climate.get_state(),
             'resources': self.resources.get_state(),
@@ -286,28 +313,6 @@ class World:
         logger.info("World initialization verified successfully")
         return True
 
-    def get_world_state(self) -> Dict:
-        """Get current world state for agents."""
-        return {
-            "time": self.game_time,
-            "terrain": self.terrain.get_state(),
-            "climate": self.climate.get_state(),
-            "weather": self.weather.get_state(),
-            "resources": self.resources.get_state(),
-            "transportation": self.transportation.get_state(),
-            "settlements": {id: settlement.get_state() for id, settlement in self.settlements.items()},
-            "agents": {id: agent.get_state() for id, agent in self.agents.items()},
-            "marine": self.marine_system.get_state(),
-            "environmental_conditions": {
-                "temperature": self.climate.get_temperature_at,
-                "salinity": self.terrain.get_salinity_at,
-                "oxygen": self.terrain.get_oxygen_at,
-                "current": self.terrain.get_current_at,
-                "depth": self.terrain.get_depth_at,
-                "tidal_range": self.terrain.get_tidal_range_at
-            }
-        }
-        
     def get_terrain_at(self, x: float, y: float) -> TerrainType:
         """Get terrain type at given coordinates."""
         return self.terrain.get_terrain_at(x, y)

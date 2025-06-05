@@ -11,14 +11,108 @@ logger = get_logger(__name__)
 
 @dataclass
 class Environment:
-    type: str  # Emergent environment type
-    name: str
-    description: str
-    properties: Dict[str, Any] = field(default_factory=dict)  # Custom properties for emergent environments
-    conditions: Dict[str, Any] = field(default_factory=dict)  # Environmental conditions
-    interactions: Dict[str, Any] = field(default_factory=dict)  # Environment-level interactions
-    created_at: float = field(default_factory=time.time)
-    last_update: float = field(default_factory=time.time)
+    """Represents the physical environment of the simulation."""
+    world: 'World'  # Reference to parent World
+    width: int = 1000  # Width in units
+    height: int = 1000  # Height in units
+    type: str = "terrestrial"
+    name: str = "Earth"
+    description: str = "A simulated Earth-like environment"
+    temperature: float = 20.0  # Average temperature in Celsius
+    humidity: float = 0.5  # 0-1 scale
+    precipitation: float = 0.3  # 0-1 scale
+    wind_speed: float = 0.0  # m/s
+    wind_direction: float = 0.0  # degrees
+    time_of_day: float = 0.0  # 0-24 hours
+    season: str = "summer"
+    created_at: float = field(default_factory=datetime.now().timestamp)
+    last_update: float = field(default_factory=datetime.now().timestamp)
+
+    def __post_init__(self):
+        """Initialize environment after creation."""
+        self.logger = get_logger(__name__)
+        self.logger.info(f"Initializing environment: {self.name}")
+        
+    def get_terrain_at(self, x: float, y: float) -> str:
+        """Get terrain type at specified coordinates."""
+        # Convert world coordinates to terrain grid coordinates
+        grid_x = int(x * self.width / self.world.max_longitude)
+        grid_y = int(y * self.height / self.world.max_latitude)
+        
+        # Get terrain from terrain system
+        return self.world.terrain.get_terrain_at(grid_x, grid_y)
+        
+    def get_temperature_at(self, x: float, y: float) -> float:
+        """Get temperature at specified coordinates."""
+        base_temp = self.temperature
+        # Add variation based on terrain and elevation
+        terrain = self.get_terrain_at(x, y)
+        if terrain == "mountain":
+            base_temp -= 10.0
+        elif terrain == "desert":
+            base_temp += 5.0
+        return base_temp
+        
+    def get_humidity_at(self, x: float, y: float) -> float:
+        """Get humidity at specified coordinates."""
+        base_humidity = self.humidity
+        # Add variation based on terrain and precipitation
+        terrain = self.get_terrain_at(x, y)
+        if terrain == "swamp":
+            base_humidity += 0.3
+        elif terrain == "desert":
+            base_humidity -= 0.2
+        return max(0.0, min(1.0, base_humidity))
+        
+    def get_wind_at(self, x: float, y: float) -> Tuple[float, float]:
+        """Get wind speed and direction at specified coordinates."""
+        # Add terrain-based wind variations
+        terrain = self.get_terrain_at(x, y)
+        speed_modifier = 1.0
+        if terrain == "mountain":
+            speed_modifier = 1.5
+        elif terrain == "forest":
+            speed_modifier = 0.7
+        return (self.wind_speed * speed_modifier, self.wind_direction)
+        
+    def update(self, time_delta: float):
+        """Update environment state."""
+        # Update time of day
+        self.time_of_day = (self.time_of_day + time_delta) % 24.0
+        
+        # Update temperature based on time of day
+        if 6 <= self.time_of_day < 18:  # Daytime
+            self.temperature += 0.1 * time_delta
+        else:  # Nighttime
+            self.temperature -= 0.1 * time_delta
+            
+        # Update wind
+        self.wind_speed += random.uniform(-0.1, 0.1) * time_delta
+        self.wind_speed = max(0.0, min(30.0, self.wind_speed))
+        self.wind_direction = (self.wind_direction + random.uniform(-5, 5)) % 360.0
+        
+        # Update precipitation
+        if random.random() < 0.1 * time_delta:  # 10% chance per hour
+            self.precipitation = random.uniform(0.0, 1.0)
+            
+        self.last_update = datetime.now().timestamp()
+        
+    def get_state(self) -> Dict:
+        """Get current environment state."""
+        return {
+            "type": self.type,
+            "name": self.name,
+            "description": self.description,
+            "temperature": self.temperature,
+            "humidity": self.humidity,
+            "precipitation": self.precipitation,
+            "wind_speed": self.wind_speed,
+            "wind_direction": self.wind_direction,
+            "time_of_day": self.time_of_day,
+            "season": self.season,
+            "width": self.width,
+            "height": self.height
+        }
 
 @dataclass
 class Resource:
@@ -92,9 +186,9 @@ class EnvironmentalSystem:
         
         # Create a basic environment - but don't prescribe its type
         self.environments["initial_environment"] = Environment(
-            type="emergent",  # Let the simulation determine the type
-            name="Initial Environment",
-            description="Primary environmental setting"
+            world=self.world,
+            width=self.world.max_longitude,
+            height=self.world.max_latitude
         )
         
         logger.info("Environmental system initialization complete")
@@ -103,6 +197,9 @@ class EnvironmentalSystem:
                           properties: Dict[str, Any] = None) -> Environment:
         """Create new environment with custom properties."""
         environment = Environment(
+            world=self.world,
+            width=self.world.max_longitude,
+            height=self.world.max_latitude,
             type=type,
             name=name,
             description=description,
@@ -299,9 +396,15 @@ class EnvironmentalSystem:
                     "type": environment.type,
                     "name": environment.name,
                     "description": environment.description,
-                    "properties": environment.properties,
-                    "conditions": environment.conditions,
-                    "interactions": environment.interactions,
+                    "temperature": environment.temperature,
+                    "humidity": environment.humidity,
+                    "precipitation": environment.precipitation,
+                    "wind_speed": environment.wind_speed,
+                    "wind_direction": environment.wind_direction,
+                    "time_of_day": environment.time_of_day,
+                    "season": environment.season,
+                    "width": environment.width,
+                    "height": environment.height,
                     "created_at": environment.created_at,
                     "last_update": environment.last_update
                 }
