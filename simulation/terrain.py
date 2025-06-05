@@ -242,6 +242,18 @@ class TerrainSystem:
         logger.info("Setting up oxygen levels...")
         self._initialize_oxygen()
         logger.info("Oxygen levels initialized")
+
+        # Ensure required data exists
+        if not self.ocean_currents:
+            self.ocean_currents[(0, 0)] = OceanCurrent(
+                name="Dummy Current", direction=(0.0, 0.0), speed=0.0, temperature=0.0
+            )
+        if not self.tidal_ranges:
+            self.tidal_ranges[(0, 0)] = 1.0
+        if not self.salinity_data:
+            self.salinity_data[(0, 0)] = 35.0
+        if not self.oxygen_data:
+            self.oxygen_data[(0, 0)] = 6.0
         
         logger.info("Ocean systems initialization complete")
         
@@ -736,6 +748,14 @@ class TerrainSystem:
         
         # Return the terrain type
         return terrain['type']
+
+    def get_terrain_type_at(self, longitude: float, latitude: float) -> TerrainType:
+        """Get :class:`TerrainType` at given coordinates."""
+        terrain_str = self.get_terrain_at(longitude, latitude)
+        try:
+            return TerrainType(terrain_str)
+        except ValueError:
+            return TerrainType.DEEP_OCEAN
         
     def get_terrain_info_at(self, longitude: float, latitude: float) -> Dict:
         """Get complete terrain information at specific coordinates."""
@@ -884,7 +904,22 @@ class TerrainSystem:
             TerrainType.CONTINENTAL_SLOPE,
             TerrainType.OCEAN_TRENCH
         }
-        return self.terrain_data.get((longitude, latitude))['type'] in ocean_types 
+        return self.terrain_data.get((longitude, latitude))['type'] in ocean_types
+
+    def _is_coastal(self, coord: Tuple[int, int]) -> bool:
+        """Return True if the coordinate is along the coast."""
+        lon, lat = coord
+        if not self._is_ocean(lon, lat):
+            return False
+
+        # Check neighbouring cells for land
+        for dlon, dlat in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            nlon, nlat = lon + dlon, lat + dlat
+            if (self.world.min_longitude <= nlon <= self.world.max_longitude and
+                    self.world.min_latitude <= nlat <= self.world.max_latitude):
+                if not self._is_ocean(nlon, nlat):
+                    return True
+        return False
 
     def initialize_terrain(self):
         """Initialize all terrain systems."""
@@ -1071,15 +1106,15 @@ class TerrainSystem:
         """Check if a coordinate is in a mixing zone."""
         lon, lat = coord
         # Check if this is where major currents meet
-        current = self.current_map.get(coord)
+        current = self.ocean_currents.get(coord)
         if not current:
             return False
             
         # Check surrounding cells for different current types
         surrounding_currents = set()
         for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
-            neighbor = self.current_map.get((lon+dx, lat+dy))
+            neighbor = self.ocean_currents.get((lon+dx, lat+dy))
             if neighbor:
-                surrounding_currents.add(neighbor['type'])
-                
-        return len(surrounding_currents) > 1 
+                surrounding_currents.add(neighbor.name)
+
+        return len(surrounding_currents) > 1

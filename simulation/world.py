@@ -177,6 +177,11 @@ class World:
         
         self.logger.info("World initialization complete")
 
+    @property
+    def settlements(self):
+        """Convenience accessor for settlements."""
+        return self.society.settlements
+
     def _initialize_world(self):
         """Initialize the world state."""
         self.logger.info("Initializing world state...")
@@ -214,7 +219,10 @@ class World:
         self.marine_system.initialize_marine_system()
         
         # Initialize weather system
-        self.weather.initialize_weather_system()
+        if hasattr(self.weather, "initialize_weather_system"):
+            self.weather.initialize_weather_system()
+        else:
+            self.weather.initialize_weather_systems()
         
         # Initialize technology system
         self.technology.initialize_technology()
@@ -270,6 +278,12 @@ class World:
         self.cloud_cover = cw.cloud_cover
         self.air_pressure = cw.pressure
         self.visibility = cw.visibility
+
+        # Autosave the world state after each tick
+        try:
+            self._save_state()
+        except Exception as e:
+            logger.error(f"[SAVE] Failed to save state during update: {e}")
         
     def get_world_state(self) -> Dict:
         """Get current world state."""

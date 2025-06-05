@@ -81,6 +81,7 @@ class TechnologyTree:
         """Initialize the technology tree with basic technologies"""
         # Agriculture technologies
         self.technologies["basic_farming"] = Technology(
+            type="basic_farming",
             name="Basic Farming",
             category=TechnologyCategory.AGRICULTURE,
             description="Basic understanding of planting and harvesting crops",
@@ -92,6 +93,7 @@ class TechnologyTree:
         )
         
         self.technologies["irrigation"] = Technology(
+            type="irrigation",
             name="Irrigation",
             category=TechnologyCategory.AGRICULTURE,
             description="Methods for watering crops",
@@ -104,6 +106,7 @@ class TechnologyTree:
         
         # Tools technologies
         self.technologies["basic_tools"] = Technology(
+            type="basic_tools",
             name="Basic Tools",
             category=TechnologyCategory.TOOLS,
             description="Simple tools for gathering and processing resources",
@@ -115,6 +118,7 @@ class TechnologyTree:
         )
         
         self.technologies["advanced_tools"] = Technology(
+            type="advanced_tools",
             name="Advanced Tools",
             category=TechnologyCategory.TOOLS,
             description="More sophisticated tools for better resource processing",
@@ -127,6 +131,7 @@ class TechnologyTree:
         
         # Shelter technologies
         self.technologies["basic_shelter"] = Technology(
+            type="basic_shelter",
             name="Basic Shelter",
             category=TechnologyCategory.SHELTER,
             description="Simple structures for protection from elements",
@@ -139,6 +144,7 @@ class TechnologyTree:
         
         # Medicine technologies
         self.technologies["basic_medicine"] = Technology(
+            type="basic_medicine",
             name="Basic Medicine",
             category=TechnologyCategory.MEDICINE,
             description="Understanding of basic healing and disease prevention",
@@ -151,6 +157,7 @@ class TechnologyTree:
         
         # Weapons technologies
         self.technologies["basic_weapons"] = Technology(
+            type="basic_weapons",
             name="Basic Weapons",
             category=TechnologyCategory.WEAPONS,
             description="Simple weapons for hunting and defense",
@@ -163,6 +170,7 @@ class TechnologyTree:
         
         # Clothing technologies
         self.technologies["basic_clothing"] = Technology(
+            type="basic_clothing",
             name="Basic Clothing",
             category=TechnologyCategory.CLOTHING,
             description="Simple clothing for protection from elements",
@@ -172,9 +180,44 @@ class TechnologyTree:
             required_resources={"cloth": 1.0},
             effects={"temperature_resistance": 1.2}
         )
+
+        # Construction technologies
+        self.technologies["basic_construction"] = Technology(
+            type="basic_construction",
+            name="Basic Construction",
+            category=TechnologyCategory.CONSTRUCTION,
+            description="Simple building techniques",
+            prerequisites={"basic_tools"},
+            difficulty=0.2,
+            discovery_chance=0.01,
+            required_resources={"wood": 1.0},
+            effects={"building_quality": 1.1}
+        )
+
+        # High level category placeholders to satisfy initialization
+        for t_type, category in {
+            "agriculture": TechnologyCategory.AGRICULTURE,
+            "construction": TechnologyCategory.CONSTRUCTION,
+            "transportation": TechnologyCategory.TRANSPORTATION,
+            "communication": TechnologyCategory.COMMUNICATION,
+            "medicine": TechnologyCategory.MEDICINE,
+        }.items():
+            if t_type not in self.technologies:
+                self.technologies[t_type] = Technology(
+                    type=t_type,
+                    name=t_type.capitalize(),
+                    category=category,
+                    description=f"Basic {t_type} techniques",
+                    prerequisites=set(),
+                    difficulty=0.1,
+                    discovery_chance=0.01,
+                    required_resources={},
+                    effects={}
+                )
         
         # Transportation technologies
         self.technologies["basic_transportation"] = Technology(
+            type="basic_transportation",
             name="Basic Transportation",
             category=TechnologyCategory.TRANSPORTATION,
             description="Simple methods for moving goods and people",
@@ -187,6 +230,7 @@ class TechnologyTree:
         
         # Communication technologies
         self.technologies["basic_communication"] = Technology(
+            type="basic_communication",
             name="Basic Communication",
             category=TechnologyCategory.COMMUNICATION,
             description="Simple methods for sharing information",
@@ -199,6 +243,7 @@ class TechnologyTree:
         
         # Culture technologies
         self.technologies["basic_culture"] = Technology(
+            type="basic_culture",
             name="Basic Culture",
             category=TechnologyCategory.CULTURE,
             description="Simple forms of artistic and cultural expression",
@@ -211,6 +256,7 @@ class TechnologyTree:
         
         # Governance technologies
         self.technologies["basic_governance"] = Technology(
+            type="basic_governance",
             name="Basic Governance",
             category=TechnologyCategory.GOVERNANCE,
             description="Simple methods for organizing society",
