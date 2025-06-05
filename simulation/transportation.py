@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from simulation.utils.logging_config import get_logger
 
-logger = get_logger('TransportationSystem')
+logger = get_logger(__name__)
 
 class TransportationType(Enum):
     # Land Transportation

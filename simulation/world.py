@@ -2,6 +2,7 @@ from typing import Dict, List, Optional, Tuple, Set
 import random
 import uuid
 import logging
+import math
 from datetime import datetime, timedelta
 from .agent import Agent, Genes
 from .environment import Environment
