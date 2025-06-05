@@ -180,26 +180,67 @@ class CognitiveSystem:
         
     def _update_thoughts(self, time_delta: float):
         """Update thoughts based on emergent rules."""
-        for thought in self.thoughts.values():
-            # Let the simulation determine thought evolution
-            pass
+        thought_ids = list(self.thoughts.keys())
+        for tid, thought in self.thoughts.items():
+            thought.last_accessed = time.time()
+
+            # Slight random change to numerical properties
+            for prop, value in list(thought.properties.items()):
+                if isinstance(value, (int, float)):
+                    thought.properties[prop] = value * (
+                        1 + random.uniform(-0.02, 0.02) * time_delta
+                    )
+
+            # Occasionally form a new connection to another thought
+            if len(thought_ids) > 1 and random.random() < 0.01 * time_delta:
+                other = random.choice([i for i in thought_ids if i != tid])
+                thought.connections.setdefault(
+                    other, {"type": "association", "weight": random.random()}
+                )
+                self.thoughts[other].connections.setdefault(
+                    tid, {"type": "association", "weight": random.random()}
+                )
             
     def _update_memories(self, time_delta: float):
         """Update memories based on emergent rules."""
         for memory in self.memories.values():
-            # Let the simulation determine memory evolution
-            pass
+            memory.last_accessed = time.time()
+            for prop, value in list(memory.properties.items()):
+                if isinstance(value, (int, float)):
+                    memory.properties[prop] = max(
+                        0.0, value - 0.005 * time_delta
+                    )
+
+        # Forget oldest memories if there are too many
+        max_memories = 100
+        if len(self.memories) > max_memories:
+            oldest = sorted(
+                self.memories.items(), key=lambda x: x[1].created_at
+            )[:-max_memories]
+            for key, _ in oldest:
+                del self.memories[key]
             
     def _update_learning(self, time_delta: float):
         """Update learning based on emergent rules."""
         for learning in self.learning.values():
-            # Let the simulation determine learning evolution
-            pass
+            learning.last_applied += time_delta
+            for prop, value in list(learning.properties.items()):
+                if isinstance(value, (int, float)):
+                    learning.properties[prop] = value * (
+                        1 + random.uniform(-0.01, 0.01) * time_delta
+                    )
             
     def _check_cognitive_events(self, time_delta: float):
         """Check for emergent cognitive events."""
-        # Let the simulation determine what events occur
-        pass
+        # Occasionally spawn a spontaneous thought
+        if random.random() < 0.005 * time_delta:
+            self.create_thought("emergent", "Spontaneous idea")
+
+        # Randomly apply a piece of learning to a memory
+        if self.learning and self.memories and random.random() < 0.005 * time_delta:
+            learning_id = random.choice(list(self.learning.keys()))
+            memory_id = random.choice(list(self.memories.keys()))
+            self.apply_learning(learning_id, memory_id)
         
     def update(self, time_delta: float):
         """Update cognitive system state."""

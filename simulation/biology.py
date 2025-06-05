@@ -148,20 +148,74 @@ class BiologicalSystem:
         
     def _update_adaptations(self, time_delta: float):
         """Update organism adaptations based on emergent rules."""
+        if not self.adaptations:
+            return
+
         for organism in self.organisms.values():
-            # Let the simulation determine adaptation evolution
-            pass
+            # Chance to gain a new adaptation over time
+            if random.random() < 0.05 * time_delta:
+                adaptation = random.choice(list(self.adaptations.values()))
+                if adaptation.name not in organism.adaptations:
+                    organism.adaptations[adaptation.name] = adaptation.properties.copy()
+                    organism.last_adaptation = time.time()
+                    logger.info(
+                        f"{organism.name} acquired adaptation {adaptation.name}"
+                    )
+
+            # Existing adaptations drift slightly
+            for adapt_name, props in organism.adaptations.items():
+                for prop, value in list(props.items()):
+                    if isinstance(value, (int, float)):
+                        props[prop] = value * (
+                            1 + random.uniform(-0.01, 0.01) * time_delta
+                        )
             
     def _update_interactions(self, time_delta: float):
         """Update organism interactions based on emergent rules."""
         for ecosystem in self.ecosystems.values():
-            # Let the simulation determine interaction patterns
-            pass
+            orgs = list(ecosystem.organisms.keys())
+            for i in range(len(orgs)):
+                for j in range(i + 1, len(orgs)):
+                    pair = f"{orgs[i]}-{orgs[j]}"
+                    interaction = ecosystem.interactions.setdefault(
+                        pair,
+                        {"strength": random.random(), "last": time.time()},
+                    )
+
+                    change = random.uniform(-0.02, 0.02) * time_delta
+                    interaction["strength"] = max(
+                        0.0, min(1.0, interaction["strength"] + change)
+                    )
+                    interaction["last"] = time.time()
+
+            # Remove very weak interactions
+            to_remove = [
+                k for k, v in ecosystem.interactions.items() if v["strength"] <= 0
+            ]
+            for k in to_remove:
+                del ecosystem.interactions[k]
             
     def _check_biological_events(self, time_delta: float):
         """Check for emergent biological events."""
-        # Let the simulation determine what events occur
-        pass
+        for name, organism in list(self.organisms.items()):
+            # Small chance an organism dies out
+            if random.random() < 0.001 * time_delta:
+                logger.info(f"Organism {name} died out")
+                del self.organisms[name]
+                for eco in self.ecosystems.values():
+                    eco.organisms.pop(name, None)
+
+        # Random spontaneous adaptation creation
+        if self.organisms and self.adaptations:
+            if random.random() < 0.002 * time_delta:
+                org = random.choice(list(self.organisms.values()))
+                adaptation = random.choice(list(self.adaptations.values()))
+                if adaptation.name not in org.adaptations:
+                    org.adaptations[adaptation.name] = adaptation.properties.copy()
+                    org.last_adaptation = time.time()
+                    logger.info(
+                        f"Biological event: {org.name} spontaneously developed {adaptation.name}"
+                    )
         
     def update(self, time_delta: float):
         """Update biological system state."""
