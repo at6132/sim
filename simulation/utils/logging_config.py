@@ -1,5 +1,4 @@
 import logging
-import sys
 import os
 from logging.handlers import RotatingFileHandler
 from typing import Optional
@@ -21,7 +20,7 @@ def setup_logging():
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         console_formatter = logging.Formatter(
-            '%(levelname)s: %(message)s'
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         
         # Create file handler

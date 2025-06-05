@@ -166,6 +166,10 @@ class AnimalSystem:
         self.domesticated = {}  # Tamed animals
         logger.info("Animal populations initialized")
 
+    def initialize_animal_system(self):
+        """Public entry point to initialize animals."""
+        self.initialize_animals()
+
 
         # Unified mapping accessor for all animals is provided by the
         # ``animals`` property defined on the class.
@@ -669,6 +673,10 @@ class AnimalSystem:
                 "competition": len(self.competition)
             }
         }
+
+    def get_state(self) -> Dict:
+        """Alias for :meth:`get_animal_state`."""
+        return self.get_animal_state()
     
     def to_dict(self) -> Dict:
         """Convert animal system to dictionary"""
