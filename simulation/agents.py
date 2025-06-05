@@ -79,7 +79,32 @@ class AgentSystem:
             self.agents[agent_id] = agent
             self.agent_positions[position] = {agent_id}
             
+
             self.logger.info(f"Created agent {name} at position {position}")
+
+    def create_agent(self, longitude: float, latitude: float, name: Optional[str] = None,
+                     parent_id: Optional[str] = None) -> str:
+        """Create a new agent and add it to the system."""
+        agent_id = str(uuid.uuid4())
+        if name is None:
+            name = f"Agent_{len(self.agents) + 1}"
+
+        agent = Agent(agent_id=agent_id, name=name, position=(longitude, latitude))
+
+        self.agents[agent_id] = agent
+        if (longitude, latitude) not in self.agent_positions:
+            self.agent_positions[(longitude, latitude)] = set()
+        self.agent_positions[(longitude, latitude)].add(agent_id)
+
+        if parent_id is not None:
+            self.agent_groups[agent_id] = self.agent_groups.get(parent_id)
+
+        self.logger.info(f"Created agent {agent_id} at ({longitude}, {latitude})")
+        return agent_id
+
+    def get_agent(self, agent_id: str) -> Optional[Agent]:
+        """Retrieve an agent by ID."""
+        return self.agents.get(agent_id)
     
     def update(self, time_delta: float):
         """Update agent states."""

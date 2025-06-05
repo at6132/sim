@@ -751,7 +751,7 @@ class World:
         elif action["type"] == "mate":
             # Handle mating action
             target_id = action.get("target")
-            if target_id and target_id in self.agents:
+            if target_id and self.agents.get_agent(target_id):
                 pregnancy = self.biology.initiate_pregnancy(agent.id, target_id)
                 if pregnancy:
                     self.log_event("pregnancy_started", {
@@ -784,10 +784,10 @@ class World:
 
     def remove_agent(self, agent_id: str):
         """Remove an agent from the world."""
-        if agent_id in self.agents:
+        if self.agents.get_agent(agent_id):
             # Save final state before removal
             self.save_agent_data(agent_id)
-            self.agents.remove(agent_id)
+            self.agents.agents.pop(agent_id, None)
             
         self.log_event("agent_death", {"agent_id": agent_id})
 
@@ -804,7 +804,7 @@ class World:
         
     def _add_event(self, agent_id: str, event_type: str, data: Dict):
         """Add an event for a specific agent."""
-        agent = self.agents.get(agent_id)
+        agent = self.agents.get_agent(agent_id)
         if agent:
             event_data = {
                 'agent_id': agent_id,
@@ -823,7 +823,7 @@ class World:
             "environment": self.environment.to_dict(),
             "agents": {
                 agent_id: agent.to_dict()
-                for agent_id, agent in self.agents.items()
+                for agent_id, agent in self.agents.agents.items()
             },
             "biology": self.biology.to_dict(),
             "technology": self.technology.to_dict(),
@@ -836,10 +836,10 @@ class World:
 
     def get_agent_json(self, agent_id: str) -> Dict:
         """Generate a comprehensive JSON representation of an agent's complete state."""
-        if agent_id not in self.agents:
+        agent = self.agents.get_agent(agent_id)
+        if agent is None:
             return {}
-            
-        agent = self.agents[agent_id]
+
         cognition = self.cognition_systems[agent_id]
         
         # Get agent's social group
@@ -1064,7 +1064,7 @@ class World:
         return {
             "environment": self.environment,
             "resources": self.resources,
-            "agents": {aid: a.to_dict() for aid, a in self.agents.items() if aid != agent.id},
+            "agents": {aid: a.to_dict() for aid, a in self.agents.agents.items() if aid != agent.id},
             "animals": {animal.id: animal.to_dict() for animal in self.animal_system.animals.values()},
             "time": self.game_time,
             "world_size": (self.environment.width, self.environment.height),
@@ -1182,9 +1182,9 @@ class World:
                 try:
                     with open(os.path.join(self.db_dir, filename), 'r') as f:
                         data = json.load(f)
-                        if agent_id in self.agents:
-                            # Update agent with saved data
-                            self.agents[agent_id].update_from_save(data)
+                        agent = self.agents.get_agent(agent_id)
+                        if agent:
+                            agent.update_from_save(data)
                 except Exception as e:
                     logger.error(f"Error loading agent data for {agent_id}: {str(e)}")
                     
@@ -1192,10 +1192,13 @@ class World:
         """Save agent data to JSON files."""
         if agent_id:
             # Save single agent
-            agents_to_save = {agent_id: self.agents[agent_id]}
+            agent = self.agents.get_agent(agent_id)
+            if not agent:
+                return
+            agents_to_save = {agent_id: agent}
         else:
             # Save all agents
-            agents_to_save = self.agents
+            agents_to_save = self.agents.agents
             
         for aid, agent in agents_to_save.items():
             try:
@@ -1399,7 +1402,7 @@ class World:
                 'cloud_cover': self.cloud_cover,
                 'air_pressure': self.air_pressure,
                 'visibility': self.visibility,
-                'agents': {aid: agent.to_dict() for aid, agent in self.agents.items()},
+                'agents': {aid: agent.to_dict() for aid, agent in self.agents.agents.items()},
                 'settlements': {sid: settlement.to_dict() for sid, settlement in self.settlements.items()},
                 'events': self.events[-1000:],  # Keep last 1000 events
                 'spatial_grid': self.spatial_grid if hasattr(self, 'spatial_grid') else {},
