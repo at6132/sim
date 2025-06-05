@@ -85,8 +85,9 @@ class World:
         
         # Initialize time tracking
         self.real_time_start = datetime.now()
-        self.game_time_start = datetime.now()
-        self.game_time = datetime.now()  # Current game time as datetime
+        self.game_time_start = self.real_time_start
+        # Track in-game time as a datetime value
+        self.game_time = self.game_time_start
         self.simulation_time = 0.0  # Simulation time in hours
         self.time_scale = 1.0  # Time scaling factor
         self.current_tick = 0  # Current simulation tick
@@ -196,7 +197,9 @@ class World:
     def get_current_game_time(self) -> datetime:
         """Get current game time as datetime."""
         real_time_elapsed = datetime.now() - self.real_time_start
-        game_time_elapsed = timedelta(hours=real_time_elapsed.total_seconds() * self.time_scale)
+        # Scale the elapsed real time and add it to the start of the game clock
+        scaled_seconds = real_time_elapsed.total_seconds() * self.time_scale
+        game_time_elapsed = timedelta(seconds=scaled_seconds)
         return self.game_time_start + game_time_elapsed
         
     def update(self, time_delta: float):
@@ -794,10 +797,11 @@ class World:
 
     def log_event(self, event_type: str, data: Dict):
         """Log an event in the world."""
+        world_hours = (self.game_time - self.game_time_start).total_seconds() / 3600
         event = {
             'type': event_type,
             'timestamp': datetime.now().isoformat(),
-            'world_time': self.game_time.total_seconds() / 3600,  # Convert to hours
+            'world_time': world_hours,
             'data': data
         }
         self.events.append(event)
@@ -1386,7 +1390,7 @@ class World:
             
             # Save world state with complete data
             world_state = {
-                'time': self.time,
+                'time': self.game_time.isoformat(),
                 'current_tick': self.current_tick,
                 'simulation_time': self.simulation_time,
                 'game_time': self.game_time.isoformat(),
