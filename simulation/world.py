@@ -118,6 +118,9 @@ class World:
         self.logger.info("Initializing weather system...")
         self.weather = WeatherSystem(self)
         
+        self.logger.info("Initializing technology system...")
+        self.technology = TechnologySystem(self)
+        
         # Initialize initial spawn point
         self.initial_spawn = {
             "longitude": 0.0,
@@ -168,6 +171,9 @@ class World:
         
         # Initialize weather system
         self.weather.initialize_weather_system()
+        
+        # Initialize technology system
+        self.technology.initialize_technology()
         
         # Verify initialization
         if not self.verify_initialization():

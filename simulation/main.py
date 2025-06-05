@@ -20,10 +20,14 @@ import random
 import os
 import pickle
 from .engine import SimulationEngine
+from .utils.logging_config import get_logger
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 class Simulation:
     def __init__(self, config: Dict = None):
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         self.config = config or {}
         self.save_dir = "simulation_saves"
         os.makedirs(self.save_dir, exist_ok=True)
@@ -103,12 +107,6 @@ class Simulation:
 
 def main():
     """Main entry point for the simulation."""
-    # Set up logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
     # Create and start the simulation engine
     engine = SimulationEngine()
     engine.start()

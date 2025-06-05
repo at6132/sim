@@ -11,8 +11,6 @@ from .utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 app = Flask(__name__)
-# Try to load a saved world state first; if none exists, create a new World
-world = World.load_from_save() or World()
 simulation_thread = None
 is_running = False
 
@@ -25,7 +23,7 @@ def get_engine():
 
 def simulation_loop():
     """Main simulation loop."""
-    global is_running
+    global is_running, engine
     is_running = True
     
     logger.info("Starting simulation loop...")
@@ -33,7 +31,7 @@ def simulation_loop():
         try:
             # Update world state (48 minutes per iteration)
             logger.info("Updating world state...")
-            world.update(48.0)  # 48 minutes = 0.8 hours
+            engine.world.update(48.0)  # 48 minutes = 0.8 hours
             
             # Sleep to maintain real-time ratio (1 minute real time = 48 minutes game time)
             time.sleep(60)  # Sleep for 1 minute
@@ -52,12 +50,13 @@ def index():
 @app.route("/api/world")
 def get_world_state():
     """Get current world state."""
-    return jsonify(world.to_dict())
+    global engine
+    return jsonify(engine.world.to_dict())
 
 @app.route("/api/start")
 def start_simulation():
     """Start the simulation."""
-    global simulation_thread, is_running
+    global simulation_thread, is_running, engine
     
     if not is_running:
         logger.info("Starting simulation...")
@@ -82,17 +81,23 @@ def stop_simulation():
 @app.route("/api/reset")
 def reset_simulation():
     """Reset the simulation to initial state."""
-    global world
+    global engine
     logger.info("Resetting simulation...")
-    world = World()
-    world.spawn_initial_agents()
+    engine.world = World()
+    engine.world.spawn_initial_agents()
     return jsonify({"status": "reset"})
 
 def run_simulation():
     """Initialize and run the simulation server."""
+    global engine
+    
+    # Initialize engine if not already done
+    if engine is None:
+        engine = SimulationEngine()
+    
     # Spawn initial agents
     logger.info("Spawning initial agents...")
-    world.spawn_initial_agents()
+    engine.world.spawn_initial_agents()
     
     # Start the Flask server
     logger.info("Starting Flask server...")

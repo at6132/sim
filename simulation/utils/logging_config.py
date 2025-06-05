@@ -14,31 +14,33 @@ def setup_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
     
-    # Create formatters
-    file_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    console_formatter = logging.Formatter(
-        '%(levelname)s: %(message)s'
-    )
-    
-    # Create file handler
-    file_handler = logging.handlers.RotatingFileHandler(
-        os.path.join(logs_dir, 'simulation.log'),
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
-    )
-    file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(logging.INFO)
-    
-    # Create console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(logging.INFO)
-    
-    # Add handlers to root logger
-    root_logger.addHandler(file_handler)
-    root_logger.addHandler(console_handler)
+    # Only add handlers if none exist
+    if not root_logger.handlers:
+        # Create formatters
+        file_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        console_formatter = logging.Formatter(
+            '%(levelname)s: %(message)s'
+        )
+        
+        # Create file handler
+        file_handler = logging.handlers.RotatingFileHandler(
+            os.path.join(logs_dir, 'simulation.log'),
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=5
+        )
+        file_handler.setFormatter(file_formatter)
+        file_handler.setLevel(logging.INFO)
+        
+        # Create console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(console_formatter)
+        console_handler.setLevel(logging.INFO)
+        
+        # Add handlers to root logger
+        root_logger.addHandler(file_handler)
+        root_logger.addHandler(console_handler)
     
     # Configure specific loggers
     loggers = [
@@ -49,7 +51,12 @@ def setup_logging():
         'simulation.resources',
         'simulation.agents',
         'simulation.society',
-        'simulation.transportation'
+        'simulation.transportation',
+        'simulation.technology',
+        'simulation.health',
+        'simulation.plants',
+        'simulation.animals',
+        'simulation.marine'
     ]
     
     for logger_name in loggers:

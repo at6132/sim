@@ -6,6 +6,7 @@ from datetime import datetime
 import logging
 import numpy as np
 from .utils.logging_config import get_logger
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,32 @@ class ResourceSystem:
         self.resource_capacity = 1000  # Maximum amount of each resource
         self.discovered_resources: Set[ResourceType] = set()  # Track discovered resource types
         self.fishing_zones: Dict[Tuple[float, float], Dict] = {}  # (longitude, latitude) -> fishing data
+        
+        # Technology-based resource modifiers
+        self.tech_efficiency_modifiers = {
+            'mining': 1.0,
+            'farming': 1.0,
+            'fishing': 1.0,
+            'processing': 1.0,
+            'storage': 1.0
+        }
+        
+        # Technology-based resource discovery requirements
+        self.tech_discovery_requirements = {
+            ResourceType.ORE: 'mining',
+            ResourceType.TOOLS: 'toolmaking',
+            ResourceType.WEAPONS: 'weaponmaking',
+            ResourceType.MEDICINE: 'medicine',
+            ResourceType.JEWELRY: 'metallurgy',
+            ResourceType.ART: 'art',
+            ResourceType.SPICES: 'cooking',
+            ResourceType.WINE: 'fermentation',
+            ResourceType.DRIED_FISH: 'preservation',
+            ResourceType.FISH_OIL: 'processing',
+            ResourceType.FISH_MEAL: 'processing',
+            ResourceType.SHELL_CRAFT: 'crafting',
+            ResourceType.SEAWEED_FERTILIZER: 'agriculture'
+        }
         
         # Initialize resource requirements
         logger.info("Setting up resource requirements...")
@@ -316,43 +343,52 @@ class ResourceSystem:
         self.resources[(lon_rounded, lat_rounded)] = resources
         
     def discover_resource(self, resource_type: ResourceType, tech_name: Optional[str] = None) -> bool:
-        """Discover a new resource type"""
-        if tech_name and not self._has_required_tech(tech_name):
+        """Discover a new resource type, requiring appropriate technology."""
+        if resource_type in self.discovered_resources:
+            return False
+            
+        # Check technology requirements
+        required_tech = self.tech_discovery_requirements.get(resource_type)
+        if required_tech and not self._has_required_tech(required_tech):
             return False
             
         self.discovered_resources.add(resource_type)
+        self.logger.info(f"Discovered new resource type: {resource_type.value}")
         return True
         
     def _has_required_tech(self, tech_name: str) -> bool:
-        """Check if required technology is available"""
-        # TODO: Implement technology system
-        return True
+        """Check if required technology is available."""
+        if not self.world.technology:
+            return False
+        return self.world.technology.get_tech_level(tech_name) > 0
         
     def gather_resource(self, longitude: float, latitude: float, resource_type: ResourceType, amount: float) -> float:
-        """Gather a resource from a location"""
-        if resource_type not in self.discovered_resources:
-            return 0.0
+        """Gather a resource with technology-based efficiency."""
+        # Get base gathering amount
+        base_amount = super().gather_resource(longitude, latitude, resource_type, amount)
+        
+        # Apply technology modifier
+        if resource_type in [ResourceType.ORE, ResourceType.STONE]:
+            tech_modifier = self.tech_efficiency_modifiers['mining']
+        elif resource_type in [ResourceType.FOOD, ResourceType.FIBER]:
+            tech_modifier = self.tech_efficiency_modifiers['farming']
+        elif resource_type in [ResourceType.FISH, ResourceType.SHELLFISH]:
+            tech_modifier = self.tech_efficiency_modifiers['fishing']
+        else:
+            tech_modifier = 1.0
             
-        resource = self.get_resource(longitude, latitude, resource_type)
-        if not resource:
-            return 0.0
-            
-        gathered = min(amount, resource.amount)
-        resource.amount -= gathered
-        return gathered
+        return base_amount * tech_modifier
         
     def process_resource(self, resource_type: ResourceType, amount: float) -> Dict[ResourceType, float]:
-        """Process a resource into other resources"""
-        if resource_type not in self.processing_recipes:
-            return {}
-            
-        recipe = self.processing_recipes[resource_type]
-        results = {}
+        """Process a resource with technology-based efficiency."""
+        # Get base processing results
+        base_results = super().process_resource(resource_type, amount)
         
-        for result_type, result_amount in recipe.items():
-            results[result_type] = result_amount * amount
-            
-        return results
+        # Apply technology modifier
+        tech_modifier = self.tech_efficiency_modifiers['processing']
+        
+        # Scale results by technology level
+        return {rtype: amount * tech_modifier for rtype, amount in base_results.items()}
         
     def check_fire_discovery(self, agent_intelligence: float, has_wood: bool, has_stone: bool) -> bool:
         """Check if an agent can discover fire"""
@@ -387,26 +423,53 @@ class ResourceSystem:
         }
         
     def update(self, time_delta: float) -> None:
-        """Update resource system state"""
-        # Update resource amounts
+        """Update resource system state."""
+        # Update technology-based modifiers
+        self._update_tech_modifiers()
+        
+        # Update resource regeneration
         for location, resources in self.resources.items():
             for resource_type, resource in resources.items():
                 if resource.renewable:
-                    resource.amount = min(
-                        resource.max_amount,
-                        resource.amount + resource.regrowth_rate * time_delta
-                    )
-                    
+                    regen_rate = self._get_regeneration_rate(resource_type)
+                    # Apply technology modifier to regeneration
+                    tech_modifier = self.tech_efficiency_modifiers.get('farming', 1.0)
+                    regen_amount = regen_rate * time_delta * tech_modifier
+                    resource.amount = min(resource.max_amount, resource.amount + regen_amount)
+        
         # Update fishing zones
-        for zone_data in self.fishing_zones.values():
-            zone_data["time_since_last_fish"] += time_delta
-            if zone_data["time_since_last_fish"] >= zone_data["regeneration_time"]:
-                zone_data["fish_amount"] = min(
-                    zone_data["max_fish"],
-                    zone_data["fish_amount"] + zone_data["regeneration_rate"] * time_delta
-                )
-                zone_data["time_since_last_fish"] = 0
-                
+        for zone in self.fishing_zones.values():
+            if zone['active']:
+                # Apply fishing technology modifier
+                tech_modifier = self.tech_efficiency_modifiers.get('fishing', 1.0)
+                zone['efficiency'] *= tech_modifier
+                zone['last_update'] = time.time()
+        
+    def _update_tech_modifiers(self) -> None:
+        """Update technology-based efficiency modifiers."""
+        if not self.world.technology:
+            return
+            
+        # Update mining efficiency
+        mining_tech = self.world.technology.get_tech_level('mining')
+        self.tech_efficiency_modifiers['mining'] = 1.0 + (mining_tech * 0.2)
+        
+        # Update farming efficiency
+        farming_tech = self.world.technology.get_tech_level('agriculture')
+        self.tech_efficiency_modifiers['farming'] = 1.0 + (farming_tech * 0.2)
+        
+        # Update fishing efficiency
+        fishing_tech = self.world.technology.get_tech_level('fishing')
+        self.tech_efficiency_modifiers['fishing'] = 1.0 + (fishing_tech * 0.2)
+        
+        # Update processing efficiency
+        processing_tech = self.world.technology.get_tech_level('processing')
+        self.tech_efficiency_modifiers['processing'] = 1.0 + (processing_tech * 0.2)
+        
+        # Update storage efficiency
+        storage_tech = self.world.technology.get_tech_level('storage')
+        self.tech_efficiency_modifiers['storage'] = 1.0 + (storage_tech * 0.2)
+
     def _get_regeneration_rate(self, resource_type: str) -> float:
         """Get the regeneration rate for a resource type"""
         rates = {

@@ -1208,3 +1208,157 @@ class TransportationSystem:
     def _calculate_distance(self, point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
         """Calculate the distance between two points."""
         return self.world.get_distance(point1[0], point1[1], point2[0], point2[1]) 
+
+    def _find_path(self, start: Tuple[float, float], end: Tuple[float, float], transport_type: TransportationType) -> Optional[List[Tuple[float, float]]]:
+        """Find a path between two points using A* pathfinding."""
+        if not self._is_valid_path(start, end):
+            return None
+            
+        # Initialize open and closed sets
+        open_set = {start}
+        closed_set = set()
+        
+        # Initialize path tracking
+        came_from = {}
+        g_score = {start: 0}  # Cost from start to current
+        f_score = {start: self._heuristic(start, end)}  # Estimated total cost
+        
+        while open_set:
+            # Get node with lowest f_score
+            current = min(open_set, key=lambda x: f_score.get(x, float('inf')))
+            
+            if current == end:
+                return self._reconstruct_path(came_from, current)
+                
+            open_set.remove(current)
+            closed_set.add(current)
+            
+            # Check neighbors
+            for neighbor in self._get_neighbors(current, transport_type):
+                if neighbor in closed_set:
+                    continue
+                    
+                # Calculate tentative g_score
+                tentative_g_score = g_score[current] + self._get_distance(current, neighbor)
+                
+                if neighbor not in open_set:
+                    open_set.add(neighbor)
+                elif tentative_g_score >= g_score.get(neighbor, float('inf')):
+                    continue
+                    
+                # This path is the best so far
+                came_from[neighbor] = current
+                g_score[neighbor] = tentative_g_score
+                f_score[neighbor] = g_score[neighbor] + self._heuristic(neighbor, end)
+                
+        return None  # No path found
+        
+    def _heuristic(self, a: Tuple[float, float], b: Tuple[float, float]) -> float:
+        """Calculate heuristic (straight-line distance) between two points."""
+        return self._calculate_distance(a, b)
+        
+    def _get_neighbors(self, point: Tuple[float, float], transport_type: TransportationType) -> List[Tuple[float, float]]:
+        """Get valid neighboring points based on transportation type."""
+        lon, lat = point
+        neighbors = []
+        
+        # Define movement directions (8-way for land, 4-way for water)
+        if transport_type in [TransportationType.WALKING, TransportationType.RUNNING, 
+                            TransportationType.HORSE, TransportationType.CART, 
+                            TransportationType.WAGON, TransportationType.CARRIAGE,
+                            TransportationType.RAILROAD, TransportationType.AUTOMOBILE,
+                            TransportationType.TRUCK, TransportationType.BUS,
+                            TransportationType.MOTORCYCLE, TransportationType.BICYCLE]:
+            # 8-way movement for land vehicles
+            directions = [
+                (0.1, 0), (0.1, 0.1), (0, 0.1), (-0.1, 0.1),
+                (-0.1, 0), (-0.1, -0.1), (0, -0.1), (0.1, -0.1)
+            ]
+        else:
+            # 4-way movement for water and air vehicles
+            directions = [(0.1, 0), (0, 0.1), (-0.1, 0), (0, -0.1)]
+            
+        for dlon, dlat in directions:
+            new_lon = lon + dlon
+            new_lat = lat + dlat
+            
+            # Check if new point is valid
+            if self._is_valid_point((new_lon, new_lat), transport_type):
+                neighbors.append((new_lon, new_lat))
+                
+        return neighbors
+        
+    def _is_valid_point(self, point: Tuple[float, float], transport_type: TransportationType) -> bool:
+        """Check if a point is valid for the given transportation type."""
+        lon, lat = point
+        
+        # Check world bounds
+        if not self.world.is_valid_position(lon, lat):
+            return False
+            
+        # Check terrain type
+        terrain = self.world.get_terrain_at(lon, lat)
+        
+        if transport_type in [TransportationType.RAFT, TransportationType.CANOE,
+                            TransportationType.BOAT, TransportationType.SAILBOAT,
+                            TransportationType.GALLEY, TransportationType.CARAVEL,
+                            TransportationType.GALLEON, TransportationType.STEAMSHIP,
+                            TransportationType.MOTORBOAT, TransportationType.YACHT,
+                            TransportationType.CRUISE_SHIP, TransportationType.CARGO_SHIP,
+                            TransportationType.TANKER, TransportationType.SUBMARINE]:
+            # Water vehicles can only move on water
+            return terrain.is_water()
+            
+        elif transport_type in [TransportationType.BALLOON, TransportationType.AIRSHIP,
+                              TransportationType.GLIDER, TransportationType.AIRPLANE,
+                              TransportationType.HELICOPTER, TransportationType.JET,
+                              TransportationType.SPACECRAFT]:
+            # Air vehicles can move anywhere
+            return True
+            
+        else:
+            # Land vehicles can only move on land
+            return not terrain.is_water()
+            
+    def _reconstruct_path(self, came_from: Dict[Tuple[float, float], Tuple[float, float]], 
+                         current: Tuple[float, float]) -> List[Tuple[float, float]]:
+        """Reconstruct path from came_from dictionary."""
+        path = [current]
+        while current in came_from:
+            current = came_from[current]
+            path.append(current)
+        path.reverse()
+        return path
+        
+    def get_route(self, start_lon: float, start_lat: float, end_lon: float, end_lat: float) -> Optional[Dict]:
+        """Get a route between two points."""
+        start = (start_lon, start_lat)
+        end = (end_lon, end_lat)
+        
+        # Try different transportation types in order of preference
+        transport_types = [
+            TransportationType.WALKING,  # Most basic
+            TransportationType.HORSE,    # Basic land transport
+            TransportationType.CART,     # Basic cargo transport
+            TransportationType.BOAT,     # Basic water transport
+            TransportationType.AIRPLANE  # Advanced transport
+        ]
+        
+        for transport_type in transport_types:
+            path = self._find_path(start, end, transport_type)
+            if path:
+                return {
+                    'type': transport_type,
+                    'path': path,
+                    'distance': self._calculate_path_distance(path),
+                    'estimated_time': self.calculate_travel_time(start, end, transport_type)
+                }
+                
+        return None
+        
+    def _calculate_path_distance(self, path: List[Tuple[float, float]]) -> float:
+        """Calculate total distance of a path."""
+        total_distance = 0.0
+        for i in range(len(path) - 1):
+            total_distance += self._calculate_distance(path[i], path[i + 1])
+        return total_distance 
