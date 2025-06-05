@@ -177,6 +177,11 @@ class World:
         
         self.logger.info("World initialization complete")
 
+    @property
+    def settlements(self):
+        """Convenience accessor for settlements."""
+        return self.society.settlements
+
     def _initialize_world(self):
         """Initialize the world state."""
         self.logger.info("Initializing world state...")
@@ -214,7 +219,10 @@ class World:
         self.marine_system.initialize_marine_system()
         
         # Initialize weather system
-        self.weather.initialize_weather_system()
+        if hasattr(self.weather, "initialize_weather_system"):
+            self.weather.initialize_weather_system()
+        else:
+            self.weather.initialize_weather_systems()
         
         # Initialize technology system
         self.technology.initialize_technology()

@@ -538,12 +538,19 @@ class ResourceSystem:
                 
                 # Initialize mineral resources
                 self.mineral_map[coord] = self._generate_mineral_resources(coord)
-                
+
                 # Initialize water resources
                 self.water_map[coord] = self._generate_water_resources(coord)
-                
+
                 # Initialize vegetation
                 self.vegetation_map[coord] = self._generate_vegetation(coord)
+
+                # Combine into unified resource mapping
+                self.resources[coord] = {
+                    'minerals': self.mineral_map[coord],
+                    'water': self.water_map[coord],
+                    'vegetation': self.vegetation_map[coord],
+                }
                 
                 # Update progress
                 current_step += 1

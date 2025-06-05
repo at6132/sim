@@ -15,6 +15,15 @@ class MarineSystem:
         self.ocean_currents = {}
         self.marine_life = {}
         self.marine_resources = {}
+
+    # Backwards compatibility for world code
+    @property
+    def creatures(self) -> Dict:
+        return self.marine_life
+
+    def initialize_marine_system(self):
+        """Public entry point to initialize the system."""
+        self.initialize()
         
     def initialize(self):
         """Initialize the marine system."""
@@ -76,23 +85,60 @@ class MarineSystem:
     def _initialize_ocean_currents(self):
         """Initialize ocean currents."""
         self.logger.info("Setting up ocean currents...")
-        # Implementation for ocean current initialization
-        pass
+        # Very simplified ocean current model
+        self.ocean_currents = {
+            "equatorial_current": {
+                "direction": (1.0, 0.0),
+                "speed": 1.0,
+                "temperature": 25.0,
+            },
+            "gulf_stream": {
+                "direction": (0.5, 0.5),
+                "speed": 2.0,
+                "temperature": 18.0,
+            },
+            "antarctic_circumpolar": {
+                "direction": (1.0, 0.0),
+                "speed": 1.5,
+                "temperature": 2.0,
+            },
+        }
         
     def _initialize_marine_life(self):
         """Initialize marine life populations."""
         self.logger.info("Setting up marine life...")
-        # Implementation for marine life initialization
-        pass
+        self.marine_life = {
+            "fish": {"population": 1_000_000, "growth_rate": 0.01},
+            "whale": {"population": 500, "growth_rate": 0.005},
+            "shark": {"population": 5_000, "growth_rate": 0.002},
+        }
         
     def _initialize_marine_resources(self):
         """Initialize marine resources."""
         self.logger.info("Setting up marine resources...")
-        # Implementation for marine resource initialization
-        pass
+        self.marine_resources = {
+            "fish": 1_000_000,
+            "seaweed": 500_000,
+            "pearls": 1000,
+        }
         
     def update(self, time_delta: float):
         """Update the marine system state."""
-        self.logger.debug(f"Updating marine system with time delta: {time_delta}")
-        # Implementation for system update
-        pass 
+        self.logger.debug(
+            f"Updating marine system with time delta: {time_delta}")
+
+        # Simple population growth/decline model
+        for info in self.marine_life.values():
+            growth = info.get("growth_rate", 0.0)
+            info["population"] = max(
+                0,
+                info["population"] + info["population"] * growth * (time_delta / 24.0),
+            )
+
+    def get_state(self) -> Dict:
+        """Return current state of the marine system."""
+        return {
+            "ocean_currents": self.ocean_currents,
+            "marine_life": self.marine_life,
+            "marine_resources": self.marine_resources,
+        }

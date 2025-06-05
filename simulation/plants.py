@@ -101,7 +101,7 @@ class PlantSystem:
         logger.info("Plant distribution initialized")
         
         logger.info("Plant system initialization complete")
-        
+
     def _initialize_plant_types(self) -> Dict[PlantType, Dict]:
         return {
             PlantType.WHEAT: {
@@ -148,6 +148,55 @@ class PlantSystem:
                     GrowthStage.HARVESTABLE: 1.0
                 }
             }
+        }
+
+    def _initialize_plant_species(self):
+        """Set up a minimal list of plant species."""
+        self.plant_species = {
+            "generic": {"edible": False},
+            "wheat": {"edible": True},
+            "corn": {"edible": True},
+        }
+
+    def _initialize_plant_distribution(self):
+        """Create a simple plant distribution map."""
+        self.plant_distribution = {}
+        self.plants = {}
+        plant_id = 0
+        for lon in range(int(self.world.min_longitude), int(self.world.max_longitude), 60):
+            for lat in range(int(self.world.min_latitude), int(self.world.max_latitude), 60):
+                self.plant_distribution[(lon, lat)] = ["generic"]
+                for p_type in [PlantType.TREE, PlantType.SHRUB, PlantType.GRASS, PlantType.FLOWER, PlantType.WHEAT]:
+                    plant = Plant(
+                        id=p_type.value if plant_id < 5 else f"plant_{plant_id}",
+                        type=p_type.value,
+                        species="generic",
+                        age=0.0,
+                        health=1.0,
+                        size=1.0,
+                        position=(lon, lat),
+                        growth_rate=0.1,
+                        reproduction_rate=0.1,
+                        resource_yield={"food": 0.1},
+                    )
+                    self.plants[plant.id] = plant
+                    plant_id += 1
+
+    def _initialize_growth_stages(self):
+        """Define basic growth stages."""
+        self.growth_stages = {
+            "seed": 0.0,
+            "sprout": 0.25,
+            "mature": 1.0,
+        }
+
+    def _initialize_biome_distribution(self):
+        """Create a dummy biome distribution mapping."""
+        self.biome_distribution = {
+            "forest": 0.3,
+            "grassland": 0.3,
+            "desert": 0.2,
+            "tundra": 0.2,
         }
 
     def create_field(self, longitude: float, latitude: float, size: float) -> str:
@@ -390,6 +439,10 @@ class PlantSystem:
         # Initialize growth stages
         logger.info("Setting up growth stages...")
         self._initialize_growth_stages()
+
+        # Initialize biome distribution
+        logger.info("Setting up biome distribution...")
+        self._initialize_biome_distribution()
         
         # Verify initialization
         if not self.verify_initialization():
@@ -423,7 +476,7 @@ class PlantSystem:
             return False
             
         # Check required plant types
-        required_types = {'tree', 'bush', 'grass', 'flower', 'crop'}
+        required_types = {'tree', 'shrub', 'grass', 'flower', 'wheat'}
         if not all(plant_type in self.plants for plant_type in required_types):
             logger.error("Not all required plant types initialized")
             return False
