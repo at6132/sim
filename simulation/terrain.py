@@ -293,21 +293,114 @@ class TerrainSystem:
         logger.info("Major ocean currents initialization complete")
 
     def _initialize_equatorial_currents(self):
-        """Placeholder for equatorial current initialization."""
-        pass
+        """Initialize equatorial ocean currents."""
+        logger.info("Initializing equatorial currents...")
+        
+        # North and South Equatorial Currents
+        for lon in range(-180, 180):
+            # North Equatorial Current (0-15°N)
+            for lat in range(0, 15):
+                self.ocean_currents[(lon, lat)] = OceanCurrent(
+                    name="North Equatorial Current",
+                    direction=(-1.0, 0.0),  # Westward flow
+                    speed=0.5,  # m/s
+                    temperature=28.0
+                )
+            
+            # South Equatorial Current (0-15°S)
+            for lat in range(-15, 0):
+                self.ocean_currents[(lon, lat)] = OceanCurrent(
+                    name="South Equatorial Current",
+                    direction=(-1.0, 0.0),  # Westward flow
+                    speed=0.5,
+                    temperature=28.0
+                )
+            
+            # Equatorial Counter Current (5°N-5°S)
+            for lat in range(-5, 5):
+                self.ocean_currents[(lon, lat)] = OceanCurrent(
+                    name="Equatorial Counter Current",
+                    direction=(1.0, 0.0),  # Eastward flow
+                    speed=0.3,
+                    temperature=29.0
+                )
 
     def _initialize_western_boundary_currents(self):
-        """Placeholder for western boundary current initialization."""
-        pass
+        """Initialize western boundary currents."""
+        logger.info("Initializing western boundary currents...")
+        
+        # Gulf Stream (North Atlantic)
+        for lat in range(25, 45):
+            self.ocean_currents[(-80, lat)] = OceanCurrent(
+                name="Gulf Stream",
+                direction=(0.0, 1.0),  # Northward flow
+                speed=1.0,
+                temperature=25.0
+            )
+        
+        # Kuroshio Current (North Pacific)
+        for lat in range(25, 45):
+            self.ocean_currents[(140, lat)] = OceanCurrent(
+                name="Kuroshio Current",
+                direction=(0.0, 1.0),  # Northward flow
+                speed=1.0,
+                temperature=25.0
+            )
+        
+        # Brazil Current (South Atlantic)
+        for lat in range(-45, -25):
+            self.ocean_currents[(-50, lat)] = OceanCurrent(
+                name="Brazil Current",
+                direction=(0.0, -1.0),  # Southward flow
+                speed=0.8,
+                temperature=22.0
+            )
 
     def _initialize_eastern_boundary_currents(self):
-        """Placeholder for eastern boundary current initialization."""
-        pass
+        """Initialize eastern boundary currents."""
+        logger.info("Initializing eastern boundary currents...")
+        
+        # Canary Current (North Atlantic)
+        for lat in range(25, 45):
+            self.ocean_currents[(-15, lat)] = OceanCurrent(
+                name="Canary Current",
+                direction=(0.0, -1.0),  # Southward flow
+                speed=0.3,
+                temperature=20.0
+            )
+        
+        # California Current (North Pacific)
+        for lat in range(25, 45):
+            self.ocean_currents[(-125, lat)] = OceanCurrent(
+                name="California Current",
+                direction=(0.0, -1.0),  # Southward flow
+                speed=0.3,
+                temperature=18.0
+            )
+        
+        # Benguela Current (South Atlantic)
+        for lat in range(-35, -15):
+            self.ocean_currents[(15, lat)] = OceanCurrent(
+                name="Benguela Current",
+                direction=(0.0, 1.0),  # Northward flow
+                speed=0.3,
+                temperature=18.0
+            )
 
     def _initialize_circumpolar_currents(self):
-        """Placeholder for circumpolar current initialization."""
-        pass
+        """Initialize circumpolar currents."""
+        logger.info("Initializing circumpolar currents...")
         
+        # Antarctic Circumpolar Current
+        for lon in range(-180, 180):
+            for lat in range(-65, -55):
+                self.ocean_currents[(lon, lat)] = OceanCurrent(
+                    name="Antarctic Circumpolar Current",
+                    direction=(1.0, 0.0),  # Eastward flow
+                    speed=0.8,
+                    temperature=2.0
+                )
+
     def _initialize_local_currents(self):
         """Initialize local ocean currents."""
         logger.info("Initializing local ocean currents...")
@@ -330,17 +423,68 @@ class TerrainSystem:
         logger.info("Local ocean currents initialization complete")
 
     def _initialize_coastal_currents(self):
-        """Placeholder for coastal current initialization."""
-        pass
+        """Initialize coastal currents."""
+        logger.info("Initializing coastal currents...")
+        
+        # Initialize coastal currents based on wind patterns and coastal geometry
+        for lon in range(-180, 180):
+            for lat in range(-90, 90):
+                if self._is_coastal((lon, lat)):
+                    # Determine current direction based on coastal orientation
+                    direction = self._get_coastal_direction((lon, lat))
+                    self.ocean_currents[(lon, lat)] = OceanCurrent(
+                        name="Coastal Current",
+                        direction=direction,
+                        speed=0.2,
+                        temperature=self._get_coastal_temperature(lat)
+                    )
 
     def _initialize_upwelling_zones(self):
-        """Placeholder for upwelling zone initialization."""
-        pass
+        """Initialize upwelling zones."""
+        logger.info("Initializing upwelling zones...")
+        
+        # Major upwelling zones
+        upwelling_zones = [
+            # West coast of South America
+            {'lon_range': (-85, -75), 'lat_range': (-15, -5)},
+            # West coast of North America
+            {'lon_range': (-130, -120), 'lat_range': (35, 45)},
+            # West coast of Africa
+            {'lon_range': (10, 20), 'lat_range': (-25, -15)},
+            # West coast of Australia
+            {'lon_range': (110, 120), 'lat_range': (-35, -25)}
+        ]
+        
+        for zone in upwelling_zones:
+            for lon in range(zone['lon_range'][0], zone['lon_range'][1]):
+                for lat in range(zone['lat_range'][0], zone['lat_range'][1]):
+                    self.ocean_currents[(lon, lat)] = OceanCurrent(
+                        name="Upwelling Zone",
+                        direction=(0.0, 1.0),  # Upward flow
+                        speed=0.1,
+                        temperature=15.0
+                    )
 
     def _initialize_eddies(self):
-        """Placeholder for eddy initialization."""
-        pass
+        """Initialize ocean eddies."""
+        logger.info("Initializing ocean eddies...")
         
+        # Generate random eddies in major current systems
+        for _ in range(50):  # Create 50 random eddies
+            # Random position near major currents
+            lon = random.randint(-170, 170)
+            lat = random.randint(-80, 80)
+            
+            # Only create eddies in ocean areas
+            if self._is_ocean(lon, lat):
+                direction = random.choice([(0.7, 0.7), (-0.7, 0.7), (0.7, -0.7), (-0.7, -0.7)])
+                self.ocean_currents[(lon, lat)] = OceanCurrent(
+                    name="Ocean Eddy",
+                    direction=direction,
+                    speed=random.uniform(0.3, 0.8),
+                    temperature=self._get_eddy_temperature(lat)
+                )
+
     def _initialize_current_interactions(self):
         """Initialize interactions between ocean currents."""
         logger.info("Initializing current interactions...")
@@ -363,17 +507,67 @@ class TerrainSystem:
         logger.info("Current interactions initialization complete")
 
     def _initialize_convergence_zones(self):
-        """Placeholder for convergence zone initialization."""
-        pass
+        """Initialize ocean current convergence zones."""
+        logger.info("Initializing convergence zones...")
+        
+        # Major convergence zones
+        convergence_zones = [
+            # North Atlantic Convergence
+            {'lon_range': (-40, -20), 'lat_range': (35, 45)},
+            # North Pacific Convergence
+            {'lon_range': (150, 170), 'lat_range': (35, 45)},
+            # South Atlantic Convergence
+            {'lon_range': (-40, -20), 'lat_range': (-45, -35)}
+        ]
+        
+        for zone in convergence_zones:
+            for lon in range(zone['lon_range'][0], zone['lon_range'][1]):
+                for lat in range(zone['lat_range'][0], zone['lat_range'][1]):
+                    self.ocean_currents[(lon, lat)] = OceanCurrent(
+                        name="Convergence Zone",
+                        direction=(0.0, 0.0),  # Converging flow
+                        speed=0.2,
+                        temperature=self._get_convergence_temperature(lat)
+                    )
 
     def _initialize_divergence_zones(self):
-        """Placeholder for divergence zone initialization."""
-        pass
+        """Initialize ocean current divergence zones."""
+        logger.info("Initializing divergence zones...")
+        
+        # Major divergence zones
+        divergence_zones = [
+            # Equatorial Divergence
+            {'lon_range': (-180, 180), 'lat_range': (-5, 5)},
+            # Subtropical Divergence
+            {'lon_range': (-180, 180), 'lat_range': (25, 35)},
+            {'lon_range': (-180, 180), 'lat_range': (-35, -25)}
+        ]
+        
+        for zone in divergence_zones:
+            for lon in range(zone['lon_range'][0], zone['lon_range'][1]):
+                for lat in range(zone['lat_range'][0], zone['lat_range'][1]):
+                    self.ocean_currents[(lon, lat)] = OceanCurrent(
+                        name="Divergence Zone",
+                        direction=(0.0, 0.0),  # Diverging flow
+                        speed=0.1,
+                        temperature=self._get_divergence_temperature(lat)
+                    )
 
     def _initialize_mixing_zones(self):
-        """Placeholder for mixing zone initialization."""
-        pass
+        """Initialize ocean current mixing zones."""
+        logger.info("Initializing mixing zones...")
         
+        # Initialize mixing zones where major currents meet
+        for lon in range(-180, 180):
+            for lat in range(-90, 90):
+                if self._is_mixing_zone((lon, lat)):
+                    self.ocean_currents[(lon, lat)] = OceanCurrent(
+                        name="Mixing Zone",
+                        direction=(0.0, 0.0),  # Turbulent flow
+                        speed=0.3,
+                        temperature=self._get_mixing_temperature(lat)
+                    )
+
     def _generate_terrain_type(self, lon: float, lat: float) -> str:
         """Generate terrain type based on coordinates."""
         # First determine if this is ocean or land based on a simple pattern
@@ -839,39 +1033,6 @@ class TerrainSystem:
                 max_slope = max(max_slope, slope)
         
         return max_slope 
-
-    def _initialize_current_interactions(self):
-        """Initialize interactions between ocean currents."""
-        logger.info("Initializing current interactions...")
-        
-        # Initialize current convergence zones
-        logger.info("Setting up current convergence zones...")
-        self._initialize_convergence_zones()
-        logger.info("Current convergence zones initialized")
-        
-        # Initialize current divergence zones
-        logger.info("Setting up current divergence zones...")
-        self._initialize_divergence_zones()
-        logger.info("Current divergence zones initialized")
-        
-        # Initialize current mixing zones
-        logger.info("Setting up current mixing zones...")
-        self._initialize_mixing_zones()
-        logger.info("Current mixing zones initialized")
-        
-        logger.info("Current interactions initialization complete")
-
-    def _initialize_convergence_zones(self):
-        """Placeholder for convergence zone initialization."""
-        pass
-
-    def _initialize_divergence_zones(self):
-        """Placeholder for divergence zone initialization."""
-        pass
-
-    def _initialize_mixing_zones(self):
-        """Placeholder for mixing zone initialization."""
-        pass
 
     def _get_coastal_direction(self, coord: Tuple[int, int]) -> str:
         """Determine coastal current direction based on coastal orientation."""
