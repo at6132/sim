@@ -165,6 +165,11 @@ class World:
         
         # Initialize agents
         self.agents.initialize_agents()
+
+        # Initialize cognition systems for existing agents
+        for agent_id in self.agents.agents:
+            if agent_id not in self.cognition_systems:
+                self.cognition_systems[agent_id] = AgentCognition(agent_id)
         
         # Initialize society
         self.society.initialize_society()
@@ -273,9 +278,12 @@ class World:
         for _ in range(count):
             # Get spawn location
             lon, lat = self.get_spawn_location()
-            
+
             # Create agent through agent system
-            self.agents.create_agent(lon, lat)
+            agent_id = self.agents.create_agent(lon, lat)
+
+            # Initialize cognition system for the new agent
+            self.cognition_systems[agent_id] = AgentCognition(agent_id)
             
         self.logger.info("Initial agent spawning complete")
         
@@ -298,6 +306,10 @@ class World:
             latitude=lat,
             parent_id=parent_id
         )
+
+        if child_id:
+            # Initialize cognition system for the child
+            self.cognition_systems[child_id] = AgentCognition(child_id)
         
         if child_id:
             self.logger.info(f"Spawned child agent {child_id} from parent {parent_id}")
@@ -845,7 +857,7 @@ class World:
         if agent is None:
             return {}
 
-        cognition = self.cognition_systems[agent_id]
+        cognition = self.cognition_systems.get(agent_id)
         
         # Get agent's social group
         social_group = None
