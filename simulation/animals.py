@@ -154,6 +154,9 @@ class AnimalSystem:
         
         # Store world reference
         self.world = world
+
+        # Determine size of the simulation world
+        self.world_size = (self.world.environment.width, self.world.environment.height)
         
         # Initialize animal populations
         logger.info("Setting up animal populations...")
