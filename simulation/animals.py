@@ -162,6 +162,27 @@ class AnimalSystem:
         self.omnivores = {}  # Mixed diet animals
         self.domesticated = {}  # Tamed animals
         logger.info("Animal populations initialized")
+
+
+        # Unified mapping accessor for all animals is provided by the
+        # ``animals`` property defined on the class.
+
+    @property
+    def animals(self) -> Dict[str, Dict]:
+        """Return a combined mapping of all animals."""
+        combined = {}
+        combined.update(self.herbivores)
+        combined.update(self.carnivores)
+        combined.update(self.omnivores)
+        combined.update(self.domesticated)
+        return combined
+
+    # Backwards compatibility for world code expecting ``creatures``
+    @property
+    def creatures(self) -> Dict[str, Dict]:
+        """Alias for :pyattr:`animals`."""
+        return self.animals
+
         
         # Initialize animal behaviors
         logger.info("Setting up animal behaviors...")
