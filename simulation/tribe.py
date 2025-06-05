@@ -3,8 +3,10 @@ from typing import Dict, List, Set, Optional, Tuple
 from enum import Enum
 import random
 import logging
+from datetime import datetime
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class TribeType(Enum):
     NOMADIC = "nomadic"

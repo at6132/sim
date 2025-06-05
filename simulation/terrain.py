@@ -5,8 +5,9 @@ import math
 import logging
 from datetime import datetime
 import random
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class TerrainType(Enum):
     # Ocean Types

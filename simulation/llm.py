@@ -1,12 +1,13 @@
 import os
 import openai
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 import json
 import logging
 from dotenv import load_dotenv
 from pathlib import Path
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Load environment variables from .env file in root directory
 env_path = Path(__file__).parent.parent / '.env'

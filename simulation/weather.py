@@ -5,8 +5,10 @@ import random
 import logging
 import math
 import numpy as np
+from datetime import datetime
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class WeatherType(Enum):
     CLEAR = "clear"

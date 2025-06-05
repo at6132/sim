@@ -5,8 +5,9 @@ import random
 import logging
 import time
 from datetime import datetime
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class ResourceType(Enum):
     FOOD = "food"

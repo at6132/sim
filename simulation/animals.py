@@ -6,9 +6,9 @@ import math
 import time
 from datetime import datetime
 import numpy as np
-import logging
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class AnimalType(Enum):
     HORSE = "horse"

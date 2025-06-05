@@ -6,9 +6,9 @@ from datetime import datetime
 import logging
 import uuid
 import time
-from simulation.utils.logging_config import get_logger
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class SocialStructure(Enum):
     BAND = "band"           # Small family groups
@@ -205,9 +205,8 @@ class Society:
             "timestamp": datetime.now().isoformat()
         }
         self.events.append(event)
-        # Use root logger to ensure events are printed
-        root_logger = logging.getLogger()
-        root_logger.info(f"Society Event - {event_type}: {data}")
+        # Use standardized logger
+        logger.info(f"Society Event - {event_type}: {data}")
         
     def get_state(self) -> Dict:
         """Get current society state."""

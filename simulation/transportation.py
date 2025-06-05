@@ -1107,107 +1107,149 @@ class TransportationSystem:
         }
         
     def _find_land_path(self, start: Tuple[float, float], end: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
-        """Find a path between two points that stays on land."""
-        # Simple straight line path for now
-        # TODO: Implement proper pathfinding
-        path = []
-        steps = 10
-        for i in range(steps + 1):
-            t = i / steps
-            lon = start[0] + (end[0] - start[0]) * t
-            lat = start[1] + (end[1] - start[1]) * t
-            if self._is_on_water(lon, lat):
-                return None
-            path.append((lon, lat))
-        return path
-        
-    def _is_on_water(self, longitude: float, latitude: float) -> bool:
-        """Check if a position is on water."""
-        terrain = self.world.terrain.get_terrain_at(longitude, latitude)
-        return terrain == "water"
-
-    def _initialize_trade_routes(self):
-        """Initialize trade routes between settlements."""
-        self.logger.info("Initializing trade routes...")
-        
-        # Create trade routes between settlements
-        for settlement in self.world.settlements.values():
-            # Find nearest settlements for trade
-            nearest_settlements = self._find_nearest_settlements(settlement, max_distance=200.0)
+        """Find an optimal land path between two points."""
+        # First try to find an existing road or path
+        road_path = self._find_road_path(start, end)
+        if road_path:
+            return road_path
             
-            for target in nearest_settlements:
-                # Create trade route if it doesn't exist
-                route_id = f"trade_{settlement.id}_{target.id}"
-                if route_id not in self.trade_routes:
-                    # Check if there's a valid path between settlements
-                    path = self._find_land_path(
-                        (settlement.longitude, settlement.latitude),
-                        (target.longitude, target.latitude)
-                    )
-                    if path:
-                        self.trade_routes[route_id] = {
-                            "id": route_id,
-                            "start": settlement.id,
-                            "end": target.id,
-                            "path": path,
-                            "type": "land",
-                            "status": "active",
-                            "traffic": 0.0,
-                            "goods": {}  # Will be populated with traded goods
-                        }
-                        
-        self.logger.info("Trade routes initialization complete") 
-
-    def _initialize_transport_networks(self):
-        """Initialize transport networks connecting different transportation systems."""
-        self.logger.info("Initializing transport networks...")
+        # If no road exists, use A* with terrain considerations
+        return self._find_path(start, end, TransportationType.WALKING)
         
-        # Initialize networks for different transport types
-        self.transport_networks = {
-            'land': {
-                'roads': self.roads,
-                'paths': self.paths,
-                'connections': {}
-            },
-            'water': {
-                'ports': self.ports,
-                'routes': {},
-                'connections': {}
-            },
-            'air': {
-                'airports': {},
-                'routes': {},
-                'connections': {}
-            }
-        }
+    def _find_road_path(self, start: Tuple[float, float], end: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
+        """Find a path using existing roads."""
+        # Find nearest road segments to start and end points
+        start_road = self._find_nearest_road(start)
+        end_road = self._find_nearest_road(end)
         
-        # Connect land networks
+        if not start_road or not end_road:
+            return None
+            
+        # If start and end are on the same road, use direct path
+        if start_road == end_road:
+            return [start, end]
+            
+        # Find path through road network
+        road_path = self._find_path_through_roads(start_road, end_road)
+        if not road_path:
+            return None
+            
+        # Add start and end points to path
+        return [start] + road_path + [end]
+        
+    def _find_nearest_road(self, point: Tuple[float, float]) -> Optional[Dict]:
+        """Find the nearest road segment to a point."""
+        nearest_road = None
+        min_distance = float('inf')
+        
         for road_id, road in self.roads.items():
-            start_pos = road['start']
-            end_pos = road['end']
+            # Calculate distance to road segment
+            distance = self._distance_to_road_segment(point, road)
+            if distance < min_distance:
+                min_distance = distance
+                nearest_road = road
+                
+        return nearest_road
+        
+    def _distance_to_road_segment(self, point: Tuple[float, float], road: Dict) -> float:
+        """Calculate distance from point to road segment."""
+        start = road['start']
+        end = road['end']
+        
+        # Calculate perpendicular distance to line segment
+        x, y = point
+        x1, y1 = start
+        x2, y2 = end
+        
+        # Vector from start to end
+        dx = x2 - x1
+        dy = y2 - y1
+        
+        # Vector from start to point
+        px = x - x1
+        py = y - y1
+        
+        # Project point onto road segment
+        t = max(0, min(1, (px * dx + py * dy) / (dx * dx + dy * dy)))
+        
+        # Calculate closest point on road
+        closest_x = x1 + t * dx
+        closest_y = y1 + t * dy
+        
+        # Calculate distance to closest point
+        return self._calculate_distance(point, (closest_x, closest_y))
+        
+    def _find_path_through_roads(self, start_road: Dict, end_road: Dict) -> Optional[List[Tuple[float, float]]]:
+        """Find a path through the road network."""
+        # Use A* to find path through road network
+        open_set = {start_road}
+        closed_set = set()
+        
+        came_from = {}
+        g_score = {start_road: 0}
+        f_score = {start_road: self._heuristic(start_road, end_road)}
+        
+        while open_set:
+            current = min(open_set, key=lambda x: f_score.get(x, float('inf')))
             
-            # Add connections to transport network
-            if start_pos not in self.transport_networks['land']['connections']:
-                self.transport_networks['land']['connections'][start_pos] = []
-            if end_pos not in self.transport_networks['land']['connections']:
-                self.transport_networks['land']['connections'][end_pos] = []
+            if current == end_road:
+                return self._reconstruct_road_path(came_from, current)
                 
-            self.transport_networks['land']['connections'][start_pos].append(end_pos)
-            self.transport_networks['land']['connections'][end_pos].append(start_pos)
+            open_set.remove(current)
+            closed_set.add(current)
             
-        # Connect water networks
-        for port_pos, port in self.ports.items():
-            if port_pos not in self.transport_networks['water']['connections']:
-                self.transport_networks['water']['connections'][port_pos] = []
+            # Get connected roads
+            for neighbor in self._get_connected_roads(current):
+                if neighbor in closed_set:
+                    continue
+                    
+                # Calculate tentative g_score
+                tentative_g_score = g_score[current] + self._get_road_distance(current, neighbor)
                 
-            for connection in port['connections']:
-                self.transport_networks['water']['connections'][port_pos].append(connection)
+                if neighbor not in open_set:
+                    open_set.add(neighbor)
+                elif tentative_g_score >= g_score.get(neighbor, float('inf')):
+                    continue
+                    
+                # This path is the best so far
+                came_from[neighbor] = current
+                g_score[neighbor] = tentative_g_score
+                f_score[neighbor] = g_score[neighbor] + self._heuristic(neighbor, end_road)
                 
-        self.logger.info("Transport networks initialization complete") 
-
-    def _calculate_distance(self, point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
-        """Calculate the distance between two points."""
-        return self.world.get_distance(point1[0], point1[1], point2[0], point2[1]) 
+        return None
+        
+    def _get_connected_roads(self, road: Dict) -> List[Dict]:
+        """Get roads connected to the given road."""
+        connected = []
+        road_end = road['end']
+        
+        for other_road in self.roads.values():
+            if other_road == road:
+                continue
+                
+            # Check if roads are connected
+            if (road_end == other_road['start'] or 
+                road_end == other_road['end'] or
+                road['start'] == other_road['start'] or
+                road['start'] == other_road['end']):
+                connected.append(other_road)
+                
+        return connected
+        
+    def _get_road_distance(self, road1: Dict, road2: Dict) -> float:
+        """Calculate distance between two roads."""
+        # Use the distance between their closest points
+        return self._calculate_distance(road1['end'], road2['start'])
+        
+    def _reconstruct_road_path(self, came_from: Dict[Dict, Dict], current: Dict) -> List[Tuple[float, float]]:
+        """Reconstruct path through road network."""
+        path = []
+        while current in came_from:
+            path.append(current['end'])
+            current = came_from[current]
+        path.append(current['start'])
+        path.reverse()
+        return path
 
     def _find_path(self, start: Tuple[float, float], end: Tuple[float, float], transport_type: TransportationType) -> Optional[List[Tuple[float, float]]]:
         """Find a path between two points using A* pathfinding."""

@@ -5,8 +5,9 @@ from datetime import datetime
 import random
 import logging
 import time
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class TechnologyCategory(Enum):
     BASIC = "basic"  # Fire, tools, shelter

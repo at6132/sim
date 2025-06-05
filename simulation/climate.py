@@ -5,8 +5,9 @@ import math
 import logging
 import random
 from datetime import datetime
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class ClimateType(Enum):
     # Polar Climates

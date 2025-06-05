@@ -7,8 +7,10 @@ import time
 import logging
 import numpy as np
 import uuid
+from datetime import datetime
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class PlantType(Enum):
     WHEAT = "wheat"

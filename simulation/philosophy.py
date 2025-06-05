@@ -5,8 +5,9 @@ import random
 from datetime import datetime
 import time
 import logging
+from .utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class BeliefType(Enum):
     RELIGIOUS = "religious"

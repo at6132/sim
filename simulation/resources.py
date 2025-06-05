@@ -8,7 +8,7 @@ import numpy as np
 from .utils.logging_config import get_logger
 import time
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class ResourceType(Enum):
     # Basic Resources

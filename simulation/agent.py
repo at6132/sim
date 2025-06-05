@@ -23,9 +23,10 @@ from .moral_alignment import MoralAlignment
 from .social_state import SocialState
 from .crisis_state import CrisisState
 from .identification import IdentificationSystem
+from .utils.logging_config import get_logger
 
 # Initialize logger
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @dataclass
 class Relationship:

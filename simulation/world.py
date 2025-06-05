@@ -88,6 +88,9 @@ class World:
         self.year_length = 365.25  # days
         
         # Initialize subsystems
+        self.logger.info("Initializing environment system...")
+        self.environment = Environment(self)
+        
         self.logger.info("Initializing terrain system...")
         self.terrain = TerrainSystem(self)
         
@@ -124,7 +127,8 @@ class World:
         # Initialize initial spawn point
         self.initial_spawn = {
             "longitude": 0.0,
-            "latitude": 0.0
+            "latitude": 0.0,
+            "radius": 1.0  # Default spawn radius in degrees
         }
         
         # Initialize world state tracking
