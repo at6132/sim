@@ -180,6 +180,40 @@ class TechnologyTree:
             required_resources={"cloth": 1.0},
             effects={"temperature_resistance": 1.2}
         )
+
+        # Construction technologies
+        self.technologies["basic_construction"] = Technology(
+            type="basic_construction",
+            name="Basic Construction",
+            category=TechnologyCategory.CONSTRUCTION,
+            description="Simple building techniques",
+            prerequisites={"basic_tools"},
+            difficulty=0.2,
+            discovery_chance=0.01,
+            required_resources={"wood": 1.0},
+            effects={"building_quality": 1.1}
+        )
+
+        # High level category placeholders to satisfy initialization
+        for t_type, category in {
+            "agriculture": TechnologyCategory.AGRICULTURE,
+            "construction": TechnologyCategory.CONSTRUCTION,
+            "transportation": TechnologyCategory.TRANSPORTATION,
+            "communication": TechnologyCategory.COMMUNICATION,
+            "medicine": TechnologyCategory.MEDICINE,
+        }.items():
+            if t_type not in self.technologies:
+                self.technologies[t_type] = Technology(
+                    type=t_type,
+                    name=t_type.capitalize(),
+                    category=category,
+                    description=f"Basic {t_type} techniques",
+                    prerequisites=set(),
+                    difficulty=0.1,
+                    discovery_chance=0.01,
+                    required_resources={},
+                    effects={}
+                )
         
         # Transportation technologies
         self.technologies["basic_transportation"] = Technology(

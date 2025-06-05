@@ -1057,54 +1057,58 @@ class TransportationSystem:
     def _initialize_paths(self):
         """Initialize transportation paths between settlements."""
         self.logger.info("Initializing transportation paths...")
-        
-        # Create paths between settlements
-        for settlement in self.world.settlements.values():
-            # Find nearest settlements
-            nearest_settlements = self._find_nearest_settlements(settlement, max_distance=100.0)
-            
-            for target in nearest_settlements:
-                # Create path if it doesn't exist
-                path_id = f"path_{settlement.id}_{target.id}"
+
+        for settlement_id, settlement in self.world.settlements.items():
+            lon, lat = settlement.get("location", (
+                settlement.get("longitude"), settlement.get("latitude")
+            ))
+            nearest_settlements = self._find_nearest_settlements(
+                settlement_id, lon, lat, max_distance=100.0
+            )
+
+            for target_id, (t_lon, t_lat) in nearest_settlements:
+                path_id = f"path_{settlement_id}_{target_id}"
                 if path_id not in self.paths:
-                    path = self._create_path(settlement, target)
+                    path = self._create_path(
+                        settlement_id, lon, lat, target_id, t_lon, t_lat
+                    )
                     if path:
                         self.paths[path_id] = path
-                        
+
         self.logger.info("Transportation paths initialization complete")
-        
-    def _find_nearest_settlements(self, settlement, max_distance: float) -> List[Dict]:
+
+    def _find_nearest_settlements(self, sid: str, lon: float, lat: float, max_distance: float) -> List[Tuple[str, Tuple[float, float]]]:
         """Find nearest settlements within max_distance."""
         nearest = []
-        for other in self.world.settlements.values():
-            if other.id != settlement.id:
-                distance = self._calculate_distance(
-                    (settlement.longitude, settlement.latitude),
-                    (other.longitude, other.latitude)
-                )
+        for other_id, other in self.world.settlements.items():
+            if other_id != sid:
+                o_lon, o_lat = other.get("location", (
+                    other.get("longitude"), other.get("latitude")
+                ))
+                distance = self._calculate_distance((lon, lat), (o_lon, o_lat))
                 if distance <= max_distance:
-                    nearest.append(other)
+                    nearest.append((other_id, (o_lon, o_lat)))
         return nearest
-        
-    def _create_path(self, start: Dict, end: Dict) -> Optional[Dict]:
+
+    def _create_path(self, start_id: str, start_lon: float, start_lat: float, end_id: str, end_lon: float, end_lat: float) -> Optional[Dict]:
         """Create a path between two settlements."""
-        # Find path that stays on land
-        path = self._find_land_path(
-            (start.longitude, start.latitude),
-            (end.longitude, end.latitude)
-        )
+        path = self._find_land_path((start_lon, start_lat), (end_lon, end_lat))
         if not path:
             return None
-            
+
         return {
-            "id": f"path_{start.id}_{end.id}",
-            "start": start.id,
-            "end": end.id,
+            "id": f"path_{start_id}_{end_id}",
+            "start": start_id,
+            "end": end_id,
             "points": path,
             "type": "land",
             "status": "active",
-            "traffic": 0.0
+            "traffic": 0.0,
         }
+
+    def _calculate_distance(self, a: Tuple[float, float], b: Tuple[float, float]) -> float:
+        """Wrapper around world's distance calculation."""
+        return self.world.get_distance(a[0], a[1], b[0], b[1])
         
     def _find_land_path(self, start: Tuple[float, float], end: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
         """Find an optimal land path between two points."""

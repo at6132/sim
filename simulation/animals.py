@@ -263,15 +263,16 @@ class AnimalSystem:
         logger.info("Initializing animal distribution...")
         
         # Calculate total points for progress tracking
-        total_points = len(np.arange(self.world_size[0])) * len(np.arange(self.world_size[1]))
+        # Use a reduced resolution to keep initialization fast
+        lon_range = range(0, self.world_size[0], max(1, self.world_size[0] // 10))
+        lat_range = range(0, self.world_size[1], max(1, self.world_size[1] // 10))
+        total_points = len(lon_range) * len(lat_range)
         points_processed = 0
         last_progress = 0
-        
-        # Process in chunks to show progress
-        chunk_size = 1000  # Process 1000 points at a time
-        
-        for lon in np.arange(self.world_size[0]):
-            for lat in np.arange(self.world_size[1]):
+
+        # Iterate over a coarse grid
+        for lon in lon_range:
+            for lat in lat_range:
                 # Get terrain type at location
                 terrain_type = self.world.terrain.get_terrain_at(lon, lat)
                 
@@ -327,6 +328,26 @@ class AnimalSystem:
         logger.info("Setting up swamp ecosystems...")
         self._initialize_swamp_ecosystems()
         logger.info("Swamp ecosystems initialized")
+
+    def _initialize_forest_ecosystems(self):
+        """Placeholder for forest ecosystem setup."""
+        pass
+
+    def _initialize_grassland_ecosystems(self):
+        """Placeholder for grassland ecosystem setup."""
+        pass
+
+    def _initialize_desert_ecosystems(self):
+        """Placeholder for desert ecosystem setup."""
+        pass
+
+    def _initialize_tundra_ecosystems(self):
+        """Placeholder for tundra ecosystem setup."""
+        pass
+
+    def _initialize_swamp_ecosystems(self):
+        """Placeholder for swamp ecosystem setup."""
+        pass
         
         logger.info("Animal ecosystems initialization complete")
         
@@ -354,7 +375,7 @@ class AnimalSystem:
     def _generate_animals_for_terrain(self, lon: float, lat: float, terrain_type: str):
         """Generate animals based on terrain type."""
         logger.info(f"Generating animals for terrain type: {terrain_type}")
-        
+
         if terrain_type == "forest":
             logger.info("Generating forest animals...")
             self._generate_forest_animals(lon, lat)
@@ -375,6 +396,59 @@ class AnimalSystem:
             logger.info("Generating swamp animals...")
             self._generate_swamp_animals(lon, lat)
             logger.info("Swamp animals generated")
+        else:
+            # Generate generic animals for unspecified terrain
+            animal_id = f"generic_{len(self.herbivores)}"
+            self.herbivores[animal_id] = {
+                "position": (lon, lat),
+                "health": 1.0,
+                "age": 0.0,
+            }
+
+    def _generate_forest_animals(self, lon: float, lat: float):
+        """Create placeholder forest animals."""
+        animal_id = f"forest_{len(self.herbivores)}"
+        self.herbivores[animal_id] = {
+            "position": (lon, lat),
+            "health": 1.0,
+            "age": 0.0,
+        }
+
+    def _generate_grassland_animals(self, lon: float, lat: float):
+        """Create placeholder grassland animals."""
+        animal_id = f"grass_{len(self.herbivores)}"
+        self.herbivores[animal_id] = {
+            "position": (lon, lat),
+            "health": 1.0,
+            "age": 0.0,
+        }
+
+    def _generate_desert_animals(self, lon: float, lat: float):
+        """Create placeholder desert animals."""
+        animal_id = f"desert_{len(self.herbivores)}"
+        self.herbivores[animal_id] = {
+            "position": (lon, lat),
+            "health": 1.0,
+            "age": 0.0,
+        }
+
+    def _generate_tundra_animals(self, lon: float, lat: float):
+        """Create placeholder tundra animals."""
+        animal_id = f"tundra_{len(self.herbivores)}"
+        self.herbivores[animal_id] = {
+            "position": (lon, lat),
+            "health": 1.0,
+            "age": 0.0,
+        }
+
+    def _generate_swamp_animals(self, lon: float, lat: float):
+        """Create placeholder swamp animals."""
+        animal_id = f"swamp_{len(self.herbivores)}"
+        self.herbivores[animal_id] = {
+            "position": (lon, lat),
+            "health": 1.0,
+            "age": 0.0,
+        }
     
     def update(self, time_delta: float, environment: Dict):
         """Update animal system based on time and environment"""
