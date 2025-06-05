@@ -67,16 +67,16 @@ class ClimateSystem:
         total_steps = len(self.longitude_range) * len(self.latitude_range)
         current_step = 0
         
-        for lon in self.longitude_range:
-            for lat in self.latitude_range:
+        for i, lon in enumerate(self.longitude_range):
+            for j, lat in enumerate(self.latitude_range):
                 # Initialize temperature
-                self.temperature_map[lon][lat] = self._calculate_base_temperature(lat)
+                self.temperature_map[i][j] = self._calculate_base_temperature(lat)
                 
                 # Initialize precipitation
-                self.precipitation_map[lon][lat] = self._calculate_base_precipitation(lat, lon)
+                self.precipitation_map[i][j] = self._calculate_base_precipitation(lat, lon)
                 
                 # Initialize wind
-                self.wind_map[lon][lat] = self._calculate_base_wind(lat, lon)
+                self.wind_map[i][j] = self._calculate_base_wind(lat, lon)
                 
                 # Update progress
                 current_step += 1
@@ -670,4 +670,16 @@ class ClimateSystem:
                 "wind_speed": wind_speed,
                 "wind_direction": wind_direction,
                 "weather": weather
-            } 
+            }
+
+    def _calculate_base_temperature(self, latitude: float) -> float:
+        """Placeholder temperature model based on latitude."""
+        return 30.0 - abs(latitude) * 0.3
+
+    def _calculate_base_precipitation(self, latitude: float, longitude: float) -> float:
+        """Placeholder precipitation model."""
+        return max(0.0, 1.0 - abs(latitude) / 90.0)
+
+    def _calculate_base_wind(self, latitude: float, longitude: float) -> float:
+        """Placeholder wind speed model."""
+        return abs(latitude) * 0.1 

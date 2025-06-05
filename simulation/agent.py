@@ -8,7 +8,7 @@ from .philosophy import Philosophy
 from .emotions import EmotionSystem, EmotionType
 from .cognition import CognitiveSystem, ThoughtType, Thought
 from .life_cycle import LifeCycleSystem, LifeStage, PregnancyStage
-from .animal import Animal, AnimalType, AnimalTemperament
+from .animals import Animal, AnimalType, AnimalTemperament
 from enum import Enum
 import time
 from .environment import Environment

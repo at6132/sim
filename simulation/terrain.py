@@ -269,7 +269,7 @@ class TerrainSystem:
     def _initialize_major_currents(self):
         """Initialize major ocean currents."""
         logger.info("Initializing major ocean currents...")
-        
+
         # Initialize equatorial currents
         logger.info("Setting up equatorial currents...")
         self._initialize_equatorial_currents()
@@ -291,6 +291,22 @@ class TerrainSystem:
         logger.info("Circumpolar currents initialized")
         
         logger.info("Major ocean currents initialization complete")
+
+    def _initialize_equatorial_currents(self):
+        """Placeholder for equatorial current initialization."""
+        pass
+
+    def _initialize_western_boundary_currents(self):
+        """Placeholder for western boundary current initialization."""
+        pass
+
+    def _initialize_eastern_boundary_currents(self):
+        """Placeholder for eastern boundary current initialization."""
+        pass
+
+    def _initialize_circumpolar_currents(self):
+        """Placeholder for circumpolar current initialization."""
+        pass
         
     def _initialize_local_currents(self):
         """Initialize local ocean currents."""
@@ -310,8 +326,20 @@ class TerrainSystem:
         logger.info("Setting up eddies...")
         self._initialize_eddies()
         logger.info("Eddies initialized")
-        
+
         logger.info("Local ocean currents initialization complete")
+
+    def _initialize_coastal_currents(self):
+        """Placeholder for coastal current initialization."""
+        pass
+
+    def _initialize_upwelling_zones(self):
+        """Placeholder for upwelling zone initialization."""
+        pass
+
+    def _initialize_eddies(self):
+        """Placeholder for eddy initialization."""
+        pass
         
     def _initialize_current_interactions(self):
         """Initialize interactions between ocean currents."""
@@ -333,6 +361,18 @@ class TerrainSystem:
         logger.info("Current mixing zones initialized")
         
         logger.info("Current interactions initialization complete")
+
+    def _initialize_convergence_zones(self):
+        """Placeholder for convergence zone initialization."""
+        pass
+
+    def _initialize_divergence_zones(self):
+        """Placeholder for divergence zone initialization."""
+        pass
+
+    def _initialize_mixing_zones(self):
+        """Placeholder for mixing zone initialization."""
+        pass
         
     def _generate_terrain_type(self, lon: float, lat: float) -> str:
         """Generate terrain type based on coordinates."""
@@ -799,3 +839,86 @@ class TerrainSystem:
                 max_slope = max(max_slope, slope)
         
         return max_slope 
+
+    def _initialize_current_interactions(self):
+        """Initialize interactions between ocean currents."""
+        logger.info("Initializing current interactions...")
+        
+        # Initialize current convergence zones
+        logger.info("Setting up current convergence zones...")
+        self._initialize_convergence_zones()
+        logger.info("Current convergence zones initialized")
+        
+        # Initialize current divergence zones
+        logger.info("Setting up current divergence zones...")
+        self._initialize_divergence_zones()
+        logger.info("Current divergence zones initialized")
+        
+        # Initialize current mixing zones
+        logger.info("Setting up current mixing zones...")
+        self._initialize_mixing_zones()
+        logger.info("Current mixing zones initialized")
+        
+        logger.info("Current interactions initialization complete")
+
+    def _initialize_convergence_zones(self):
+        """Placeholder for convergence zone initialization."""
+        pass
+
+    def _initialize_divergence_zones(self):
+        """Placeholder for divergence zone initialization."""
+        pass
+
+    def _initialize_mixing_zones(self):
+        """Placeholder for mixing zone initialization."""
+        pass
+
+    def _get_coastal_direction(self, coord: Tuple[int, int]) -> str:
+        """Determine coastal current direction based on coastal orientation."""
+        lon, lat = coord
+        # Check surrounding cells to determine coastal orientation
+        if self.get_terrain_type_at(lon+1, lat) == TerrainType.OCEAN:
+            return 'north' if lat > 0 else 'south'
+        elif self.get_terrain_type_at(lon-1, lat) == TerrainType.OCEAN:
+            return 'south' if lat > 0 else 'north'
+        elif self.get_terrain_type_at(lon, lat+1) == TerrainType.OCEAN:
+            return 'west'
+        else:
+            return 'east'
+
+    def _get_coastal_temperature(self, lat: float) -> float:
+        """Calculate coastal water temperature based on latitude."""
+        return 30.0 - abs(lat) * 0.3
+
+    def _get_eddy_temperature(self, lat: float) -> float:
+        """Calculate eddy water temperature based on latitude."""
+        return 25.0 - abs(lat) * 0.2
+
+    def _get_convergence_temperature(self, lat: float) -> float:
+        """Calculate convergence zone temperature based on latitude."""
+        return 20.0 - abs(lat) * 0.2
+
+    def _get_divergence_temperature(self, lat: float) -> float:
+        """Calculate divergence zone temperature based on latitude."""
+        return 22.0 - abs(lat) * 0.2
+
+    def _get_mixing_temperature(self, lat: float) -> float:
+        """Calculate mixing zone temperature based on latitude."""
+        return 18.0 - abs(lat) * 0.2
+
+    def _is_mixing_zone(self, coord: Tuple[int, int]) -> bool:
+        """Check if a coordinate is in a mixing zone."""
+        lon, lat = coord
+        # Check if this is where major currents meet
+        current = self.current_map.get(coord)
+        if not current:
+            return False
+            
+        # Check surrounding cells for different current types
+        surrounding_currents = set()
+        for dx, dy in [(0,1), (1,0), (0,-1), (-1,0)]:
+            neighbor = self.current_map.get((lon+dx, lat+dy))
+            if neighbor:
+                surrounding_currents.add(neighbor['type'])
+                
+        return len(surrounding_currents) > 1 

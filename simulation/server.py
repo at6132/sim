@@ -15,11 +15,6 @@ CORS(app)
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-@app.route("/")
-def index():
-    """Render main simulation view."""
-    return render_template("index.html")
-
 @app.route("/api/world")
 def get_world_state():
     """Get current world state."""

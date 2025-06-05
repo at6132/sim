@@ -532,8 +532,8 @@ class ResourceSystem:
         current_step = 0
         
         # Initialize resources for each coordinate
-        for lon in range(self.world.min_longitude, self.world.max_longitude):
-            for lat in range(self.world.min_latitude, self.world.max_latitude):
+        for lon in range(int(self.world.min_longitude), int(self.world.max_longitude)):
+            for lat in range(int(self.world.min_latitude), int(self.world.max_latitude)):
                 coord = (lon, lat)
                 
                 # Initialize mineral resources
@@ -570,8 +570,9 @@ class ResourceSystem:
     def _generate_water_resources(self, coord: Tuple[int, int]) -> Dict:
         """Generate water resources for a coordinate."""
         # Base water availability on terrain and climate
-        terrain = self.world.terrain.get_terrain(coord)
-        climate = self.world.climate.get_climate(coord)
+        lon, lat = coord
+        terrain = self.world.terrain.get_terrain_info_at(lon, lat)
+        climate = self.world.climate.get_climate_at(lon, lat)
         
         water_amount = 0.0
         if terrain['type'] == 'ocean':
@@ -592,8 +593,9 @@ class ResourceSystem:
     def _generate_vegetation(self, coord: Tuple[int, int]) -> Dict:
         """Generate vegetation for a coordinate."""
         # Base vegetation on climate and terrain
-        climate = self.world.climate.get_climate(coord)
-        terrain = self.world.terrain.get_terrain(coord)
+        lon, lat = coord
+        climate = self.world.climate.get_climate_at(lon, lat)
+        terrain = self.world.terrain.get_terrain_info_at(lon, lat)
         
         if terrain['type'] in ['ocean', 'lake', 'river']:
             return {'type': 'none', 'density': 0.0}

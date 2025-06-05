@@ -82,6 +82,10 @@ class World:
         self.max_longitude = 180.0
         self.min_latitude = -90.0
         self.max_latitude = 90.0
+
+        # Tile resolution in degrees
+        self.longitude_resolution = 1.0
+        self.latitude_resolution = 1.0
         
         # Initialize time tracking
         self.real_time_start = datetime.now()
