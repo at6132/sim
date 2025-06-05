@@ -91,6 +91,13 @@ class World:
         self.simulation_time = 0.0  # Simulation time in hours
         self.time_scale = 1.0  # Time scaling factor
         self.current_tick = 0  # Current simulation tick
+
+        # Calendar tracking
+        self.time = 0.0  # Simulation time counter used by other systems
+        self.day_length = 24.0
+        self.year_length = 365.0 * self.day_length
+        self.day = 0
+        self.year = 0
         
         # Initialize subsystems
         self.logger.info("Initializing environment system...")
@@ -119,13 +126,29 @@ class World:
         
         self.logger.info("Initializing animal system...")
         self.animal_system = AnimalSystem(self)
-        
+
         self.logger.info("Initializing marine system...")
         self.marine_system = MarineSystem(self)
-        
+
+        self.logger.info("Initializing biological system...")
+        self.biology = BiologicalSystem(self)
+
         self.logger.info("Initializing weather system...")
         self.weather = WeatherSystem(self)
-        
+
+        # Snapshot current weather conditions
+        self.current_season = self.weather.season
+        cw = self.weather.current_weather
+        self.current_weather = cw.weather_type.value
+        self.temperature = cw.temperature
+        self.humidity = cw.humidity
+        self.wind_speed = cw.wind_speed
+        self.wind_direction = cw.wind_direction
+        self.precipitation = cw.precipitation
+        self.cloud_cover = cw.cloud_cover
+        self.air_pressure = cw.pressure
+        self.visibility = cw.visibility
+
         self.logger.info("Initializing technology system...")
         self.technology = TechnologySystem(self)
         
@@ -211,8 +234,11 @@ class World:
         """Update world state."""
         # Update game time
         self.simulation_time += time_delta
+        self.time += time_delta
         self.game_time = self.get_current_game_time()
         self.current_tick += 1
+        self.day = int(self.time // self.day_length)
+        self.year = int(self.time // self.year_length)
         
         # Update subsystems
         self.environment.update(time_delta)
@@ -227,6 +253,19 @@ class World:
         self.marine_system.update(time_delta)
         self.weather.update(time_delta)
         self.technology.update(time_delta)
+
+        # Keep world-level weather snapshot up to date
+        self.current_season = self.weather.season
+        cw = self.weather.current_weather
+        self.current_weather = cw.weather_type.value
+        self.temperature = cw.temperature
+        self.humidity = cw.humidity
+        self.wind_speed = cw.wind_speed
+        self.wind_direction = cw.wind_direction
+        self.precipitation = cw.precipitation
+        self.cloud_cover = cw.cloud_cover
+        self.air_pressure = cw.pressure
+        self.visibility = cw.visibility
         
     def get_world_state(self) -> Dict:
         """Get current world state."""
@@ -1420,7 +1459,7 @@ class World:
                 'air_pressure': self.air_pressure,
                 'visibility': self.visibility,
                 'agents': {aid: agent.to_dict() for aid, agent in self.agents.agents.items()},
-                'settlements': {sid: settlement.to_dict() for sid, settlement in self.settlements.items()},
+                'settlements': {sid: settlement.to_dict() for sid, settlement in self.society.settlements.items()},
                 'events': self.events[-1000:],  # Keep last 1000 events
                 'spatial_grid': self.spatial_grid if hasattr(self, 'spatial_grid') else {},
                 'resource_distribution': self.resource_distribution if hasattr(self, 'resource_distribution') else {},
