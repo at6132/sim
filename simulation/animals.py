@@ -148,12 +148,12 @@ class Animal:
         return new_animal_id
 
 class AnimalSystem:
-    def __init__(self, world_size: Tuple[float, float] = (360.0, 180.0)):
+    def __init__(self, world):
         """Initialize the animal system."""
         logger.info("Initializing animal system...")
         
-        # Store world size
-        self.world_size = world_size
+        # Store world reference
+        self.world = world
         
         # Initialize animal populations
         logger.info("Setting up animal populations...")

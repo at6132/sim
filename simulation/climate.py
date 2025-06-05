@@ -48,6 +48,16 @@ class ClimateSystem:
         self.precipitation_data = {}  # (longitude, latitude) -> float
         self.humidity_data = {}  # (longitude, latitude) -> float
         self.wind_data = {}  # (longitude, latitude) -> Dict
+        
+        # Define coordinate ranges
+        self.longitude_range = np.arange(-180.0, 180.0, 1.0)  # 1-degree resolution
+        self.latitude_range = np.arange(-90.0, 90.0, 1.0)  # 1-degree resolution
+        
+        # Initialize maps
+        self.temperature_map = np.zeros((len(self.longitude_range), len(self.latitude_range)))
+        self.precipitation_map = np.zeros((len(self.longitude_range), len(self.latitude_range)))
+        self.wind_map = np.zeros((len(self.longitude_range), len(self.latitude_range)))
+        
         self.initialize_earth_climate()
         
     def initialize_earth_climate(self):

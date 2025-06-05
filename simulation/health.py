@@ -377,21 +377,114 @@ class HealthSystem:
         self._check_health_events(time_delta)
         
     def _update_health_conditions(self, time_delta: float):
-        """Update health conditions based on emergent rules."""
-        for condition in self.conditions.values():
-            # Let the simulation determine condition evolution
-            pass
+        """Update health conditions over time."""
+        for condition_id, condition in self.conditions.items():
+            # Update condition properties based on time
+            for prop, value in condition.properties.items():
+                if isinstance(value, (int, float)):
+                    # Apply natural progression
+                    condition.properties[prop] = value * (1 + random.uniform(-0.1, 0.1) * time_delta)
             
+            # Update symptoms
+            for symptom, severity in condition.symptoms.items():
+                if isinstance(severity, (int, float)):
+                    # Apply symptom progression
+                    condition.symptoms[symptom] = severity * (1 + random.uniform(-0.2, 0.2) * time_delta)
+            
+            # Update effects
+            for effect, magnitude in condition.effects.items():
+                if isinstance(magnitude, (int, float)):
+                    # Apply effect progression
+                    condition.effects[effect] = magnitude * (1 + random.uniform(-0.15, 0.15) * time_delta)
+            
+            # Update timestamp
+            condition.last_update = time.time()
+
     def _update_treatments(self, time_delta: float):
-        """Update treatments based on emergent rules."""
-        for treatment in self.treatments.values():
-            # Let the simulation determine treatment evolution
-            pass
+        """Update treatments over time."""
+        for treatment_id, treatment in self.treatments.items():
+            # Update treatment properties
+            for prop, value in treatment.properties.items():
+                if isinstance(value, (int, float)):
+                    # Apply treatment evolution
+                    treatment.properties[prop] = value * (1 + random.uniform(-0.05, 0.1) * time_delta)
             
+            # Update requirements
+            for req, value in treatment.requirements.items():
+                if isinstance(value, (int, float)):
+                    # Apply requirement changes
+                    treatment.requirements[req] = value * (1 + random.uniform(-0.1, 0.05) * time_delta)
+            
+            # Update effects
+            for effect, magnitude in treatment.effects.items():
+                if isinstance(magnitude, (int, float)):
+                    # Apply effect changes
+                    treatment.effects[effect] = magnitude * (1 + random.uniform(-0.1, 0.1) * time_delta)
+            
+            # Update timestamp
+            treatment.last_used = time.time()
+
     def _check_health_events(self, time_delta: float):
-        """Check for emergent health events."""
-        # Let the simulation determine what events occur
-        pass
+        """Check for health-related events."""
+        # Check for disease outbreaks
+        for disease_id, disease in self.diseases.items():
+            if random.random() < disease.transmission_rate * time_delta:
+                # Simulate disease spread
+                self._simulate_disease_spread(disease)
+        
+        # Check for treatment effectiveness
+        for treatment_id, treatment in self.treatments.items():
+            if random.random() < 0.1 * time_delta:  # 10% chance per time unit
+                # Simulate treatment evolution
+                self._simulate_treatment_evolution(treatment)
+        
+        # Check for medical breakthroughs
+        if random.random() < 0.05 * time_delta:  # 5% chance per time unit
+            # Simulate medical discovery
+            self._simulate_medical_discovery()
+
+    def _simulate_disease_spread(self, disease: Disease):
+        """Simulate the spread of a disease."""
+        # Calculate spread probability based on disease properties
+        spread_chance = disease.transmission_rate * (1 + random.uniform(-0.2, 0.2))
+        
+        # Simulate spread to nearby agents
+        for agent in self.world.agents:
+            if random.random() < spread_chance:
+                # Check immunity
+                if disease.name not in agent.health.immunity:
+                    # Apply disease
+                    agent.health.diseases.append(disease)
+                    self.logger.info(f"Disease {disease.name} spread to agent {agent.id}")
+
+    def _simulate_treatment_evolution(self, treatment: Treatment):
+        """Simulate the evolution of a treatment."""
+        # Randomly improve or modify treatment properties
+        for prop, value in treatment.properties.items():
+            if isinstance(value, (int, float)):
+                # Apply random improvement
+                treatment.properties[prop] = value * (1 + random.uniform(0, 0.2))
+        
+        # Update treatment effects
+        for effect, magnitude in treatment.effects.items():
+            if isinstance(magnitude, (int, float)):
+                # Apply random improvement
+                treatment.effects[effect] = magnitude * (1 + random.uniform(0, 0.15))
+        
+        self.logger.info(f"Treatment {treatment.name} evolved")
+
+    def _simulate_medical_discovery(self):
+        """Simulate a medical discovery."""
+        # Randomly select a disease type to improve knowledge of
+        disease_type = random.choice(list(DiseaseType))
+        
+        # Improve medical knowledge
+        self.medical_knowledge[disease_type] = min(
+            1.0,
+            self.medical_knowledge[disease_type] + random.uniform(0.1, 0.3)
+        )
+        
+        self.logger.info(f"Medical discovery in {disease_type.value} field")
         
     def update(self, time_delta: float):
         """Update health system state."""

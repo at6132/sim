@@ -12,7 +12,7 @@ from .technology import TechnologyTree
 from .resources import ResourceSystem, ResourceType
 from .society import Society, SocialStructure, Culture, Settlement
 from .discovery import DiscoverySystem, Discovery
-from simulation.animal import AnimalSystem
+from simulation.animals import AnimalSystem
 from .life_cycle import LifeCycleSystem
 from .philosophy import Philosophy
 from .emotions import EmotionSystem
@@ -106,6 +106,18 @@ class World:
         self.logger.info("Initializing transportation system...")
         self.transportation = TransportationSystem(self)
         
+        self.logger.info("Initializing plant system...")
+        self.plants = PlantSystem(self)
+        
+        self.logger.info("Initializing animal system...")
+        self.animal_system = AnimalSystem(self)
+        
+        self.logger.info("Initializing marine system...")
+        self.marine_system = MarineSystem(self)
+        
+        self.logger.info("Initializing weather system...")
+        self.weather = WeatherSystem(self)
+        
         # Initialize initial spawn point
         self.initial_spawn = {
             "longitude": 0.0,
@@ -144,6 +156,18 @@ class World:
         
         # Initialize transportation
         self.transportation.initialize_transportation()
+        
+        # Initialize plants
+        self.plants.initialize_plants()
+        
+        # Initialize animal system
+        self.animal_system.initialize_animal_system()
+        
+        # Initialize marine system
+        self.marine_system.initialize_marine_system()
+        
+        # Initialize weather system
+        self.weather.initialize_weather_system()
         
         # Verify initialization
         if not self.verify_initialization():

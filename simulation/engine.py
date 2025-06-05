@@ -19,6 +19,10 @@ is_running = False
 # Global engine instance
 engine = None
 
+def get_engine():
+    """Get the global engine instance."""
+    return engine
+
 def simulation_loop():
     """Main simulation loop."""
     global is_running
