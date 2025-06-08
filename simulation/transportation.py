@@ -63,6 +63,14 @@ class TransportationSystem:
         self.vehicles = {}  # vehicle_id -> vehicle_data
         self.transport_routes = {}  # route_id -> route_data
         self.ports = {}  # port_id -> port_data
+        self.trade_routes = {}  # trade_route_id -> trade_route_data
+        self.transport_networks = {
+            "land": {"nodes": {}, "edges": {}},
+            "water": {"nodes": {}, "edges": {}},
+            "air": {"nodes": {}, "edges": {}}
+        }
+        self.technology_tree = {}
+        self.travel_speeds = {}
         
         self.logger.info("Transportation system initialized")
     
