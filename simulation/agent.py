@@ -24,6 +24,7 @@ from .social_state import SocialState
 from .crisis_state import CrisisState
 from .identification import IdentificationSystem
 from .utils.logging_config import get_logger
+from .cooking import FoodType
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -324,25 +325,23 @@ class Agent:
             return max(set(identifiers), key=identifiers.count)
         return "unknown"
 
-    def to_dict(self) -> Dict:
-        """Convert agent to dictionary for saving."""
-        data = {
-            "id": self.id,
-            "name": self.name,
-            "age": self.age,
-            "gender": self.gender,
-            "genes": self.genes.to_dict(),
-            "needs": self.needs.to_dict(),
-            "memory": self.memory.to_dict(),
-            "emotions": self.emotions.to_dict(),
-            "health": self.health,
-            "philosophy": self.philosophy.to_dict(),
-            "longitude": self.longitude,
-            "latitude": self.latitude,
-            "identification": self.identification.to_dict(),
-            "known_identifiers": self.known_identifiers
+    def to_dict(self) -> dict:
+        """Serialize agent state for frontend or saving."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'longitude': self.longitude,
+            'latitude': self.latitude,
+            'health': self.health,
+            'age': self.age,
+            'gender': self.gender,
+            'inventory': self.inventory,
+            'skills': self.skills,
+            'tribe_id': self.tribe_id,
+            'settlement_id': self.settlement_id,
+            'last_action': self.last_action,
+            'last_action_time': self.last_action_time,
         }
-        return data
 
     def is_alive(self) -> bool:
         """Check if the agent is alive."""
@@ -617,29 +616,26 @@ class Agent:
             self.crisis_state.moral_compromise = min(100, self.crisis_state.moral_compromise + 5)
             
     def _attack_for_food(self, target: Dict) -> None:
-        """Attack another agent for food."""
-        # Calculate attack success chance
+        """Attack another agent for food or meat."""
         success_chance = (
             self.genes.strength * 0.4 +
             self.genes.hunting_skill * 0.3 +
-            random.random() * 0.3  # Random factor
+            random.random() * 0.3
         )
-        
         if random.random() < success_chance:
-            # Successful attack
             self.social_state.crimes_committed.append({
                 "type": "attack_for_food",
                 "target": target["id"],
                 "success": True,
                 "timestamp": time.time()
             })
-            
-            # Take food resources
-            if "food" in target.get("inventory", {}):
+            # Take food or meat resources
+            if "meat" in target.get("inventory", {}):
+                meat_amount = min(target["inventory"]["meat"], 1.0)
+                self.inventory[FoodType.RAW_MEAT.value] = self.inventory.get(FoodType.RAW_MEAT.value, 0) + meat_amount
+            elif "food" in target.get("inventory", {}):
                 food_amount = min(target["inventory"]["food"], 1.0)
-                self.inventory["food"] = self.inventory.get("food", 0) + food_amount
-                
-            # Add memory
+                self.inventory[FoodType.RAW_VEGETABLES.value] = self.inventory.get(FoodType.RAW_VEGETABLES.value, 0) + food_amount
             self.add_memory(
                 f"Attacked {target['name']} for food",
                 0.7,
@@ -650,8 +646,6 @@ class Agent:
                 },
                 emotional_impact=0.6
             )
-            
-            # Update moral state
             self.crisis_state.moral_compromise = min(100, self.crisis_state.moral_compromise + 10)
             
     def _attack_for_safety(self, target: Dict) -> None:
@@ -1109,10 +1103,9 @@ class Agent:
                         emotional_impact=0.6,
                         philosophical_impact=0.2
                     )
-                    
                     # Add meat to inventory
-                    meat_amount = random.uniform(5.0, 15.0)  # Random amount of meat
-                    self.inventory["meat"] = self.inventory.get("meat", 0) + meat_amount
+                    meat_amount = random.uniform(5.0, 15.0)
+                    self.inventory[FoodType.RAW_MEAT.value] = self.inventory.get(FoodType.RAW_MEAT.value, 0) + meat_amount
                     
             # Check if we should try to train (for owned animals)
             elif animal.owner_id == self.id:
@@ -1146,7 +1139,7 @@ class Agent:
             self.needs.animal_companionship = max(0.0, self.needs.animal_companionship - 0.05)
             
         # Update hunting urge based on meat in inventory
-        if self.inventory.get("meat", 0) > 10.0:
+        if self.inventory.get(FoodType.RAW_MEAT.value, 0) > 10.0:
             self.needs.hunting_urge = max(0.0, self.needs.hunting_urge - 0.1)
         else:
             self.needs.hunting_urge = min(1.0, self.needs.hunting_urge + 0.05)
@@ -1593,56 +1586,52 @@ class Agent:
                 
         return nearby_resources
 
-    def _is_good_fishing_spot(self, longitude: float, latitude: float, world_state: Dict) -> bool:
-        """Check if a location is good for fishing."""
-        # Check if it's ocean
-        if not self.world.terrain._is_ocean(longitude, latitude):
+    def has_discovered(self, tech_name: str) -> bool:
+        """Check if agent has discovered a technology or skill."""
+        # This should check the agent's known discoveries or the world's discovery/technology system
+        if hasattr(self, 'known_discoveries') and tech_name in self.known_discoveries:
+            return True
+        if hasattr(self.world, 'discovery') and hasattr(self.world.discovery, 'discovered'):
+            return tech_name in self.world.discovery.discovered
+        if hasattr(self.world, 'technology') and hasattr(self.world.technology, 'discovered_techs'):
+            return tech_name in self.world.technology.discovered_techs
             return False
             
-        # Check depth
-        depth = self.world.terrain.get_depth_at(longitude, latitude)
-        if depth < 5 or depth > 200:  # Too shallow or too deep
-            return False
-            
-        # Check if there are fish resources
-        resources = self.world.resources.get_resources_at(longitude, latitude)
-        if not resources or ResourceType.FISH not in resources:
-            return False
-            
-        # Check weather conditions
-        weather = world_state["weather"]
-        if weather["type"] in ["storm", "hurricane"]:
-            return False
-            
-        return True
-
-    def fish(self, longitude: float, latitude: float, method: str = "net") -> Dict[ResourceType, float]:
-        """Attempt to fish at a location."""
+    def fish(self, longitude: float, latitude: float, method: str = "net") -> dict:
+        """Attempt to fish at a location, only if agent has discovered fishing."""
+        # Only allow fishing if agent has discovered fishing
+        if not self.has_discovered("fishing"):
+            if hasattr(self, 'logger'):
+                self.logger.info(f"Agent {getattr(self, 'id', '?')} tried to fish but hasn't discovered fishing.")
+            return {}
         if not self._can_fish(longitude, latitude):
             return {}
-            
-        # Get fishing zone
-        fishing_zone = self.world.resources.fishing_zones.get((longitude, latitude))
-        if not fishing_zone:
-            # Create new fishing zone
-            self.world.resources.create_fishing_zone(
-                (longitude, latitude),
-                intensity=self.fishing_skill,
-                method=method,
-                efficiency=self._get_method_efficiency(method)
-            )
-            fishing_zone = self.world.resources.fishing_zones[(longitude, latitude)]
-            
-        # Calculate catch
+        # Use MarineSystem for fish yield
+        marine = getattr(self.world, 'marine', None)
+        if not marine:
+            return {}
+        # Get fish yield from marine system
         time_delta = 1.0  # One hour of fishing
-        yield_dict = self.world.resources.get_fishing_yield((longitude, latitude), time_delta)
-        
+        fish_yield = marine.get_fishing_yield(longitude, latitude, time_delta) if hasattr(marine, 'get_fishing_yield') else {}
+        if not fish_yield:
+            return {}
+        # Add fish to inventory
+        fish_amount = fish_yield.get('fish', 0)
+        if fish_amount > 0:
+            self.inventory[FoodType.RAW_FISH.value] = self.inventory.get(FoodType.RAW_FISH.value, 0) + fish_amount
         # Record fishing activity
         self.fishing_history.append({
             "time": self.world.get_current_game_time(),
             "longitude": longitude,
             "latitude": latitude,
             "method": method,
+            "success": bool(fish_amount),
+            "yield": fish_yield
+        })
+        return fish_yield
+
+    def has_discovered(self, tech_name: str) -> bool:
+        """Check if agent has discovered a technology or skill."""
             "success": bool(yield_dict),
             "yield": yield_dict
         })
@@ -2046,9 +2035,9 @@ class Agent:
                 self.inventory["water"] += 0.2
                 
         # Update food resources
-        if "meat" in self.inventory:
+        if FoodType.RAW_MEAT.value in self.inventory:
             # Meat spoils over time
-            self.inventory["meat"] = max(0.0, self.inventory["meat"] - 0.01)
+            self.inventory[FoodType.RAW_MEAT.value] = max(0.0, self.inventory[FoodType.RAW_MEAT.value] - 0.01)
             
         # Update tool resources
         for tool_type, tool_data in self.tools.items():

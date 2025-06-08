@@ -194,7 +194,7 @@ class ResourceSystem:
             'fertility': 0.0
         })
         
-    def get_nearby_resources(self, longitude: float, latitude: float, radius: float) -> Dict[Tuple[float, float], Dict[ResourceType, float]]:
+    def get_nearby_resources(self, longitude: float, latitude: float, radius: float) -> Dict[str, Dict[ResourceType, float]]:
         """Get resources within radius of location"""
         nearby = {}
         for dlon in np.arange(-radius, radius + self.world.longitude_resolution, self.world.longitude_resolution):
@@ -203,7 +203,7 @@ class ResourceSystem:
                 check_lat = latitude + dlat
                 pos = (check_lon, check_lat)
                 if pos in self.resources:
-                    nearby[pos] = self.resources[pos]
+                    nearby[f"{check_lon},{check_lat}"] = self.resources[pos]
         return nearby
         
     def update_resources(self, lon: float, lat: float, resource_type: str, amount: float):
@@ -399,43 +399,41 @@ class ResourceSystem:
         chance = 0.01 + (agent_intelligence * 0.05)
         return random.random() < chance
         
-    def to_dict(self) -> Dict:
-        """Convert resource system state to dictionary"""
+    def to_dict(self):
+        """Convert resource system state to dictionary."""
         return {
             "resources": {
                 str(loc): {
-                    str(rtype): {
-                        "amount": r.amount,
-                        "quality": r.quality,
-                        "renewable": r.renewable,
-                        "regrowth_rate": r.regrowth_rate,
-                        "max_amount": r.max_amount
+                    str(resource_type): {
+                        "amount": resource.amount if hasattr(resource, 'amount') else resource.get('amount', 0.0),
+                        "type": resource_type
                     }
-                    for rtype, r in resources.items()
+                    for resource_type, resource in resources.items()
                 }
                 for loc, resources in self.resources.items()
-            },
-            "discovered_resources": [r.value for r in self.discovered_resources],
-            "fishing_zones": {
-                str(loc): data
-                for loc, data in self.fishing_zones.items()
             }
         }
         
     def update(self, time_delta: float) -> None:
-        """Update resource system state."""
-        # Update technology-based modifiers
-        self._update_tech_modifiers()
-        
+        """Update resource states based on time delta"""
         # Update resource regeneration
         for location, resources in self.resources.items():
             for resource_type, resource in resources.items():
-                if resource.renewable:
-                    regen_rate = self._get_regeneration_rate(resource_type)
-                    # Apply technology modifier to regeneration
-                    tech_modifier = self.tech_efficiency_modifiers.get('farming', 1.0)
-                    regen_amount = regen_rate * time_delta * tech_modifier
-                    resource.amount = min(resource.max_amount, resource.amount + regen_amount)
+                # Skip non-renewable resources
+                if not isinstance(resource, dict) or not resource.get('renewable', False):
+                    continue
+                    
+                # Calculate regeneration
+                regen_rate = self._get_regeneration_rate(resource_type)
+                max_amount = self._get_max_amount(resource_type)
+                current_amount = resource.get('amount', 0)
+                
+                # Regenerate resource
+                new_amount = min(
+                    current_amount + (regen_rate * time_delta),
+                    max_amount
+                )
+                resource['amount'] = new_amount
         
         # Update fishing zones
         for zone in self.fishing_zones.values():

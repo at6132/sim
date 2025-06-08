@@ -49,7 +49,9 @@ class Discovery:
     discovery_time: Optional[float] = None  # Time of discovery
 
 class DiscoverySystem:
-    def __init__(self):
+    def __init__(self, world):
+        """Initialize the discovery system."""
+        self.world = world
         self.discoveries: Dict[DiscoveryType, Discovery] = {}
         self.discovered: Set[DiscoveryType] = set()
         self._initialize_discoveries()
@@ -371,4 +373,24 @@ class DiscoverySystem:
                 for d_type, d in self.discoveries.items()
             },
             "discovered": [d.value for d in self.discovered]
+        }
+
+    def get_state(self) -> Dict:
+        """Get the current state of the discovery system for the web interface."""
+        return {
+            'discoveries': {
+                discovery_type.value: {
+                    'name': discovery.name,
+                    'description': discovery.description,
+                    'difficulty': discovery.difficulty,
+                    'impact': discovery.impact,
+                    'discovered': discovery_type in self.discovered,
+                    'discovered_by': discovery.discovered_by,
+                    'discovery_time': discovery.discovery_time,
+                    'prerequisites': [p.value for p in discovery.prerequisites]
+                }
+                for discovery_type, discovery in self.discoveries.items()
+            },
+            'discovered_count': len(self.discovered),
+            'total_discoveries': len(self.discoveries)
         } 

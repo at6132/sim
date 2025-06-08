@@ -355,29 +355,227 @@ class TechnologyTree:
 class TechnologySystem:
     def __init__(self, world):
         self.world = world
-        self.technology_tree = TechnologyTree()
-        self.innovations = {}
-        self.evolutions = {}
-        self.discovery_chance = 0.01
-        self.research_points = 0.0
-        self.last_update = time.time()
+        self.technologies = {
+            'mining': 1.0,
+            'farming': 1.0,
+            'hunting': 1.0,
+            'fishing': 1.0,
+            'construction': 1.0,
+            'medicine': 1.0,
+            'transportation': 1.0,
+            'communication': 1.0,
+            'weaponry': 1.0,
+            'defense': 1.0
+        }
+        self.research_progress = {tech: 0.0 for tech in self.technologies}
+        self.research_rate = 0.1  # Base research rate per tick
+        self.tech_level = 1.0  # Overall technology level
+        self.tech_tree = self._initialize_tech_tree()
+        self.discoveries = set()
+        self.inventions = set()
+        self.innovations = set()
+        self.tech_history = []
+        self.tech_events = []
+        self.tech_impact = {
+            'resource_gathering': 1.0,
+            'production_efficiency': 1.0,
+            'construction_speed': 1.0,
+            'movement_speed': 1.0,
+            'combat_power': 1.0,
+            'defense_strength': 1.0,
+            'healing_rate': 1.0,
+            'research_speed': 1.0
+        }
+
+    def get_tech_level(self, tech_type: str) -> float:
+        """Get the current level of a specific technology."""
+        return self.technologies.get(tech_type, 1.0)
+
+    def update(self, time_delta: float):
+        """Update technology system."""
+        # Update research progress
+        for tech in self.technologies:
+            if self._can_research(tech):
+                self.research_progress[tech] += self.research_rate * time_delta
+                if self.research_progress[tech] >= 1.0:
+                    self._advance_technology(tech)
+                    self.research_progress[tech] = 0.0
+
+        # Update overall tech level
+        self.tech_level = sum(self.technologies.values()) / len(self.technologies)
+
+        # Update tech impacts
+        self._update_tech_impacts()
+
+    def _can_research(self, tech: str) -> bool:
+        """Check if a technology can be researched based on prerequisites."""
+        if tech not in self.tech_tree:
+            return False
         
+        prereqs = self.tech_tree[tech].get('prerequisites', [])
+        return all(self.technologies[prereq] >= self.tech_tree[prereq]['level'] 
+                  for prereq in prereqs)
+
+    def _advance_technology(self, tech: str):
+        """Advance a technology to the next level."""
+        if tech not in self.technologies:
+            return
+
+        current_level = self.technologies[tech]
+        next_level = current_level + 0.1  # Increment by 0.1 levels
+        
+        # Check if we've reached a major milestone
+        if int(next_level) > int(current_level):
+            self._handle_tech_milestone(tech, int(next_level))
+        
+        self.technologies[tech] = next_level
+        self.tech_history.append({
+            'tech': tech,
+            'level': next_level,
+            'timestamp': self.world.game_time
+        })
+
+    def _handle_tech_milestone(self, tech: str, level: int):
+        """Handle reaching a technology milestone."""
+        milestone = f"{tech}_level_{level}"
+        if milestone not in self.discoveries:
+            self.discoveries.add(milestone)
+            self.tech_events.append({
+                'type': 'milestone',
+                'tech': tech,
+                'level': level,
+                'timestamp': self.world.game_time
+            })
+
+    def _update_tech_impacts(self):
+        """Update the impact of technologies on various systems."""
+        # Resource gathering efficiency
+        self.tech_impact['resource_gathering'] = (
+            self.technologies['mining'] * 0.3 +
+            self.technologies['farming'] * 0.3 +
+            self.technologies['hunting'] * 0.2 +
+            self.technologies['fishing'] * 0.2
+        )
+
+        # Production efficiency
+        self.tech_impact['production_efficiency'] = (
+            self.technologies['construction'] * 0.4 +
+            self.technologies['medicine'] * 0.2 +
+            self.technologies['transportation'] * 0.2 +
+            self.technologies['communication'] * 0.2
+        )
+
+        # Combat effectiveness
+        self.tech_impact['combat_power'] = (
+            self.technologies['weaponry'] * 0.6 +
+            self.technologies['defense'] * 0.4
+        )
+
+        # Movement and construction
+        self.tech_impact['movement_speed'] = (
+            self.technologies['transportation'] * 0.7 +
+            self.technologies['construction'] * 0.3
+        )
+
+        self.tech_impact['construction_speed'] = (
+            self.technologies['construction'] * 0.8 +
+            self.technologies['transportation'] * 0.2
+        )
+
+    def _initialize_tech_tree(self) -> Dict:
+        """Initialize the technology tree with prerequisites and effects."""
+        return {
+            'mining': {
+                'level': 1.0,
+                'prerequisites': [],
+                'effects': ['resource_gathering']
+            },
+            'farming': {
+                'level': 1.0,
+                'prerequisites': [],
+                'effects': ['resource_gathering', 'population_growth']
+            },
+            'hunting': {
+                'level': 1.0,
+                'prerequisites': [],
+                'effects': ['resource_gathering']
+            },
+            'fishing': {
+                'level': 1.0,
+                'prerequisites': [],
+                'effects': ['resource_gathering']
+            },
+            'construction': {
+                'level': 1.0,
+                'prerequisites': ['mining'],
+                'effects': ['building_quality', 'construction_speed']
+            },
+            'medicine': {
+                'level': 1.0,
+                'prerequisites': ['farming'],
+                'effects': ['health', 'population_growth']
+            },
+            'transportation': {
+                'level': 1.0,
+                'prerequisites': ['construction'],
+                'effects': ['movement_speed', 'trade_efficiency']
+            },
+            'communication': {
+                'level': 1.0,
+                'prerequisites': [],
+                'effects': ['research_speed', 'trade_efficiency']
+            },
+            'weaponry': {
+                'level': 1.0,
+                'prerequisites': ['mining'],
+                'effects': ['combat_power']
+            },
+            'defense': {
+                'level': 1.0,
+                'prerequisites': ['construction'],
+                'effects': ['defense_strength']
+            }
+        }
+
+    def to_dict(self) -> Dict:
+        """Convert technology system state to dictionary."""
+        return {
+            'technologies': self.technologies,
+            'research_progress': self.research_progress,
+            'tech_level': self.tech_level,
+            'discoveries': list(self.discoveries),
+            'inventions': list(self.inventions),
+            'innovations': list(self.innovations),
+            'tech_impact': self.tech_impact,
+            'tech_history': self.tech_history[-100:],  # Keep last 100 entries
+            'tech_events': self.tech_events[-100:]  # Keep last 100 events
+        }
+
     def initialize_technology(self):
         """Initialize the technology system."""
         logger.info("Initializing technology system...")
         
         # Initialize basic technologies
         logger.info("Setting up basic technologies...")
-        self.technology_tree._initialize_technologies()
+        self.tech_tree = self._initialize_tech_tree()
         
         # Initialize research queue
         logger.info("Initializing research queue...")
-        self.technology_tree.research_queue = []
+        self.research_progress = {tech: 0.0 for tech in self.technologies}
         
         # Initialize discovery tracking
         logger.info("Initializing discovery tracking...")
-        self.discovery_chance = 0.01
-        self.research_points = 0.0
+        self.tech_level = 1.0
+        self.tech_impact = {
+            'resource_gathering': 1.0,
+            'production_efficiency': 1.0,
+            'construction_speed': 1.0,
+            'movement_speed': 1.0,
+            'combat_power': 1.0,
+            'defense_strength': 1.0,
+            'healing_rate': 1.0,
+            'research_speed': 1.0
+        }
         
         # Verify initialization
         if not self.verify_initialization():
@@ -391,33 +589,28 @@ class TechnologySystem:
         logger.info("Verifying technology system initialization...")
         
         # Check technology tree
-        if not hasattr(self, 'technology_tree') or not self.technology_tree:
+        if not hasattr(self, 'tech_tree') or not self.tech_tree:
             logger.error("Technology tree not initialized")
             return False
             
-        # Check innovations
-        if not hasattr(self, 'innovations'):
-            logger.error("Innovations not initialized")
+        # Check research progress
+        if not hasattr(self, 'research_progress') or not self.research_progress:
+            logger.error("Research progress not initialized")
             return False
             
-        # Check evolutions
-        if not hasattr(self, 'evolutions'):
-            logger.error("Evolutions not initialized")
+        # Check tech level
+        if not hasattr(self, 'tech_level') or not self.tech_level:
+            logger.error("Technology level not initialized")
             return False
             
-        # Check research queue
-        if not hasattr(self.technology_tree, 'research_queue'):
-            logger.error("Research queue not initialized")
-            return False
-            
-        # Check discovery tracking
-        if not hasattr(self, 'discovery_chance') or not hasattr(self, 'research_points'):
-            logger.error("Discovery tracking not initialized")
+        # Check tech impact
+        if not hasattr(self, 'tech_impact') or not self.tech_impact:
+            logger.error("Technology impact not initialized")
             return False
             
         # Check required technology types
-        required_types = {'agriculture', 'construction', 'transportation', 'communication', 'medicine'}
-        if not all(tech_type in self.technology_tree.technologies for tech_type in required_types):
+        required_types = {'mining', 'farming', 'hunting', 'fishing', 'construction', 'medicine', 'transportation', 'communication', 'weaponry', 'defense'}
+        if not all(tech in self.technologies for tech in required_types):
             logger.error("Not all required technology types initialized")
             return False
             
@@ -427,30 +620,34 @@ class TechnologySystem:
     def get_state(self) -> Dict:
         """Get current technology state."""
         return {
-            "technology_tree": self.technology_tree.to_dict(),
-            "innovations": {id: innovation.to_dict() for id, innovation in self.innovations.items()},
-            "evolutions": {id: evolution.to_dict() for id, evolution in self.evolutions.items()},
-            "discovery_chance": self.discovery_chance,
-            "research_points": self.research_points
+            "technologies": self.technologies,
+            "research_progress": self.research_progress,
+            "tech_level": self.tech_level,
+            "tech_impact": self.tech_impact
         }
         
     def load_state(self, state: Dict):
         """Load technology system state."""
-        self.technology_tree = TechnologyTree()
-        self.technology_tree.technologies = state.get("technology_tree", {}).get("technologies", {})
-        self.technology_tree.discovered_technologies = set(state.get("technology_tree", {}).get("discovered_technologies", []))
-        self.technology_tree.research_queue = state.get("technology_tree", {}).get("research_queue", [])
-        self.innovations = state.get("innovations", {})
-        self.evolutions = state.get("evolutions", {})
-        self.discovery_chance = state.get("discovery_chance", 0.01)
-        self.research_points = state.get("research_points", 0.0)
-        self.last_update = state.get("last_update", time.time())
-        
-    def update(self, time_delta: float):
-        """Update technology system state."""
-        # Check for potential discoveries based on agent actions and environment
-        self._check_for_discoveries()
-        
+        self.technologies = state.get("technologies", {})
+        self.research_progress = state.get("research_progress", {})
+        self.tech_level = state.get("tech_level", 1.0)
+        self.tech_impact = state.get("tech_impact", {
+            'resource_gathering': 1.0,
+            'production_efficiency': 1.0,
+            'construction_speed': 1.0,
+            'movement_speed': 1.0,
+            'combat_power': 1.0,
+            'defense_strength': 1.0,
+            'healing_rate': 1.0,
+            'research_speed': 1.0
+        })
+        self.tech_tree = self._initialize_tech_tree()
+        self.discoveries = set(state.get("discoveries", []))
+        self.inventions = set(state.get("inventions", []))
+        self.innovations = set(state.get("innovations", []))
+        self.tech_history = state.get("tech_history", [])
+        self.tech_events = state.get("tech_events", [])
+
     def _check_for_discoveries(self):
         """Check for new technology discoveries based on agent actions and observations."""
         for agent in self.world.agents.values():
@@ -517,7 +714,7 @@ class TechnologySystem:
         description = self._generate_tech_description(tech_type, agent)
         
         # Create new technology
-        tech_id = f"tech_{len(self.technology_tree.technologies)}"
+        tech_id = f"tech_{len(self.tech_tree)}"
         new_tech = Technology(
             id=tech_id,
             name=name,
@@ -528,18 +725,13 @@ class TechnologySystem:
         )
         
         # Add to technologies
-        self.technology_tree.technologies[tech_id] = new_tech
+        self.tech_tree[tech_id] = new_tech
         
         # Mark as discovered
         new_tech.discovered = True
         
         # Log the discovery
-        self.discoveries.append({
-            "technology": tech_id,
-            "discoverer": agent.id,
-            "timestamp": datetime.now().isoformat(),
-            "novelty_score": novelty_score
-        })
+        self.discoveries.add(tech_id)
         
         logger.info(f"Novel technology discovered: {name} by agent {agent.id}")
         
@@ -593,8 +785,8 @@ class TechnologySystem:
             properties=properties or {}
         )
         
-        technology_id = f"technology_{len(self.technology_tree.technologies)}"
-        self.technology_tree.technologies[technology_id] = technology
+        technology_id = f"technology_{len(self.tech_tree)}"
+        self.tech_tree[technology_id] = technology
         logger.info(f"Created new technology: {name} of type {type}")
         return technology
         
@@ -609,7 +801,7 @@ class TechnologySystem:
         )
         
         innovation_id = f"innovation_{len(self.innovations)}"
-        self.innovations[innovation_id] = innovation
+        self.innovations.add(innovation_id)
         logger.info(f"Created new innovation: {name} of type {type}")
         return innovation
         
@@ -627,53 +819,44 @@ class TechnologySystem:
         )
         
         evolution_id = f"evolution_{len(self.evolutions)}"
-        self.evolutions[evolution_id] = evolution
+        self.evolutions.add(evolution_id)
         logger.info(f"Created new technological evolution of type {type}")
         return evolution
         
     def add_capability_to_technology(self, technology: str, capability: Dict[str, Any]) -> bool:
         """Add capability to a technology."""
-        if technology not in self.technology_tree.technologies:
+        if technology not in self.tech_tree:
             logger.error(f"Technology {technology} does not exist")
             return False
             
-        self.technology_tree.technologies[technology].capabilities.update(capability)
+        self.tech_tree[technology].capabilities.update(capability)
         logger.info(f"Added capability to technology {technology}")
         return True
         
-    def to_dict(self) -> Dict:
-        """Convert technology system state to dictionary for serialization."""
-        return {
-            "technology_tree": self.technology_tree.to_dict(),
-            "innovations": self.innovations,
-            "evolutions": self.evolutions,
-            "discoveries": self.discoveries
-        }
-
     def attempt_discovery(self, tech_type: str, agent):
         """Attempt to discover a new technology based on agent's recent actions and observations."""
         # Check if the technology is already discovered
-        if tech_type in self.technology_tree.technologies and self.technology_tree.technologies[tech_type].discovered:
+        if tech_type in self.tech_tree and self.tech_tree[tech_type].discovered:
             logger.warning(f"Technology {tech_type} already discovered")
             return
             
         # Check if the technology is in the research queue
-        if tech_type in self.technology_tree.technologies and tech_type in self.technology_tree.research_queue:
+        if tech_type in self.tech_tree and tech_type in self.research_queue:
             logger.warning(f"Technology {tech_type} already in research queue")
             return
             
         # Check if the technology is in the available technologies list
-        if tech_type in self.technology_tree.technologies and self.technology_tree.technologies[tech_type] in self.technology_tree.get_available_technologies():
+        if tech_type in self.tech_tree and self.tech_tree[tech_type] in self.get_available_technologies():
             logger.warning(f"Technology {tech_type} already available for research")
             return
             
         # Check if the technology is in the discovered technologies set
-        if tech_type in self.technology_tree.technologies and tech_type in self.technology_tree.discovered_technologies:
+        if tech_type in self.tech_tree and tech_type in self.discoveries:
             logger.warning(f"Technology {tech_type} already discovered")
             return
             
         # Check if the technology is in the technology tree
-        if tech_type in self.technology_tree.technologies:
+        if tech_type in self.tech_tree:
             logger.warning(f"Technology {tech_type} already exists in technology tree")
             return
             
@@ -740,12 +923,7 @@ class TechnologySystem:
         agent.discovered_concepts.add(tech_type)
         
         # Log the discovery
-        self.discoveries.append({
-            "type": "technology",
-            "name": tech_type,
-            "agent_id": agent.id,
-            "timestamp": datetime.now().isoformat()
-        })
+        self.discoveries.add(tech_type)
         
         logger.info(f"Agent {agent.id} discovered {tech_type}!")
 
@@ -858,15 +1036,9 @@ class TechnologySystem:
         agent.discovered_concepts.add(tech_type)
         
         # Log the novel discovery
-        self.discoveries.append({
-            'type': 'novel_technology',
-            'name': tech_name,
-            'agent_id': agent_id,
-            'context': experience,
-            'timestamp': time.time()
-        })
+        self.discoveries.add(tech_type)
         
-        self.logger.info(f"Agent {agent_id} made a novel discovery: {tech_name}!")
+        logger.info(f"Agent {agent_id} made a novel discovery: {tech_name}!")
         
     def _generate_novel_tech_type(self, experience: Dict) -> str:
         """Generate a novel technology type based on the experience."""

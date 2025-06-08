@@ -399,7 +399,7 @@ class HealthSystem:
             
             # Update timestamp
             condition.last_update = time.time()
-
+            
     def _update_treatments(self, time_delta: float):
         """Update treatments over time."""
         for treatment_id, treatment in self.treatments.items():
@@ -423,7 +423,7 @@ class HealthSystem:
             
             # Update timestamp
             treatment.last_used = time.time()
-
+            
     def _check_health_events(self, time_delta: float):
         """Check for health-related events."""
         # Check for disease outbreaks
