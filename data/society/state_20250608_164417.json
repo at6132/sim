@@ -1,0 +1,154 @@
+{
+  "tribes": {
+    "tribe_1": {
+      "name": "Northern Hunters",
+      "population": 118.13440070188892,
+      "territory": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "culture": "hunter_gatherer",
+      "resources": {
+        "food": 21.722362434438228,
+        "tools": 14.329829910734698
+      }
+    },
+    "tribe_2": {
+      "name": "River Farmers",
+      "population": 177.2016010528331,
+      "territory": [
+        [
+          2,
+          2
+        ],
+        [
+          3,
+          3
+        ]
+      ],
+      "culture": "agricultural",
+      "resources": {
+        "food": 43.444724868876456,
+        "tools": 21.494744866102042
+      }
+    }
+  },
+  "religions": {
+    "religion_1": {
+      "name": "Nature Worship",
+      "followers": 86.95202206121174,
+      "beliefs": [
+        "animism",
+        "nature_spirits"
+      ],
+      "practices": [
+        "seasonal_rituals",
+        "sacred_sites"
+      ]
+    },
+    "religion_2": {
+      "name": "Ancestor Worship",
+      "followers": 130.42803309181778,
+      "beliefs": [
+        "ancestral_spirits",
+        "reincarnation"
+      ],
+      "practices": [
+        "ancestral_offerings",
+        "lineage_tracking"
+      ]
+    }
+  },
+  "languages": {
+    "lang_1": {
+      "name": "Northern Tongue",
+      "speakers": 90,
+      "vocabulary": {
+        "basic": 103.38945391403223,
+        "advanced": 51.694726957016115
+      },
+      "dialects": [
+        "north",
+        "south"
+      ]
+    },
+    "lang_2": {
+      "name": "River Speech",
+      "speakers": 110,
+      "vocabulary": {
+        "basic": 124.06734469683829,
+        "advanced": 62.033672348419145
+      },
+      "dialects": [
+        "east",
+        "west"
+      ]
+    }
+  },
+  "settlements": {
+    "settlement_1": {
+      "name": "Northern Camp",
+      "population": 59.06720035094446,
+      "location": [
+        0,
+        0
+      ],
+      "type": "hunting_camp",
+      "resources": {
+        "shelter": 14.329829910734698,
+        "food": 13.033417460662958
+      }
+    },
+    "settlement_2": {
+      "name": "River Village",
+      "population": 88.60080052641655,
+      "location": [
+        2,
+        2
+      ],
+      "type": "farming_village",
+      "resources": {
+        "shelter": 21.494744866102042,
+        "food": 21.722362434438228
+      }
+    }
+  },
+  "social_groups": {
+    "group_1": {
+      "name": "Hunters Guild",
+      "members": 32.607008272954445,
+      "purpose": "hunting",
+      "influence": 0.6166666666666648
+    },
+    "group_2": {
+      "name": "Farmers Collective",
+      "members": 48.91051240943169,
+      "purpose": "farming",
+      "influence": 0.7166666666666648
+    }
+  },
+  "cultural_traits": {
+    "trait_1": {
+      "name": "Seasonal Migration",
+      "prevalence": 0.8166666666666649,
+      "impact": {
+        "mobility": 0.7,
+        "stability": 0.3
+      }
+    },
+    "trait_2": {
+      "name": "Agricultural Innovation",
+      "prevalence": 0.6166666666666648,
+      "impact": {
+        "productivity": 0.8,
+        "stability": 0.6
+      }
+    }
+  }
+}
