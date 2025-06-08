@@ -24,7 +24,7 @@ from .transportation import TransportationSystem, TransportationType
 from .discovery import DiscoverySystem, Discovery
 from .agents import AgentSystem, Agent
 from .biology import BiologicalSystem
-from .weather import WeatherSystem, WeatherType, WeatherState, Weather
+from .weather import WeatherSystem, WeatherType, WeatherState
 from .llm import AgentCognition
 from .marine import MarineSystem, Marine
 
@@ -1592,7 +1592,7 @@ class World:
             }
         }
 
-    def _get_weather_state(self, weather: Weather) -> Dict:
+    def _get_weather_state(self, weather: Dict) -> Dict:
         """Get current state of weather for the frontend."""
         return {
             "type": weather.type.value,
@@ -1607,7 +1607,7 @@ class World:
             "position": [float(weather.position[0]), float(weather.position[1])]
         }
 
-    def _get_climate_state(self, climate: Climate) -> Dict:
+    def _get_climate_state(self, climate: Dict) -> Dict:
         """Get current state of climate for the frontend."""
         return {
             "type": climate.type.value,
@@ -1621,7 +1621,7 @@ class World:
             "position": [float(climate.position[0]), float(climate.position[1])]
         }
 
-    def _get_terrain_state(self, terrain: Terrain) -> Dict:
+    def _get_terrain_state(self, terrain: Dict) -> Dict:
         """Get current state of terrain for the frontend."""
         return {
             "type": terrain.type.value,
@@ -1635,7 +1635,7 @@ class World:
             "position": [float(terrain.position[0]), float(terrain.position[1])]
         }
 
-    def _get_resource_state(self, resource: Resource) -> Dict:
+    def _get_resource_state(self, resource: Dict) -> Dict:
         """Get current state of resource for the frontend."""
         return {
             "type": resource.type.value,
@@ -1644,7 +1644,7 @@ class World:
             "position": [float(resource.position[0]), float(resource.position[1])]
         }
 
-    def _get_society_state(self, society: Society) -> Dict:
+    def _get_society_state(self, society: Dict) -> Dict:
         """Get current state of society for the frontend."""
         return {
             "name": society.name,
@@ -1664,7 +1664,7 @@ class World:
             "position": [float(society.position[0]), float(society.position[1])]
         }
 
-    def _get_transportation_state(self, transportation: Transportation) -> Dict:
+    def _get_transportation_state(self, transportation: Dict) -> Dict:
         """Get current state of transportation for the frontend."""
         return {
             "type": transportation.type.value,
@@ -1676,7 +1676,7 @@ class World:
             "position": [float(transportation.position[0]), float(transportation.position[1])]
         }
 
-    def _get_technology_state(self, technology: Technology) -> Dict:
+    def _get_technology_state(self, technology: Dict) -> Dict:
         """Get current state of technology for the frontend."""
         return {
             "type": technology.type.value,
@@ -1687,7 +1687,7 @@ class World:
             "position": [float(technology.position[0]), float(technology.position[1])]
         }
 
-    def _get_discovery_state(self, discovery: Discovery) -> Dict:
+    def _get_discovery_state(self, discovery: Dict) -> Dict:
         """Get current state of discovery for the frontend."""
         return {
             "type": discovery.type.value,
@@ -1697,7 +1697,7 @@ class World:
             "position": [float(discovery.position[0]), float(discovery.position[1])]
         }
 
-    def _get_environment_state(self, environment: Environment) -> Dict:
+    def _get_environment_state(self, environment: Dict) -> Dict:
         """Get current state of environment for the frontend."""
         return {
             "type": environment.type.value,

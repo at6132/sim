@@ -234,6 +234,83 @@ class AnimalSystem:
             'social_groups': self.social_groups
         }
 
+    def update(self, time_delta: float):
+        """Update the animal system state."""
+        # Get current environment state
+        environment = {
+            'temperature': getattr(self.world.climate, 'temperature', 20.0),
+            'vegetation': 0.5,  # Default vegetation level
+            'weather': getattr(self.world.weather, 'state', 'clear')
+        }
+        
+        # Update all animals
+        for animal_id, animal in list(self.animals.items()):
+            # Update age
+            animal['state']['age'] += time_delta / (365 * 24 * 60)  # Convert minutes to years
+            
+            # Update needs
+            self._update_animal_needs(animal, time_delta)
+            
+            # Update position
+            self._move_animal(animal_id, animal, animal['type'])
+            
+            # Check for death
+            if self._should_die(animal):
+                self._remove_animal(animal_id, animal['type'])
+                continue
+            
+            # Check for reproduction
+            if self._can_reproduce(animal):
+                self._reproduce_animal(animal_id, animal, animal['type'])
+        
+        # Update populations
+        self._update_populations(time_delta, environment)
+        
+        # Update behaviors
+        self._update_behaviors(time_delta)
+        
+        # Update interactions
+        self._update_interactions(time_delta)
+        
+        # Update habitats
+        self._update_habitats(time_delta, environment)
+        
+        # Record events
+        self._record_events()
+
+    def _update_animal_needs(self, animal: Dict, time_delta: float):
+        """Update an animal's needs over time."""
+        # Decrease hunger
+        animal['needs']['hunger'] = max(0.0, animal['needs']['hunger'] - 0.1 * time_delta)
+        
+        # Decrease thirst
+        animal['needs']['thirst'] = max(0.0, animal['needs']['thirst'] - 0.15 * time_delta)
+        
+        # Decrease energy
+        animal['needs']['energy'] = max(0.0, animal['needs']['energy'] - 0.05 * time_delta)
+        
+        # Update health based on needs
+        if animal['needs']['hunger'] < 20 or animal['needs']['thirst'] < 20:
+            animal['needs']['health'] = max(0.0, animal['needs']['health'] - 0.2 * time_delta)
+        
+        # Increase reproduction urge if mature
+        if animal['state']['age'] > animal['state']['maturity_age']:
+            animal['needs']['reproduction_urge'] = min(100.0, 
+                animal['needs']['reproduction_urge'] + 0.1 * time_delta)
+
+    def _should_die(self, animal: Dict) -> bool:
+        """Check if an animal should die."""
+        return (animal['needs']['health'] <= 0.0 or 
+                animal['state']['age'] >= animal['state']['lifespan'])
+
+    def _can_reproduce(self, animal: Dict) -> bool:
+        """Check if an animal can reproduce."""
+        return (animal['needs']['health'] > 70.0 and 
+                animal['needs']['energy'] > 50.0 and 
+                animal['needs']['reproduction_urge'] > 80.0 and 
+                animal['state']['age'] > animal['state']['maturity_age'] and
+                animal['reproduction_cooldown'] <= 0)
+
     def _initialize_animal_types(self):
         """Initialize animal types and their properties."""
         # Initialize traits for different animal types
@@ -423,18 +500,18 @@ class AnimalSystem:
             # Update health based on food availability
             food_availability = environment.get("vegetation", 0.5)
             health_change = (food_availability - 0.5) * time_delta
-            animal["health"] = max(0.0, min(1.0, animal["health"] + health_change))
+            animal["needs"]["health"] = max(0.0, min(100.0, animal["needs"]["health"] + health_change * 10))
             
             # Update position based on behavior
-            if animal["health"] > 0.3:
+            if animal["needs"]["health"] > 30.0:
                 self._move_animal(animal_id, animal, "herbivore")
             
             # Check for reproduction
-            if animal["health"] > 0.7 and animal["age"] > 2.0:
+            if animal["needs"]["health"] > 70.0 and animal["state"]["age"] > 2.0:
                 self._reproduce_animal(animal_id, animal, "herbivore")
             
             # Check for death
-            if animal["health"] < 0.1 or animal["age"] > 10.0:
+            if animal["needs"]["health"] < 10.0 or animal["state"]["age"] > 10.0:
                 self._remove_animal(animal_id, "herbivore")
     
     def _update_carnivores(self, time_delta: float, environment: Dict):
@@ -445,18 +522,18 @@ class AnimalSystem:
             # Update health based on prey availability
             prey_availability = len(self.herbivores) / 100.0
             health_change = (prey_availability - 0.5) * time_delta
-            animal["health"] = max(0.0, min(1.0, animal["health"] + health_change))
+            animal["needs"]["health"] = max(0.0, min(100.0, animal["needs"]["health"] + health_change * 10))
             
             # Update position based on behavior
-            if animal["health"] > 0.3:
+            if animal["needs"]["health"] > 30.0:
                 self._move_animal(animal_id, animal, "carnivore")
             
             # Check for reproduction
-            if animal["health"] > 0.7 and animal["age"] > 3.0:
+            if animal["needs"]["health"] > 70.0 and animal["state"]["age"] > 3.0:
                 self._reproduce_animal(animal_id, animal, "carnivore")
             
             # Check for death
-            if animal["health"] < 0.1 or animal["age"] > 8.0:
+            if animal["needs"]["health"] < 10.0 or animal["state"]["age"] > 8.0:
                 self._remove_animal(animal_id, "carnivore")
     
     def _update_omnivores(self, time_delta: float, environment: Dict):
@@ -468,18 +545,18 @@ class AnimalSystem:
             food_availability = (environment.get("vegetation", 0.5) + 
                                len(self.herbivores) / 100.0) / 2
             health_change = (food_availability - 0.5) * time_delta
-            animal["health"] = max(0.0, min(1.0, animal["health"] + health_change))
+            animal["needs"]["health"] = max(0.0, min(100.0, animal["needs"]["health"] + health_change * 10))
             
             # Update position based on behavior
-            if animal["health"] > 0.3:
+            if animal["needs"]["health"] > 30.0:
                 self._move_animal(animal_id, animal, "omnivore")
             
             # Check for reproduction
-            if animal["health"] > 0.7 and animal["age"] > 2.5:
+            if animal["needs"]["health"] > 70.0 and animal["state"]["age"] > 2.5:
                 self._reproduce_animal(animal_id, animal, "omnivore")
             
             # Check for death
-            if animal["health"] < 0.1 or animal["age"] > 9.0:
+            if animal["needs"]["health"] < 10.0 or animal["state"]["age"] > 9.0:
                 self._remove_animal(animal_id, "omnivore")
     
     def _update_domesticated(self, time_delta: float, environment: Dict):
@@ -490,18 +567,18 @@ class AnimalSystem:
             # Update health based on care
             care_quality = animal.get("care_quality", 0.5)
             health_change = (care_quality - 0.5) * time_delta
-            animal["health"] = max(0.0, min(1.0, animal["health"] + health_change))
+            animal["needs"]["health"] = max(0.0, min(100.0, animal["needs"]["health"] + health_change * 10))
             
             # Update position based on behavior
-            if animal["health"] > 0.3:
+            if animal["needs"]["health"] > 30.0:
                 self._move_animal(animal_id, animal, "domesticated")
             
             # Check for reproduction
-            if animal["health"] > 0.7 and animal["age"] > 2.0:
+            if animal["needs"]["health"] > 70.0 and animal["state"]["age"] > 2.0:
                 self._reproduce_animal(animal_id, animal, "domesticated")
             
             # Check for death
-            if animal["health"] < 0.1 or animal["age"] > 12.0:
+            if animal["needs"]["health"] < 10.0 or animal["state"]["age"] > 12.0:
                 self._remove_animal(animal_id, "domesticated")
     
     def _move_animal(self, animal_id: str, animal: Dict, animal_type: str):
@@ -597,7 +674,7 @@ class AnimalSystem:
         terrain_cost = terrain_costs.get(terrain_type, 1.0)
         
         # Apply animal-specific terrain modifier
-        animal_type = animal['type'].value
+        animal_type = animal['type']
         terrain_modifier = animal_terrain_modifiers.get(animal_type, {}).get(terrain_type, 1.0)
         
         # Slope cost (0-1 scale)
@@ -631,7 +708,7 @@ class AnimalSystem:
             "GOAT": {"OCEAN", "LAKE", "RIVER"}
         }
         
-        animal_type = animal['type'].value
+        animal_type = animal['type']
         return terrain_type not in impassable_terrain.get(animal_type, {"OCEAN", "LAKE"})
     
     def _reproduce_animal(self, animal_id: str, animal: Dict, animal_type: str):
@@ -736,7 +813,7 @@ class AnimalSystem:
                 if self._can_catch_prey(predator, prey):
                     # Predator catches prey
                     self._remove_animal(prey_id, "herbivore")
-                    predator["health"] = min(1.0, predator["health"] + 0.3)
+                    predator["needs"]["health"] = min(100.0, predator["needs"]["health"] + 0.3)
     
     def _can_catch_prey(self, predator: Dict, prey: Dict) -> bool:
         """Check if predator can catch prey"""
@@ -762,8 +839,8 @@ class AnimalSystem:
                 animal2 = self.herbivores[animal2_id]
                 
                 # Both animals benefit
-                animal1["health"] = min(1.0, animal1["health"] + 0.01 * time_delta)
-                animal2["health"] = min(1.0, animal2["health"] + 0.01 * time_delta)
+                animal1["needs"]["health"] = min(100.0, animal1["needs"]["health"] + 0.01 * time_delta)
+                animal2["needs"]["health"] = min(100.0, animal2["needs"]["health"] + 0.01 * time_delta)
     
     def _update_competition(self, time_delta: float):
         """Update competitive relationships"""
@@ -773,8 +850,8 @@ class AnimalSystem:
                 animal2 = self.herbivores[animal2_id]
                 
                 # Both animals lose health
-                animal1["health"] = max(0.0, animal1["health"] - 0.01 * time_delta)
-                animal2["health"] = max(0.0, animal2["health"] - 0.01 * time_delta)
+                animal1["needs"]["health"] = max(0.0, animal1["needs"]["health"] - 0.01 * time_delta)
+                animal2["needs"]["health"] = max(0.0, animal2["needs"]["health"] - 0.01 * time_delta)
     
     def _update_habitats(self, time_delta: float, environment: Dict):
         """Update animal habitats"""

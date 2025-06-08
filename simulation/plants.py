@@ -1,4 +1,4 @@
-python start_simulation.pyfrom enum import Enum
+from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 import random
@@ -216,6 +216,309 @@ class PlantSystem:
                     'berries': 15.0,
                     'biomass': 10.0,
                     'seeds': 5.0
+                }
+            },
+            'FLOWER': {
+                'name': 'Flower',
+                'growth_rate': 0.25,
+                'water_need': 0.5,
+                'nutrient_need': 0.5,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.3,
+                    'young': 0.5,
+                    'mature': 0.7,
+                    'old': 1.0
+                },
+                'maturity_age': 30,
+                'lifespan': 60,
+                'reproduction_rate': 0.4,
+                'spread_rate': 0.3,
+                'biomass': 5.0,
+                'carbon_sequestration': 0.1,
+                'oxygen_production': 0.15,
+                'soil_stabilization': 0.2,
+                'habitat_value': 0.4,
+                'resource_production': {
+                    'nectar': 5.0,
+                    'seeds': 3.0
+                }
+            },
+            'WHEAT': {
+                'name': 'Wheat',
+                'growth_rate': 0.3,
+                'water_need': 0.6,
+                'nutrient_need': 0.7,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.2,
+                    'vegetative': 0.4,
+                    'flowering': 0.6,
+                    'mature': 0.8,
+                    'harvestable': 1.0
+                },
+                'maturity_age': 120,
+                'lifespan': 150,
+                'reproduction_rate': 0.0,
+                'spread_rate': 0.0,
+                'biomass': 8.0,
+                'carbon_sequestration': 0.15,
+                'oxygen_production': 0.2,
+                'soil_stabilization': 0.3,
+                'habitat_value': 0.2,
+                'resource_production': {
+                    'grain': 25.0,
+                    'straw': 10.0
+                },
+                'yield': 25.0
+            },
+            'CORN': {
+                'name': 'Corn',
+                'growth_rate': 0.25,
+                'water_need': 0.7,
+                'nutrient_need': 0.8,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.15,
+                    'vegetative': 0.35,
+                    'flowering': 0.6,
+                    'mature': 0.8,
+                    'harvestable': 1.0
+                },
+                'maturity_age': 100,
+                'lifespan': 120,
+                'reproduction_rate': 0.0,
+                'spread_rate': 0.0,
+                'biomass': 12.0,
+                'carbon_sequestration': 0.2,
+                'oxygen_production': 0.25,
+                'soil_stabilization': 0.25,
+                'habitat_value': 0.3,
+                'resource_production': {
+                    'corn': 30.0,
+                    'biomass': 15.0
+                },
+                'yield': 30.0
+            },
+            'RICE': {
+                'name': 'Rice',
+                'growth_rate': 0.3,
+                'water_need': 0.9,
+                'nutrient_need': 0.6,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.2,
+                    'vegetative': 0.4,
+                    'flowering': 0.6,
+                    'mature': 0.8,
+                    'harvestable': 1.0
+                },
+                'maturity_age': 130,
+                'lifespan': 150,
+                'reproduction_rate': 0.0,
+                'spread_rate': 0.0,
+                'biomass': 6.0,
+                'carbon_sequestration': 0.1,
+                'oxygen_production': 0.15,
+                'soil_stabilization': 0.4,
+                'habitat_value': 0.3,
+                'resource_production': {
+                    'grain': 20.0,
+                    'straw': 8.0
+                },
+                'yield': 20.0
+            },
+            'POTATO': {
+                'name': 'Potato',
+                'growth_rate': 0.2,
+                'water_need': 0.7,
+                'nutrient_need': 0.8,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.2,
+                    'vegetative': 0.5,
+                    'mature': 0.8,
+                    'harvestable': 1.0
+                },
+                'maturity_age': 90,
+                'lifespan': 100,
+                'reproduction_rate': 0.0,
+                'spread_rate': 0.0,
+                'biomass': 10.0,
+                'carbon_sequestration': 0.1,
+                'oxygen_production': 0.15,
+                'soil_stabilization': 0.2,
+                'habitat_value': 0.1,
+                'resource_production': {
+                    'potato': 35.0,
+                    'biomass': 5.0
+                },
+                'yield': 35.0
+            },
+            'CARROT': {
+                'name': 'Carrot',
+                'growth_rate': 0.25,
+                'water_need': 0.6,
+                'nutrient_need': 0.6,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.25,
+                    'vegetative': 0.6,
+                    'mature': 0.85,
+                    'harvestable': 1.0
+                },
+                'maturity_age': 70,
+                'lifespan': 80,
+                'reproduction_rate': 0.0,
+                'spread_rate': 0.0,
+                'biomass': 4.0,
+                'carbon_sequestration': 0.05,
+                'oxygen_production': 0.1,
+                'soil_stabilization': 0.15,
+                'habitat_value': 0.1,
+                'resource_production': {
+                    'carrot': 15.0,
+                    'biomass': 2.0
+                },
+                'yield': 15.0
+            },
+            'TOMATO': {
+                'name': 'Tomato',
+                'growth_rate': 0.3,
+                'water_need': 0.7,
+                'nutrient_need': 0.7,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.15,
+                    'vegetative': 0.4,
+                    'flowering': 0.6,
+                    'mature': 0.8,
+                    'harvestable': 1.0
+                },
+                'maturity_age': 80,
+                'lifespan': 150,
+                'reproduction_rate': 0.0,
+                'spread_rate': 0.0,
+                'biomass': 8.0,
+                'carbon_sequestration': 0.1,
+                'oxygen_production': 0.2,
+                'soil_stabilization': 0.1,
+                'habitat_value': 0.2,
+                'resource_production': {
+                    'tomato': 25.0,
+                    'biomass': 5.0
+                },
+                'yield': 25.0
+            },
+            'UNDERGROWTH': {
+                'name': 'Undergrowth',
+                'growth_rate': 0.2,
+                'water_need': 0.5,
+                'nutrient_need': 0.4,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.3,
+                    'young': 0.6,
+                    'mature': 0.85,
+                    'old': 1.0
+                },
+                'maturity_age': 30,
+                'lifespan': 80,
+                'reproduction_rate': 0.25,
+                'spread_rate': 0.15,
+                'biomass': 15.0,
+                'carbon_sequestration': 0.15,
+                'oxygen_production': 0.15,
+                'soil_stabilization': 0.4,
+                'habitat_value': 0.6,
+                'resource_production': {
+                    'biomass': 8.0,
+                    'seeds': 3.0
+                }
+            },
+            'CACTUS': {
+                'name': 'Cactus',
+                'growth_rate': 0.05,
+                'water_need': 0.1,
+                'nutrient_need': 0.2,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.1,
+                    'young': 0.3,
+                    'mature': 0.7,
+                    'old': 1.0
+                },
+                'maturity_age': 200,
+                'lifespan': 500,
+                'reproduction_rate': 0.05,
+                'spread_rate': 0.02,
+                'biomass': 20.0,
+                'carbon_sequestration': 0.1,
+                'oxygen_production': 0.1,
+                'soil_stabilization': 0.3,
+                'habitat_value': 0.4,
+                'resource_production': {
+                    'water': 5.0,
+                    'fruit': 3.0
+                },
+                'yield': 3.0
+            },
+            'MOSS': {
+                'name': 'Moss',
+                'growth_rate': 0.1,
+                'water_need': 0.8,
+                'nutrient_need': 0.3,
+                'health': 1.0,
+                'growth_stages': {
+                    'spore': 0.0,
+                    'young': 0.4,
+                    'mature': 0.8,
+                    'old': 1.0
+                },
+                'maturity_age': 50,
+                'lifespan': 150,
+                'reproduction_rate': 0.3,
+                'spread_rate': 0.25,
+                'biomass': 3.0,
+                'carbon_sequestration': 0.05,
+                'oxygen_production': 0.05,
+                'soil_stabilization': 0.5,
+                'habitat_value': 0.3,
+                'resource_production': {
+                    'biomass': 1.0
+                }
+            },
+            'LICHEN': {
+                'name': 'Lichen',
+                'growth_rate': 0.02,
+                'water_need': 0.3,
+                'nutrient_need': 0.1,
+                'health': 1.0,
+                'growth_stages': {
+                    'initial': 0.0,
+                    'growing': 0.5,
+                    'mature': 1.0
+                },
+                'maturity_age': 500,
+                'lifespan': 1000,
+                'reproduction_rate': 0.1,
+                'spread_rate': 0.05,
+                'biomass': 1.0,
+                'carbon_sequestration': 0.02,
+                'oxygen_production': 0.02,
+                'soil_stabilization': 0.2,
+                'habitat_value': 0.2,
+                'resource_production': {
+                    'biomass': 0.5
                 }
             }
         }

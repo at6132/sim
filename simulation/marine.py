@@ -49,6 +49,7 @@ class MarineNeeds:
 @dataclass
 class MarineState:
     is_sick: bool = False
+    is_female: bool = True  # Gender of the marine creature
     disease_resistance: float = 100.0  # 0-100, affected by health and age
     pregnancy_progress: float = 0.0  # 0-100, for pregnant animals
     age: float = 0.0  # in years
@@ -159,7 +160,7 @@ class MarineSystem:
         """Generate a unique ID for a new marine creature."""
         # Get the list of marine life of this type
         marine_list = {id: marine for id, marine in self.marine_life.items() 
-                      if marine['type'].startswith(marine_type)}
+                      if marine.type.value.startswith(marine_type)}
         # Generate ID with type and count
         new_marine_id = f"{marine_type}_{len(marine_list) + 1}"
         return new_marine_id
@@ -271,6 +272,7 @@ class MarineSystem:
             ),
             state=MarineState(
                 is_sick=False,
+                is_female=is_female,
                 disease_resistance=100.0,
                 pregnancy_progress=0.0,
                 age=0.0,
