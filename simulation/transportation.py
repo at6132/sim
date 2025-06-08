@@ -62,6 +62,7 @@ class TransportationSystem:
         self.paths = {}  # path_id -> path_data
         self.vehicles = {}  # vehicle_id -> vehicle_data
         self.transport_routes = {}  # route_id -> route_data
+        self.ports = {}  # port_id -> port_data
         
         self.logger.info("Transportation system initialized")
     
@@ -262,12 +263,12 @@ class TransportationSystem:
             route['frequency'] = min(5.0, route['frequency'] + demand_change)
     
     def get_state(self) -> Dict:
-        """Get the current state of the transportation system."""
+        """Get current transportation system state."""
         return {
+            'routes': self.transport_routes,
             'roads': self.roads,
-            'paths': self.paths,
             'vehicles': self.vehicles,
-            'transport_routes': self.transport_routes
+            'ports': self.ports if hasattr(self, 'ports') else {}
         }
 
     def verify_initialization(self) -> bool:
@@ -648,9 +649,10 @@ class TransportationSystem:
     def get_state(self) -> Dict:
         """Get current transportation system state."""
         return {
-            "paths": self.paths,
-            "trade_routes": self.trade_routes,
-            "transport_networks": self.transport_networks
+            'routes': self.transport_routes,
+            'roads': self.roads,
+            'ports': self.ports,
+            'vehicles': self.vehicles
         }
 
     def _initialize_technology_tree(self) -> Dict[TransportationType, List[TransportationType]]:
@@ -1048,7 +1050,7 @@ class TransportationSystem:
     def get_state(self) -> Dict:
         """Get current transportation system state."""
         return {
-            'routes': self.routes,
+            'routes': self.transport_routes,
             'roads': self.roads,
             'ports': self.ports,
             'vehicles': self.vehicles
@@ -1057,7 +1059,7 @@ class TransportationSystem:
     def _initialize_paths(self):
         """Initialize transportation paths between settlements."""
         self.logger.info("Initializing transportation paths...")
-
+        
         for settlement_id, settlement in self.world.settlements.items():
             lon, lat = settlement.get("location", (
                 settlement.get("longitude"), settlement.get("latitude")
@@ -1074,9 +1076,9 @@ class TransportationSystem:
                     )
                     if path:
                         self.paths[path_id] = path
-
+                        
         self.logger.info("Transportation paths initialization complete")
-
+        
     def _find_nearest_settlements(self, sid: str, lon: float, lat: float, max_distance: float) -> List[Tuple[str, Tuple[float, float]]]:
         """Find nearest settlements within max_distance."""
         nearest = []
@@ -1089,13 +1091,13 @@ class TransportationSystem:
                 if distance <= max_distance:
                     nearest.append((other_id, (o_lon, o_lat)))
         return nearest
-
+        
     def _create_path(self, start_id: str, start_lon: float, start_lat: float, end_id: str, end_lon: float, end_lat: float) -> Optional[Dict]:
         """Create a path between two settlements."""
         path = self._find_land_path((start_lon, start_lat), (end_lon, end_lat))
         if not path:
             return None
-
+            
         return {
             "id": f"path_{start_id}_{end_id}",
             "start": start_id,
@@ -1127,7 +1129,7 @@ class TransportationSystem:
         end_road = self._find_nearest_road(end)
         
         if not start_road or not end_road:
-            return None
+                return None
             
         # If start and end are on the same road, use direct path
         if start_road == end_road:
@@ -1254,7 +1256,7 @@ class TransportationSystem:
         path.append(current['start'])
         path.reverse()
         return path
-
+        
     def _find_path(self, start: Tuple[float, float], end: Tuple[float, float], transport_type: TransportationType) -> Optional[List[Tuple[float, float]]]:
         """Find a path between two points using A* pathfinding."""
         if not self._is_valid_path(start, end):
