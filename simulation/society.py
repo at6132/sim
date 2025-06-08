@@ -444,47 +444,30 @@ class Society:
         ]
 
     def to_dict(self) -> Dict:
-        """Convert society state to dictionary for serialization."""
+        """Convert society system state to dictionary."""
         return {
-            "settlements": {
-                settlement_id: {
-                    "id": settlement.id,
-                    "name": settlement.name,
-                    "longitude": settlement.longitude,
-                    "latitude": settlement.latitude,
-                    "population": settlement.population,
-                    "culture": settlement.culture,
-                    "type": settlement.type,
-                    "structures": settlement.structures,
-                    "residents": list(settlement.residents),
-                    "resources": settlement.resources,
-                    "created_at": settlement.created_at,
-                    "last_update": settlement.last_update
-                }
-                for settlement_id, settlement in self.settlements.items()
-            },
             "social_groups": {
                 group_id: {
-                    "id": group.id,
-                    "name": group.name,
-                    "type": group.type.value,
-                    "leader_id": group.leader_id,
-                    "members": group.members,
-                    "settlements": group.settlements,
-                    "culture": group.culture.value,
-                    "beliefs": group.beliefs,
-                    "traditions": group.traditions,
-                    "language": group.language,
-                    "technology_level": group.technology_level
+                    "name": group["name"],
+                    "members": group["members"],
+                    "purpose": group["purpose"],
+                    "influence": group["influence"]
                 }
                 for group_id, group in self.social_groups.items()
             },
-            "trade_routes": self.trade_routes,
-            "cultural_developments": self.cultural_developments,
-            "languages": self.languages,
+            "settlements": {
+                settlement_id: {
+                    "name": settlement["name"],
+                    "population": settlement["population"],
+                    "location": settlement["location"],
+                    "type": settlement["type"],
+                    "resources": settlement["resources"]
+                }
+                for settlement_id, settlement in self.settlements.items()
+            },
             "religions": self.religions,
-            "art_forms": self.art_forms,
-            "governments": self.governments
+            "languages": self.languages,
+            "cultural_traits": self.cultural_traits
         }
 
     def add_member_to_group(self, group_name: str, agent_id: int, role: SocialRole) -> bool:
@@ -900,4 +883,31 @@ class SocietySystem:
             'settlements': self.settlements,
             'social_groups': self.social_groups,
             'cultural_traits': self.cultural_traits
+        }
+
+    def to_dict(self):
+        """Convert society system state to dictionary."""
+        return {
+            "social_groups": {
+                group_id: {
+                    "name": group["name"],
+                    "members": group["members"],
+                    "purpose": group["purpose"],
+                    "influence": group["influence"]
+                }
+                for group_id, group in self.social_groups.items()
+            },
+            "settlements": {
+                settlement_id: {
+                    "name": settlement["name"],
+                    "population": settlement["population"],
+                    "location": settlement["location"],
+                    "type": settlement["type"],
+                    "resources": settlement["resources"]
+                }
+                for settlement_id, settlement in self.settlements.items()
+            },
+            "religions": self.religions,
+            "languages": self.languages,
+            "cultural_traits": self.cultural_traits
         } 

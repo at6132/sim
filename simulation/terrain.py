@@ -90,6 +90,28 @@ class TerrainSystem:
         self.salinity_data = {}  # (longitude, latitude) -> float
         self.oxygen_data = {}  # (longitude, latitude) -> float
         
+        # Initialize soil quality data
+        self.soil_quality_data = {}
+        self.soil_quality = 0.5  # Default soil quality (0-1)
+        
+        # Initialize nutrient data
+        self.nutrient_data = {}
+        self.nutrient_level = 0.5  # Default nutrient level (0-1)
+        
+        # Initialize pollution data
+        self.pollution_data = {}
+        self.pollution_level = 0.0  # Default pollution level (0-1)
+        
+        # Initialize wind data
+        self.wind_data = {}
+        self.wind_speed = 0.0  # Default wind speed
+        
+        # Initialize erosion and deposition data
+        self.erosion_data = {}
+        self.deposition_data = {}
+        self.erosion_rate = 0.0
+        self.deposition_rate = 0.0
+        
         # Initialize terrain
         logger.info("Setting up basic terrain...")
         self._initialize_basic_terrain()
@@ -106,6 +128,12 @@ class TerrainSystem:
         logger.info("Setting up ocean systems...")
         self._initialize_ocean_systems()
         logger.info("Ocean systems initialized")
+        
+        self._initialize_soil_quality()
+        self._initialize_nutrients()
+        self._initialize_pollution()
+        self._initialize_wind()
+        self._initialize_erosion()
         
         logger.info("Terrain system initialization complete")
         
@@ -982,105 +1010,176 @@ class TerrainSystem:
         return True
     
     def get_state(self) -> Dict:
-        """Get current terrain system state."""
+        """Get the current state of the terrain system."""
         return {
-            'terrain_data': self.terrain_data,
-            'elevation_data': self.elevation_data,
-            'resource_data': self.resource_data
+            'elevation_map': [terrain.get('elevation', 0) for terrain in self.terrain_data.values()],
+            'water_map': [terrain.get('water', 0) for terrain in self.terrain_data.values()],
+            'soil_map': [terrain.get('soil', 0) for terrain in self.terrain_data.values()],
+            'vegetation_map': [terrain.get('vegetation', 0) for terrain in self.terrain_data.values()],
+            'soil_quality_map': [terrain.get('soil_quality', 0) for terrain in self.terrain_data.values()],
+            'nutrient_map': [terrain.get('nutrient_level', 0) for terrain in self.terrain_data.values()],
+            'pollution_map': [terrain.get('pollution_level', 0) for terrain in self.terrain_data.values()],
+            'wind_map': [terrain.get('wind_speed', 0) for terrain in self.terrain_data.values()],
+            'erosion_map': [terrain.get('erosion_rate', 0) for terrain in self.terrain_data.values()],
+            'deposition_map': [terrain.get('deposition_rate', 0) for terrain in self.terrain_data.values()],
+            'terrain_types': [terrain['type'] for terrain in self.terrain_data.values()],
+            'terrain_subtypes': [terrain.get('terrain_type', '') for terrain in self.terrain_data.values()],
+            'biomes': {f"{lon},{lat}": self.world.climate.get_climate_at(lon, lat) 
+                      for (lon, lat), terrain in self.terrain_data.items()},
+            'climate_zones': {f"{lon},{lat}": self.world.climate.get_climate_at(lon, lat) 
+                            for (lon, lat), terrain in self.terrain_data.items()},
+            'water_bodies': {f"{lon},{lat}": terrain.get('water_body', '') 
+                           for (lon, lat), terrain in self.terrain_data.items()},
+            'explored': {f"{lon},{lat}": terrain.get('explored', False) 
+                        for (lon, lat), terrain in self.terrain_data.items()},
+            'temperature': {f"{lon},{lat}": self.world.climate.get_temperature_at(lon, lat) 
+                          for (lon, lat), terrain in self.terrain_data.items()},
+            'precipitation': {f"{lon},{lat}": self.world.climate.get_precipitation_at(lon, lat) 
+                            for (lon, lat), terrain in self.terrain_data.items()},
+            'soil_quality': self.soil_quality,
+            'nutrient_level': self.nutrient_level,
+            'pollution_level': self.pollution_level,
+            'wind_speed': self.wind_speed,
+            'erosion_rate': self.erosion_rate,
+            'deposition_rate': self.deposition_rate
         }
 
-    def update(self, time_delta: float):
-        """Update terrain over time."""
-        logger.info(f"Updating terrain for {time_delta} minutes...")
+    def update(self, dt: float):
+        """Update terrain system state."""
+        self._update_soil_quality(dt)
+        self._update_nutrients(dt)
+        self._update_pollution(dt)
+        self._update_wind(dt)
+        self._update_erosion(dt)
         
-        # Update erosion
-        self._update_erosion(time_delta)
-        
-        # Update vegetation
-        self._update_vegetation(time_delta)
-        
-        # Update water bodies
-        self._update_water_bodies(time_delta)
-        
-        logger.info("Terrain update complete")
-
-    def _update_erosion(self, time_delta: float):
-        """Update terrain erosion over time."""
-        for lon in np.arange(-180, 180, self.world.longitude_resolution):
-            for lat in np.arange(-90, 90, self.world.latitude_resolution):
-                elevation = self.elevation_data.get((lon, lat), 0)
-                slope = self.get_slope_at(lon, lat)
-                precipitation = self.world.climate.get_precipitation(lon, lat)
+    def _update_soil_quality(self, dt: float):
+        """Update soil quality based on various factors."""
+        for (lon, lat), quality in self.soil_quality_data.items():
+            # Get current conditions
+            temp = self.world.climate.get_temperature_at(lon, lat)
+            precip = self.world.climate.get_precipitation(lon, lat)
+            terrain_type = self.terrain_data.get((lon, lat), {}).get('type', 'land')
+            
+            if terrain_type == 'water':
+                continue
                 
-                # Erosion rate increases with slope and precipitation
-                erosion_rate = 0.0001 * slope * precipitation * time_delta
-                new_elevation = max(0, elevation - erosion_rate)
-                
-                self.elevation_data[(lon, lat)] = new_elevation
-
-    def _update_vegetation(self, time_delta: float):
-        """Update vegetation growth over time."""
-        for lon in np.arange(-180, 180, self.world.longitude_resolution):
-            for lat in np.arange(-90, 90, self.world.latitude_resolution):
-                current_vegetation = self.terrain_data.get((lon, lat), {}).get('vegetation', 0)
-                temperature = self.world.climate.get_temperature(lon, lat)
-                precipitation = self.world.climate.get_precipitation(lon, lat)
-                
-                # Growth rate depends on temperature and precipitation
-                growth_rate = 0.001 * (temperature / 20) * (precipitation / 50) * time_delta
-                new_vegetation = min(1.0, current_vegetation + growth_rate)
-                
-                self.terrain_data[(lon, lat)]['vegetation'] = new_vegetation
-
-    def _update_water_bodies(self, time_delta: float):
-        """Update water bodies over time."""
-        for lon in np.arange(-180, 180, self.world.longitude_resolution):
-            for lat in np.arange(-90, 90, self.world.latitude_resolution):
-                current_water = self.terrain_data.get((lon, lat), {}).get('water', 0)
-                precipitation = self.world.climate.get_precipitation(lon, lat)
-                evaporation = 0.1 * time_delta  # Base evaporation rate
-                
-                # Adjust evaporation based on temperature
-                temperature = self.world.climate.get_temperature(lon, lat)
-                evaporation *= (1 + temperature / 30)  # More evaporation at higher temperatures
-                
-                # Update water level
-                new_water = max(0, current_water + precipitation - evaporation)
-                self.terrain_data[(lon, lat)]['water'] = new_water
-
-    def _calculate_slope(self, lon: float, lat: float) -> float:
-        """Calculate the slope at a given location."""
-        current_elevation = self.elevation_data.get((lon, lat), 0)
+            # Factors affecting soil quality
+            temp_factor = 1.0 - abs(temp - 20) / 40  # Optimal around 20°C
+            precip_factor = 1.0 - abs(precip - 0.5)  # Optimal around 0.5
+            erosion_factor = 1.0 - self.erosion_data.get((lon, lat), 0)
+            pollution_factor = 1.0 - self.pollution_data.get((lon, lat), 0)
+            
+            # Calculate change
+            change = (temp_factor * 0.1 + precip_factor * 0.1 + erosion_factor * 0.2 + pollution_factor * 0.2) * dt
+            change += np.random.normal(0, 0.01) * dt  # Small random variation
+            
+            # Update quality
+            new_quality = quality + change
+            self.soil_quality_data[(lon, lat)] = max(0.0, min(1.0, new_quality))
         
-        # Check neighboring cells
-        neighbors = [
-            (lon + self.world.longitude_resolution, lat),
-            (lon - self.world.longitude_resolution, lat),
-            (lon, lat + self.world.latitude_resolution),
-            (lon, lat - self.world.latitude_resolution)
-        ]
+        # Update global average
+        self.soil_quality = np.mean([q for q in self.soil_quality_data.values()])
+    
+    def _update_nutrients(self, dt: float):
+        """Update nutrient levels based on various factors."""
+        for (lon, lat), level in self.nutrient_data.items():
+            # Get current conditions
+            soil_quality = self.soil_quality_data.get((lon, lat), 0.5)
+            terrain_type = self.terrain_data.get((lon, lat), {}).get('type', 'land')
+            
+            if terrain_type == 'water':
+                # Water nutrients are affected by temperature and pollution
+                temp = self.world.climate.get_temperature_at(lon, lat)
+                pollution = self.pollution_data.get((lon, lat), 0)
+                temp_factor = 1.0 - abs(temp - 15) / 30  # Optimal around 15°C
+                pollution_factor = 1.0 - pollution
+                change = (temp_factor * 0.1 + pollution_factor * 0.1) * dt
+            else:
+                # Land nutrients are affected by soil quality and vegetation
+                vegetation = self.terrain_data.get((lon, lat), {}).get('vegetation', 0)
+                change = (soil_quality * 0.2 + vegetation * 0.1) * dt
+            
+            # Add small random variation
+            change += np.random.normal(0, 0.01) * dt
+            
+            # Update level
+            new_level = level + change
+            self.nutrient_data[(lon, lat)] = max(0.0, min(1.0, new_level))
         
-        max_slope = 0
-        for nlon, nlat in neighbors:
-            if -180 <= nlon <= 180 and -90 <= nlat <= 90:
-                neighbor_elevation = self.elevation_data.get((nlon, nlat), 0)
-                slope = abs(current_elevation - neighbor_elevation)
-                max_slope = max(max_slope, slope)
+        # Update global average
+        self.nutrient_level = np.mean([n for n in self.nutrient_data.values()])
+    
+    def _update_pollution(self, dt: float):
+        """Update pollution levels based on various factors."""
+        for (lon, lat), level in self.pollution_data.items():
+            # Get current conditions
+            wind = self.wind_data.get((lon, lat), (0, 0))
+            wind_speed = np.sqrt(wind[0]**2 + wind[1]**2)
+            precip = self.world.climate.get_precipitation(lon, lat)
+            
+            # Factors affecting pollution
+            wind_factor = 1.0 - wind_speed  # Wind disperses pollution
+            precip_factor = 1.0 - precip  # Rain cleans pollution
+            
+            # Calculate change
+            change = (wind_factor * 0.1 + precip_factor * 0.1) * dt
+            change += np.random.normal(0, 0.01) * dt  # Small random variation
+            
+            # Update level
+            new_level = level + change
+            self.pollution_data[(lon, lat)] = max(0.0, min(1.0, new_level))
         
-        return max_slope 
-
-    def _get_coastal_direction(self, coord: Tuple[int, int]) -> str:
-        """Determine coastal current direction based on coastal orientation."""
-        lon, lat = coord
-        # Check surrounding cells to determine coastal orientation
-        if self.get_terrain_type_at(lon+1, lat) == TerrainType.OCEAN:
-            return 'north' if lat > 0 else 'south'
-        elif self.get_terrain_type_at(lon-1, lat) == TerrainType.OCEAN:
-            return 'south' if lat > 0 else 'north'
-        elif self.get_terrain_type_at(lon, lat+1) == TerrainType.OCEAN:
-            return 'west'
-        else:
-            return 'east'
+        # Update global average
+        self.pollution_level = np.mean([p for p in self.pollution_data.values()])
+    
+    def _update_wind(self, dt: float):
+        """Update wind patterns based on temperature and pressure differences."""
+        for (lon, lat), wind in self.wind_data.items():
+            # Get current conditions
+            temp = self.world.climate.get_temperature_at(lon, lat)
+            precip = self.world.climate.get_precipitation(lon, lat)
+            
+            # Calculate pressure gradient (simplified)
+            pressure_gradient = np.random.normal(0, 0.1)  # Simplified model
+            
+            # Update wind components
+            new_wind_x = wind[0] + pressure_gradient * dt
+            new_wind_y = wind[1] + pressure_gradient * dt
+            
+            # Add some damping
+            new_wind_x *= 0.99
+            new_wind_y *= 0.99
+            
+            self.wind_data[(lon, lat)] = (new_wind_x, new_wind_y)
+        
+        # Update global wind speed
+        wind_speeds = [np.sqrt(w[0]**2 + w[1]**2) for w in self.wind_data.values()]
+        self.wind_speed = np.mean(wind_speeds)
+    
+    def _update_erosion(self, dt: float):
+        """Update erosion and deposition based on various factors."""
+        for (lon, lat), erosion in self.erosion_data.items():
+            # Get current conditions
+            wind = self.wind_data.get((lon, lat), (0, 0))
+            wind_speed = np.sqrt(wind[0]**2 + wind[1]**2)
+            precip = self.world.climate.get_precipitation(lon, lat)
+            elevation = self.elevation_data.get((lon, lat), 0)
+            
+            # Calculate erosion rate
+            wind_factor = wind_speed * 0.1
+            precip_factor = precip * 0.2
+            slope_factor = abs(elevation - np.mean(self.elevation_data.values())) * 0.1
+            
+            erosion_rate = (wind_factor + precip_factor + slope_factor) * dt
+            self.erosion_data[(lon, lat)] = erosion + erosion_rate
+            
+            # Calculate deposition
+            deposition_rate = erosion_rate * 0.5  # Some eroded material is deposited
+            self.deposition_data[(lon, lat)] = self.deposition_data.get((lon, lat), 0) + deposition_rate
+        
+        # Update global rates
+        self.erosion_rate = np.mean([e for e in self.erosion_data.values()])
+        self.deposition_rate = np.mean([d for d in self.deposition_data.values()])
 
     def _get_coastal_temperature(self, lat: float) -> float:
         """Calculate coastal water temperature based on latitude."""
@@ -1118,3 +1217,67 @@ class TerrainSystem:
                 surrounding_currents.add(neighbor.name)
 
         return len(surrounding_currents) > 1
+
+    def _initialize_soil_quality(self):
+        """Initialize soil quality across the terrain."""
+        for coord, terrain in self.terrain_data.items():
+            if terrain['type'] == 'land':
+                # Base soil quality on elevation and terrain type
+                elevation_factor = 1.0 - (terrain['elevation'] / self.max_elevation)
+                terrain_factor = {
+                    'mountain': 0.3,
+                    'hill': 0.6,
+                    'plain': 0.8,
+                    'valley': 0.9,
+                    'coast': 0.7
+                }.get(terrain['terrain_type'], 0.5)
+                
+                # Calculate initial soil quality (0.0 to 1.0)
+                quality = elevation_factor * terrain_factor
+                self.soil_quality_data[coord] = quality
+                terrain['soil_quality'] = quality
+
+    def _initialize_nutrients(self):
+        """Initialize nutrient levels across the terrain."""
+        for coord, terrain in self.terrain_data.items():
+            if terrain['type'] == 'land':
+                # Base nutrient level on soil quality and terrain type
+                soil_quality = terrain.get('soil_quality', 0.5)
+                terrain_factor = {
+                    'mountain': 0.2,
+                    'hill': 0.4,
+                    'plain': 0.7,
+                    'valley': 0.8,
+                    'coast': 0.6
+                }.get(terrain['terrain_type'], 0.5)
+                
+                # Calculate initial nutrient level (0.0 to 1.0)
+                level = soil_quality * terrain_factor
+                self.nutrient_data[coord] = level
+                terrain['nutrient_level'] = level
+
+    def _initialize_pollution(self):
+        """Initialize pollution levels across the terrain."""
+        for coord, terrain in self.terrain_data.items():
+            if terrain['type'] == 'land':
+                # Start with no pollution
+                self.pollution_data[coord] = 0.0
+                terrain['pollution_level'] = 0.0
+
+    def _initialize_wind(self):
+        """Initialize wind patterns across the terrain."""
+        for coord, terrain in self.terrain_data.items():
+            if terrain['type'] == 'land':
+                # Start with calm conditions
+                self.wind_data[coord] = 0.0
+                terrain['wind_speed'] = 0.0
+
+    def _initialize_erosion(self):
+        """Initialize erosion and deposition data."""
+        for coord, terrain in self.terrain_data.items():
+            if terrain['type'] == 'land':
+                # Start with no erosion or deposition
+                self.erosion_data[coord] = 0.0
+                self.deposition_data[coord] = 0.0
+                terrain['erosion_rate'] = 0.0
+                terrain['deposition_rate'] = 0.0

@@ -30,34 +30,17 @@ simulation_thread = None
 running = False
 
 def run_simulation_loop():
-    """Run the main simulation loop."""
-    global running
-    running = True
-    
-    logger.info("Starting simulation loop...")
-    while running:
-        try:
-            # Update simulation state
-            engine.world.update(48.0)  # 48 minutes = 0.8 hours
-            
-            # Emit state to frontend
-            socketio.emit('simulation_state', engine.world.to_dict())
-            
-            # Log progress
-            logger.info(f"Simulation tick completed")
-            
-            # Sleep for 1 minute
-            time.sleep(60)
-            
-        except KeyboardInterrupt:
-            logger.info("Simulation stopped by user")
-            break
-        except Exception as e:
-            logger.error(f"Error in simulation loop: {e}")
-            logger.error(traceback.format_exc())
-            break
-    
-    running = False
+    """Main simulation loop running at 48 ticks per second."""
+    try:
+        while True:
+            if engine.running:
+                # Run 48 ticks per second, each tick representing 1 game second
+                for _ in range(48):
+                    engine.world.update(1/48)  # Each tick is 1/48th of a second
+            time.sleep(0.001)  # Small sleep to prevent CPU overload
+    except Exception as e:
+        logger.error(f"Error in simulation loop: {e}")
+        logger.error(traceback.format_exc())
 
 def start_backend():
     """Start the Flask backend server."""

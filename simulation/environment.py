@@ -27,6 +27,8 @@ class Environment:
     season: str = "summer"
     created_at: float = field(default_factory=datetime.now().timestamp)
     last_update: float = field(default_factory=datetime.now().timestamp)
+    pressure: float = 1013.25  # hPa (standard atmospheric pressure)
+    visibility: float = 10.0  # km
 
     def __post_init__(self):
         """Initialize environment after creation."""
@@ -114,6 +116,18 @@ class Environment:
             "height": self.height
         }
 
+    def to_dict(self) -> Dict:
+        """Convert environment state to dictionary for serialization."""
+        return {
+            'temperature': self.temperature,
+            'precipitation': self.precipitation,
+            'wind_speed': self.wind_speed,
+            'wind_direction': self.wind_direction,
+            'humidity': self.humidity,
+            'pressure': self.pressure,
+            'visibility': self.visibility
+        }
+
 @dataclass
 class Resource:
     name: str
@@ -173,6 +187,8 @@ class EnvironmentalSystem:
     def __init__(self, world):
         """Initialize the environmental system."""
         self.world = world
+        self.width = 1000  # Default width in units
+        self.height = 1000  # Default height in units
         self.environments: Dict[str, Environment] = {}
         self.resources: Dict[str, Resource] = {}
         self.climate_zones: Dict[str, ClimateZone] = {}

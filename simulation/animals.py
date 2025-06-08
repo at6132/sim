@@ -7,18 +7,25 @@ import time
 from datetime import datetime
 import numpy as np
 from .utils.logging_config import get_logger
+from .cooking import CookingSystem, FoodType
 
 logger = get_logger(__name__)
 
 class AnimalType(Enum):
+    # Land Animals
     HORSE = "horse"
     WOLF = "wolf"
     DEER = "deer"
     BEAR = "bear"
     RABBIT = "rabbit"
-    SHEEP = "sheep"  # New herding animal
-    COW = "cow"      # New herding animal
-    GOAT = "goat"    # New herding animal
+    SHEEP = "sheep"
+    COW = "cow"
+    GOAT = "goat"
+
+class WaterType(Enum):
+    FRESHWATER = "freshwater"
+    SALTWATER = "saltwater"
+    BRACKISH = "brackish"  # Mix of fresh and salt water (estuaries, deltas)
 
 class AnimalTemperament(Enum):
     DOCILE = "docile"
@@ -34,6 +41,7 @@ class AnimalNeeds:
     reproduction_urge: float = 0.0  # 0-100, increases with age and health
     social_need: float = 50.0  # 0-100, varies by species
     comfort: float = 100.0  # 0-100, affected by environment
+    water_quality: float = 100.0  # 0-100, affected by water type and pollution
 
 @dataclass
 class AnimalState:
@@ -139,333 +147,259 @@ class Animal:
             self.territory.center_latitude = (self.territory.center_latitude + new_latitude) / 2
             self.territory.radius = max(self.territory.radius, new_radius)
 
-    def _generate_animal_id(self, animal_type: str) -> str:
-        """Generate a unique ID for a new animal."""
-        # Get the list of animals of this type
-        animal_list = getattr(self, f"{animal_type}s")
-        # Generate ID with type and count
-        new_animal_id = f"{animal_type}_{len(animal_list)}"
-        return new_animal_id
-
 class AnimalSystem:
     def __init__(self, world):
         """Initialize the animal system."""
-        logger.info("Initializing animal system...")
-        
-        # Store world reference
         self.world = world
-
-        # Determine size of the simulation world
-        self.world_size = (self.world.environment.width, self.world.environment.height)
+        self.logger = get_logger(__name__)
         
-        # Initialize animal populations
-        logger.info("Setting up animal populations...")
-        self.herbivores = {}  # Plant-eating animals
-        self.carnivores = {}  # Meat-eating animals
-        self.omnivores = {}  # Mixed diet animals
-        self.domesticated = {}  # Tamed animals
-        logger.info("Animal populations initialized")
+        # Initialize animal components
+        self.animals = {}  # animal_id -> animal_data
+        self.populations = {}  # animal_type -> count
+        self.territories = {}  # territory_id -> territory_data
+        self.social_groups = {}  # group_id -> group_data
+        
+        # Initialize animal types and their properties
+        self._initialize_animal_types()
+        
+        # Initialize animal distribution
+        self._initialize_animal_distribution()
+        
+        self.logger.info("Animal system initialized")
 
     def initialize_animal_system(self):
-        """Public entry point to initialize animals."""
-        self.initialize_animals()
-
-
-        # Unified mapping accessor for all animals is provided by the
-        # ``animals`` property defined on the class.
-
-    @property
-    def animals(self) -> Dict[str, Dict]:
-        """Return a combined mapping of all animals."""
-        combined = {}
-        combined.update(self.herbivores)
-        combined.update(self.carnivores)
-        combined.update(self.omnivores)
-        combined.update(self.domesticated)
-        return combined
-
-    # Backwards compatibility for world code expecting ``creatures``
-    @property
-    def creatures(self) -> Dict[str, Dict]:
-        """Alias for :pyattr:`animals`."""
-        return self.animals
-
+        """Initialize the complete animal system."""
+        self.logger.info("Initializing animal system...")
         
-        # Initialize animal behaviors
-        logger.info("Setting up animal behaviors...")
-        self.behaviors = {
-            "herbivore": {
-                "foraging": 0.8,
-                "fleeing": 0.7,
-                "grazing": 0.9,
-                "migration": 0.6
-            },
-            "carnivore": {
-                "hunting": 0.8,
-                "territorial": 0.7,
-                "pack_behavior": 0.6,
-                "stalking": 0.9
-            },
-            "omnivore": {
-                "foraging": 0.7,
-                "hunting": 0.5,
-                "scavenging": 0.8,
-                "adaptability": 0.9
-            },
-            "domesticated": {
-                "obedience": 0.8,
-                "loyalty": 0.7,
-                "trainability": 0.6,
-                "dependency": 0.9
-            }
+        # Initialize animal types and their properties
+        self._initialize_animal_types()
+        
+        # Initialize animal distribution
+        self._initialize_animal_distribution()
+        
+        # Initialize relationships
+        self._initialize_predator_prey_relationships()
+        self._initialize_symbiotic_relationships()
+        self._initialize_social_structures()
+        
+        self.logger.info("Animal system initialization complete")
+
+    def _generate_animal_id(self, animal_type: str) -> str:
+        """Generate a unique ID for a new animal."""
+        # Get the list of animals of this type
+        animal_list = getattr(self, f"{animal_type}s", {})
+        # Generate ID with type and count
+        new_animal_id = f"{animal_type}_{len(animal_list) + 1}"
+        return new_animal_id
+
+    def get_state(self) -> Dict:
+        """Get the current state of the animal system."""
+        return self.get_animal_state()
+
+    def get_animal_state(self) -> Dict:
+        """Get detailed animal system state."""
+        # Calculate current populations
+        current_populations = {}
+        for animal in self.animals.values():
+            animal_type = animal['type']
+            current_populations[animal_type] = current_populations.get(animal_type, 0) + 1
+        
+        return {
+            'animals': {animal_id: {
+                'id': animal['id'],
+                'type': animal['type'],
+                'name': animal['name'],
+                'temperament': animal['temperament'],
+                'size': animal['size'],
+                'speed': animal['speed'],
+                'strength': animal['strength'],
+                'intelligence': animal['intelligence'],
+                'longitude': animal['longitude'],
+                'latitude': animal['latitude'],
+                'needs': animal['needs'],
+                'state': animal['state'],
+                'is_domesticated': animal['is_domesticated'],
+                'owner_id': animal['owner_id'],
+                'training_progress': animal['training_progress'],
+                'reproduction_cooldown': animal['reproduction_cooldown'],
+                'last_action': animal['last_action'],
+                'last_action_time': animal['last_action_time'],
+                'diet': animal['diet'],
+                'social_group': animal['social_group'],
+                'territory': animal['territory'],
+                'energy': animal['energy']
+            } for animal_id, animal in self.animals.items()},
+            'populations': current_populations,
+            'territories': self.territories,
+            'social_groups': self.social_groups
         }
-        logger.info("Animal behaviors initialized")
-        
-        # Initialize animal traits
-        logger.info("Setting up animal traits...")
+
+    def _initialize_animal_types(self):
+        """Initialize animal types and their properties."""
+        # Initialize traits for different animal types
         self.traits = {
             "herbivore": {
                 "speed": 0.7,
                 "strength": 0.4,
+                "senses": 0.6,
                 "intelligence": 0.5,
-                "senses": 0.6
+                "social": 0.6,
+                "territorial": 0.4
             },
             "carnivore": {
                 "speed": 0.8,
-                "strength": 0.9,
-                "intelligence": 0.7,
-                "senses": 0.8
+                "strength": 0.7,
+                "senses": 0.8,
+                "intelligence": 0.6,
+                "social": 0.5,
+                "territorial": 0.7
             },
             "omnivore": {
                 "speed": 0.6,
-                "strength": 0.6,
-                "intelligence": 0.6,
-                "senses": 0.7
-            },
-            "domesticated": {
-                "speed": 0.5,
                 "strength": 0.5,
-                "intelligence": 0.8,
-                "senses": 0.6
+                "senses": 0.7,
+                "intelligence": 0.7,
+                "social": 0.7,
+                "territorial": 0.5
             }
         }
-        logger.info("Animal traits initialized")
         
-        # Initialize animal distribution
-        logger.info("Initializing animal distribution...")
-        self.initialize_animals()
-        logger.info("Animal distribution initialized")
+        # Initialize behaviors for different animal types
+        self.behaviors = {
+            "herbivore": {
+                "grazing": 0.8,
+                "fleeing": 0.7,
+                "socializing": 0.6,
+                "territorial": 0.4
+            },
+            "carnivore": {
+                "hunting": 0.8,
+                "territorial": 0.7,
+                "socializing": 0.5,
+                "resting": 0.6
+            },
+            "omnivore": {
+                "foraging": 0.7,
+                "hunting": 0.5,
+                "socializing": 0.6,
+                "territorial": 0.5
+            }
+        }
         
-        logger.info("Animal system initialization complete")
+        # Initialize habitats
+        self.habitats = {
+            "forest": set(),
+            "grassland": set(),
+            "mountain": set(),
+            "river": set(),
+            "lake": set(),
+            "ocean": set()
+        }
         
-    def initialize_animals(self):
-        """Initialize animal distribution across the world."""
-        logger.info("Initializing animal distribution...")
+        # Initialize relationships
+        self.predator_prey = {}
+        self.symbiotic = {}
+        self.competition = {}
         
-        # Calculate total points for progress tracking
-        # Use a reduced resolution to keep initialization fast
-        lon_range = range(0, self.world_size[0], max(1, self.world_size[0] // 10))
-        lat_range = range(0, self.world_size[1], max(1, self.world_size[1] // 10))
-        total_points = len(lon_range) * len(lat_range)
-        points_processed = 0
-        last_progress = 0
-
-        # Iterate over a coarse grid
-        for lon in lon_range:
-            for lat in lat_range:
-                # Get terrain type at location
-                terrain_type = self.world.terrain.get_terrain_at(lon, lat)
-                
-                # Generate animals based on terrain
-                logger.info(f"Generating animals for terrain type: {terrain_type}")
-                self._generate_animals_for_terrain(lon, lat, terrain_type)
-                
-                points_processed += 1
-                
-                # Log progress every 10%
-                progress = (points_processed / total_points) * 100
-                if progress - last_progress >= 10:
-                    logger.info(f"Animal distribution progress: {progress:.1f}%")
-                    last_progress = progress
+        # Initialize events list
+        self.events = []
         
-        # Initialize animal ecosystems
-        logger.info("Setting up animal ecosystems...")
-        self._initialize_animal_ecosystems()
-        logger.info("Animal ecosystems initialized")
+    def _initialize_animal_distribution(self):
+        """Initialize the distribution of animals across the world."""
+        # Initialize populations for each animal type
+        for animal_type in AnimalType:
+            self.populations[animal_type.value] = 0
         
-        # Initialize animal interactions
-        logger.info("Setting up animal interactions...")
-        self._initialize_animal_interactions()
-        logger.info("Animal interactions initialized")
+        # Initialize animal type-specific collections
+        self.herbivores = {}
+        self.carnivores = {}
+        self.omnivores = {}
+        self.domesticated = {}
         
-        logger.info("Animal distribution initialization complete")
+        # Create initial animals
+        self._create_initial_animals()
         
-    def _initialize_animal_ecosystems(self):
-        """Initialize animal ecosystems."""
-        logger.info("Initializing animal ecosystems...")
-        
-        # Initialize forest ecosystems
-        logger.info("Setting up forest ecosystems...")
-        self._initialize_forest_ecosystems()
-        logger.info("Forest ecosystems initialized")
-        
-        # Initialize grassland ecosystems
-        logger.info("Setting up grassland ecosystems...")
-        self._initialize_grassland_ecosystems()
-        logger.info("Grassland ecosystems initialized")
-        
-        # Initialize desert ecosystems
-        logger.info("Setting up desert ecosystems...")
-        self._initialize_desert_ecosystems()
-        logger.info("Desert ecosystems initialized")
-        
-        # Initialize tundra ecosystems
-        logger.info("Setting up tundra ecosystems...")
-        self._initialize_tundra_ecosystems()
-        logger.info("Tundra ecosystems initialized")
-        
-        # Initialize swamp ecosystems
-        logger.info("Setting up swamp ecosystems...")
-        self._initialize_swamp_ecosystems()
-        logger.info("Swamp ecosystems initialized")
-
-    def _initialize_forest_ecosystems(self):
-        """Placeholder for forest ecosystem setup."""
-        pass
-
-    def _initialize_grassland_ecosystems(self):
-        """Placeholder for grassland ecosystem setup."""
-        pass
-
-    def _initialize_desert_ecosystems(self):
-        """Placeholder for desert ecosystem setup."""
-        pass
-
-    def _initialize_tundra_ecosystems(self):
-        """Placeholder for tundra ecosystem setup."""
-        pass
-
-    def _initialize_swamp_ecosystems(self):
-        """Placeholder for swamp ecosystem setup."""
-        pass
-        
-        logger.info("Animal ecosystems initialization complete")
-        
-    def _initialize_animal_interactions(self):
-        """Initialize animal interactions."""
-        logger.info("Initializing animal interactions...")
-        
-        # Initialize predator-prey relationships
-        logger.info("Setting up predator-prey relationships...")
+        # Initialize relationships
         self._initialize_predator_prey_relationships()
-        logger.info("Predator-prey relationships initialized")
-        
-        # Initialize symbiotic relationships
-        logger.info("Setting up symbiotic relationships...")
         self._initialize_symbiotic_relationships()
-        logger.info("Symbiotic relationships initialized")
-        
-        # Initialize social structures
-        logger.info("Setting up social structures...")
         self._initialize_social_structures()
-        logger.info("Social structures initialized")
         
-        logger.info("Animal interactions initialization complete")
+        self.logger.info("Animal distribution initialized")
+
+    def _create_initial_animals(self):
+        """Create initial animals for the simulation."""
+        # Create some herbivores
+        for _ in range(10):
+            animal_id = self._generate_animal_id("herbivore")
+            animal = self._create_animal(animal_id, AnimalType.DEER)
+            self.herbivores[animal_id] = animal
+            self.animals[animal_id] = animal
+            self.populations["deer"] += 1
         
-    def _generate_animals_for_terrain(self, lon: float, lat: float, terrain_type: str):
-        """Generate animals based on terrain type."""
-        logger.info(f"Generating animals for terrain type: {terrain_type}")
+        # Create some carnivores
+        for _ in range(5):
+            animal_id = self._generate_animal_id("carnivore")
+            animal = self._create_animal(animal_id, AnimalType.WOLF)
+            self.carnivores[animal_id] = animal
+            self.animals[animal_id] = animal
+            self.populations["wolf"] += 1
 
-        if terrain_type == "forest":
-            logger.info("Generating forest animals...")
-            self._generate_forest_animals(lon, lat)
-            logger.info("Forest animals generated")
-        elif terrain_type == "grassland":
-            logger.info("Generating grassland animals...")
-            self._generate_grassland_animals(lon, lat)
-            logger.info("Grassland animals generated")
-        elif terrain_type == "desert":
-            logger.info("Generating desert animals...")
-            self._generate_desert_animals(lon, lat)
-            logger.info("Desert animals generated")
-        elif terrain_type == "tundra":
-            logger.info("Generating tundra animals...")
-            self._generate_tundra_animals(lon, lat)
-            logger.info("Tundra animals generated")
-        elif terrain_type == "swamp":
-            logger.info("Generating swamp animals...")
-            self._generate_swamp_animals(lon, lat)
-            logger.info("Swamp animals generated")
-        else:
-            # Generate generic animals for unspecified terrain
-            animal_id = f"generic_{len(self.herbivores)}"
-            self.herbivores[animal_id] = {
-                "position": (lon, lat),
-                "health": 1.0,
-                "age": 0.0,
-            }
-
-    def _generate_forest_animals(self, lon: float, lat: float):
-        """Create placeholder forest animals."""
-        animal_id = f"forest_{len(self.herbivores)}"
-        self.herbivores[animal_id] = {
-            "position": (lon, lat),
-            "health": 1.0,
-            "age": 0.0,
+    def _create_animal(self, animal_id: str, animal_type: AnimalType) -> Dict:
+        """Create a new animal with the given type."""
+        # Generate random position within world bounds
+        longitude = random.uniform(self.world.min_longitude, self.world.max_longitude)
+        latitude = random.uniform(self.world.min_latitude, self.world.max_latitude)
+        
+        return {
+            'id': animal_id,
+            'type': animal_type.value,
+            'name': f"{animal_type.value.capitalize()}_{animal_id}",
+            'temperament': random.choice(list(AnimalTemperament)).value,
+            'size': random.uniform(0.3, 1.0),
+            'speed': random.uniform(0.3, 1.0),
+            'strength': random.uniform(0.3, 1.0),
+            'intelligence': random.uniform(0.3, 1.0),
+            'longitude': longitude,
+            'latitude': latitude,
+            'needs': {
+                'hunger': 100.0,
+                'thirst': 100.0,
+                'energy': 100.0,
+                'health': 100.0,
+                'reproduction_urge': 0.0,
+                'social_need': 50.0,
+                'comfort': 100.0
+            },
+            'state': {
+                'is_sick': False,
+                'disease_resistance': 100.0,
+                'pregnancy_progress': 0.0,
+                'age': 0.0,
+                'lifespan': random.uniform(5.0, 15.0),
+                'maturity_age': random.uniform(1.0, 3.0),
+                'last_meal_time': 0.0,
+                'last_water_time': 0.0,
+                'last_rest_time': 0.0,
+                'last_social_time': 0.0
+            },
+            'is_domesticated': False,
+            'owner_id': None,
+            'training_progress': 0.0,
+            'reproduction_cooldown': 0.0,
+            'last_action': 'idle',
+            'last_action_time': 0.0,
+            'diet': [],
+            'social_group': None,
+            'territory': {
+                'center_longitude': longitude,
+                'center_latitude': latitude,
+                'radius': 5.0,
+                'claimed_by': animal_id,
+                'resources': {},
+                'history': []
+            },
+            'energy': 100.0
         }
-
-    def _generate_grassland_animals(self, lon: float, lat: float):
-        """Create placeholder grassland animals."""
-        animal_id = f"grass_{len(self.herbivores)}"
-        self.herbivores[animal_id] = {
-            "position": (lon, lat),
-            "health": 1.0,
-            "age": 0.0,
-        }
-
-    def _generate_desert_animals(self, lon: float, lat: float):
-        """Create placeholder desert animals."""
-        animal_id = f"desert_{len(self.herbivores)}"
-        self.herbivores[animal_id] = {
-            "position": (lon, lat),
-            "health": 1.0,
-            "age": 0.0,
-        }
-
-    def _generate_tundra_animals(self, lon: float, lat: float):
-        """Create placeholder tundra animals."""
-        animal_id = f"tundra_{len(self.herbivores)}"
-        self.herbivores[animal_id] = {
-            "position": (lon, lat),
-            "health": 1.0,
-            "age": 0.0,
-        }
-
-    def _generate_swamp_animals(self, lon: float, lat: float):
-        """Create placeholder swamp animals."""
-        animal_id = f"swamp_{len(self.herbivores)}"
-        self.herbivores[animal_id] = {
-            "position": (lon, lat),
-            "health": 1.0,
-            "age": 0.0,
-        }
-    
-    def update(self, time_delta: float, environment: Dict):
-        """Update animal system based on time and environment"""
-        # Update animal populations
-        self._update_populations(time_delta, environment)
-        
-        # Update animal behaviors
-        self._update_behaviors(time_delta)
-        
-        # Update animal interactions
-        self._update_interactions(time_delta)
-        
-        # Update animal habitats
-        self._update_habitats(time_delta, environment)
-        
-        # Record significant events
-        self._record_events()
     
     def _update_populations(self, time_delta: float, environment: Dict):
         """Update animal populations"""
@@ -484,6 +418,8 @@ class AnimalSystem:
     def _update_herbivores(self, time_delta: float, environment: Dict):
         """Update herbivore population"""
         for animal_id, animal in self.herbivores.items():
+            # Animal eats
+            self._update_animal_food(animal)
             # Update health based on food availability
             food_availability = environment.get("vegetation", 0.5)
             health_change = (food_availability - 0.5) * time_delta
@@ -504,6 +440,8 @@ class AnimalSystem:
     def _update_carnivores(self, time_delta: float, environment: Dict):
         """Update carnivore population"""
         for animal_id, animal in self.carnivores.items():
+            # Animal eats
+            self._update_animal_food(animal)
             # Update health based on prey availability
             prey_availability = len(self.herbivores) / 100.0
             health_change = (prey_availability - 0.5) * time_delta
@@ -524,6 +462,8 @@ class AnimalSystem:
     def _update_omnivores(self, time_delta: float, environment: Dict):
         """Update omnivore population"""
         for animal_id, animal in self.omnivores.items():
+            # Animal eats
+            self._update_animal_food(animal)
             # Update health based on food availability
             food_availability = (environment.get("vegetation", 0.5) + 
                                len(self.herbivores) / 100.0) / 2
@@ -545,6 +485,8 @@ class AnimalSystem:
     def _update_domesticated(self, time_delta: float, environment: Dict):
         """Update domesticated animal population"""
         for animal_id, animal in self.domesticated.items():
+            # Animal eats
+            self._update_animal_food(animal)
             # Update health based on care
             care_quality = animal.get("care_quality", 0.5)
             health_change = (care_quality - 0.5) * time_delta
@@ -563,59 +505,196 @@ class AnimalSystem:
                 self._remove_animal(animal_id, "domesticated")
     
     def _move_animal(self, animal_id: str, animal: Dict, animal_type: str):
-        """Move animal based on its behavior"""
-        # Get movement behavior
-        behavior = self.behaviors[animal_type]
+        """Move an animal considering terrain, water type, and energy costs."""
+        # Get current terrain info
+        current_terrain = self.world.terrain.get_terrain_info_at(animal['longitude'], animal['latitude'])
+        current_elevation = self.world.terrain.get_elevation_at(animal['longitude'], animal['latitude'])
+        current_slope = self.world.terrain.get_slope_at(animal['longitude'], animal['latitude'])
         
-        # Calculate movement based on behavior
-        if animal_type == "herbivore":
-            if random.random() < behavior["migration"]:
-                animal["position"] = (
-                    animal["position"][0] + random.uniform(-1, 1),
-                    animal["position"][1] + random.uniform(-1, 1)
-                )
-        elif animal_type == "carnivore":
-            if random.random() < behavior["territorial"]:
-                animal["position"] = (
-                    animal["position"][0] + random.uniform(-2, 2),
-                    animal["position"][1] + random.uniform(-2, 2)
-                )
-        elif animal_type == "omnivore":
-            if random.random() < behavior["adaptability"]:
-                animal["position"] = (
-                    animal["position"][0] + random.uniform(-1.5, 1.5),
-                    animal["position"][1] + random.uniform(-1.5, 1.5)
-                )
-        elif animal_type == "domesticated":
-            if random.random() < behavior["obedience"]:
-                # Stay near owner
-                owner_pos = animal.get("owner_position", (0, 0))
-                animal["position"] = (
-                    owner_pos[0] + random.uniform(-0.5, 0.5),
-                    owner_pos[1] + random.uniform(-0.5, 0.5)
-                )
+        # Calculate movement cost based on terrain and animal type
+        movement_cost = self._calculate_movement_cost(animal, current_terrain, current_slope)
+        
+        # Check if animal has enough energy to move
+        if animal['needs']['energy'] < movement_cost:
+            # Animal is too tired to move
+            animal['last_action'] = "resting"
+            animal['needs']['energy'] = min(100.0, animal['needs']['energy'] + 0.3)
+            return
+        
+        # Calculate possible movement range based on energy and animal speed
+        max_distance = min(0.01 * animal['speed'], animal['needs']['energy'] / movement_cost)
+        
+        # Generate random movement within energy constraints
+        angle = random.uniform(0, 2 * math.pi)
+        distance = random.uniform(0, max_distance)
+        
+        # Calculate new position
+        new_lon = animal['longitude'] + distance * math.cos(angle)
+        new_lat = animal['latitude'] + distance * math.sin(angle)
+        
+        # Check if new position is valid for this animal type
+        if not self._is_valid_position(new_lon, new_lat, animal):
+            return
+        
+        # Get terrain at new position
+        new_terrain = self.world.terrain.get_terrain_info_at(new_lon, new_lat)
+        new_elevation = self.world.terrain.get_elevation_at(new_lon, new_lat)
+        new_slope = self.world.terrain.get_slope_at(new_lon, new_lat)
+        
+        # Calculate elevation change cost
+        elevation_change = abs(new_elevation - current_elevation)
+        elevation_cost = elevation_change * (2.0 / animal['size'])
+        
+        # Check if animal has enough energy for the elevation change
+        if animal['needs']['energy'] < (movement_cost + elevation_cost):
+            return
+        
+        # Update position
+        animal['longitude'] = new_lon
+        animal['latitude'] = new_lat
+        
+        # Update energy based on movement and terrain
+        animal['needs']['energy'] = max(0.0, animal['needs']['energy'] - (movement_cost + elevation_cost))
+        
+        # Update last action
+        if elevation_change > 0:
+            animal['last_action'] = "climbing" if new_elevation > current_elevation else "descending"
+        else:
+            animal['last_action'] = "moving"
+    
+    def _calculate_movement_cost(self, animal: Dict, terrain_info: Dict, slope: float) -> float:
+        """Calculate the energy cost of movement based on terrain, slope, and animal type."""
+        base_cost = 1.0
+        
+        # Terrain-specific costs
+        terrain_costs = {
+            "MOUNTAIN": 5.0,
+            "HILLS": 3.0,
+            "FOREST": 2.0,
+            "SWAMP": 4.0,
+            "RIVER": 3.0,
+            "LAKE": 5.0,  # Can't move through lakes
+            "OCEAN": 10.0,  # Can't move through oceans
+            "GLACIER": 6.0,
+            "DESERT": 2.0,
+            "GRASSLAND": 1.0,
+            "PLAINS": 1.0
+        }
+        
+        # Animal-specific terrain modifiers
+        animal_terrain_modifiers = {
+            "HORSE": {"PLAINS": 0.5, "GRASSLAND": 0.5, "HILLS": 1.5},  # Horses are fast on plains
+            "WOLF": {"FOREST": 0.7, "HILLS": 0.8},  # Wolves are good in forests and hills
+            "DEER": {"FOREST": 0.6, "GRASSLAND": 0.8},  # Deer are good in forests
+            "BEAR": {"MOUNTAIN": 0.8, "FOREST": 0.7},  # Bears are good in mountains and forests
+            "RABBIT": {"GRASSLAND": 0.5, "FOREST": 0.7},  # Rabbits are fast on grasslands
+            "SHEEP": {"HILLS": 0.7, "GRASSLAND": 0.8},  # Sheep are good on hills
+            "COW": {"PLAINS": 0.6, "GRASSLAND": 0.7},  # Cows are good on plains
+            "GOAT": {"MOUNTAIN": 0.6, "HILLS": 0.7}  # Goats are good in mountains
+        }
+        
+        terrain_type = terrain_info.get("type", "PLAINS")
+        terrain_cost = terrain_costs.get(terrain_type, 1.0)
+        
+        # Apply animal-specific terrain modifier
+        animal_type = animal['type'].value
+        terrain_modifier = animal_terrain_modifiers.get(animal_type, {}).get(terrain_type, 1.0)
+        
+        # Slope cost (0-1 scale)
+        slope_cost = 1.0 + (slope * 4.0)  # Steeper slopes cost more energy
+        
+        # Size modifier (smaller animals pay more for movement)
+        size_modifier = 1.0 / animal['size']
+        
+        return base_cost * terrain_cost * terrain_modifier * slope_cost * size_modifier
+    
+    def _is_valid_position(self, lon: float, lat: float, animal: Dict) -> bool:
+        """Check if a position is valid for movement for this animal type."""
+        # Check world bounds
+        if not (self.world.min_longitude <= lon <= self.world.max_longitude and
+                self.world.min_latitude <= lat <= self.world.max_latitude):
+            return False
+        
+        # Check if position is in impassable terrain
+        terrain_info = self.world.terrain.get_terrain_info_at(lon, lat)
+        terrain_type = terrain_info.get("type", "PLAINS")
+        
+        # Define impassable terrain for different animal types
+        impassable_terrain = {
+            "HORSE": {"OCEAN", "LAKE", "RIVER", "GLACIER", "MOUNTAIN"},
+            "WOLF": {"OCEAN", "LAKE", "RIVER"},
+            "DEER": {"OCEAN", "LAKE", "RIVER"},
+            "BEAR": {"OCEAN", "LAKE"},
+            "RABBIT": {"OCEAN", "LAKE", "RIVER", "MOUNTAIN"},
+            "SHEEP": {"OCEAN", "LAKE", "RIVER", "MOUNTAIN"},
+            "COW": {"OCEAN", "LAKE", "RIVER", "MOUNTAIN", "HILLS"},
+            "GOAT": {"OCEAN", "LAKE", "RIVER"}
+        }
+        
+        animal_type = animal['type'].value
+        return terrain_type not in impassable_terrain.get(animal_type, {"OCEAN", "LAKE"})
     
     def _reproduce_animal(self, animal_id: str, animal: Dict, animal_type: str):
         """Create new animal through reproduction"""
         if random.random() < 0.1:  # 10% chance of reproduction
             new_animal_id = self._generate_animal_id(animal_type)
-            new_animal = {
-                "position": (
-                    animal["position"][0] + random.uniform(-0.5, 0.5),
-                    animal["position"][1] + random.uniform(-0.5, 0.5)
-                ),
-                "health": 1.0,
-                "age": 0.0,
-                "traits": self._inherit_traits(animal.get("traits", {}), animal_type)
-            }
-            getattr(self, f"{animal_type}s")[new_animal_id] = new_animal
-            self.populations[animal_type] += 1
+            new_animal = self._create_animal(new_animal_id, AnimalType(animal['type']))
+            
+            # Add to appropriate collection
+            if animal_type == "herbivore":
+                self.herbivores[new_animal_id] = new_animal
+            elif animal_type == "carnivore":
+                self.carnivores[new_animal_id] = new_animal
+            elif animal_type == "omnivore":
+                self.omnivores[new_animal_id] = new_animal
+            elif animal_type == "domesticated":
+                self.domesticated[new_animal_id] = new_animal
+            
+            # Add to main animals collection
+            self.animals[new_animal_id] = new_animal
+            
+            # Update population count
+            self.populations[animal['type']] = self.populations.get(animal['type'], 0) + 1
+            
+            # Record reproduction event
+            self.events.append({
+                "type": "reproduction",
+                "timestamp": datetime.now().isoformat(),
+                "parent_id": animal_id,
+                "child_id": new_animal_id,
+                "animal_type": animal['type']
+            })
     
     def _remove_animal(self, animal_id: str, animal_type: str):
         """Remove animal from population"""
-        if animal_id in getattr(self, f"{animal_type}s"):
-            del getattr(self, f"{animal_type}s")[animal_id]
-            self.populations[animal_type] -= 1
+        if animal_id in self.animals:
+            animal = self.animals[animal_id]
+            
+            # Remove from appropriate collection
+            if animal_type == "herbivore" and animal_id in self.herbivores:
+                del self.herbivores[animal_id]
+            elif animal_type == "carnivore" and animal_id in self.carnivores:
+                del self.carnivores[animal_id]
+            elif animal_type == "omnivore" and animal_id in self.omnivores:
+                del self.omnivores[animal_id]
+            elif animal_type == "domesticated" and animal_id in self.domesticated:
+                del self.domesticated[animal_id]
+            
+            # Remove from main animals collection
+            del self.animals[animal_id]
+            
+            # Update population count
+            if animal['type'] in self.populations:
+                self.populations[animal['type']] = max(0, self.populations[animal['type']] - 1)
+            
+            # Record death event
+            self.events.append({
+                "type": "death",
+                "timestamp": datetime.now().isoformat(),
+                "animal_id": animal_id,
+                "animal_type": animal['type'],
+                "cause": animal.get('last_action', 'unknown')
+            })
     
     def _inherit_traits(self, parent_traits: Dict, animal_type: str) -> Dict:
         """Create new traits based on parent traits"""
@@ -733,41 +812,6 @@ class AnimalSystem:
                 "description": f"Significant population change occurred",
                 "populations": self.populations.copy()
             })
-    
-    def get_animal_state(self) -> Dict:
-        """Get current state of animal system"""
-        return {
-            "populations": self.populations,
-            "habitats": {k: len(v) for k, v in self.habitats.items()},
-            "behaviors": self.behaviors,
-            "traits": self.traits,
-            "interactions": {
-                "predator_prey": len(self.predator_prey),
-                "symbiotic": len(self.symbiotic),
-                "competition": len(self.competition)
-            }
-        }
-
-    def get_state(self) -> Dict:
-        """Alias for :meth:`get_animal_state`."""
-        return self.get_animal_state()
-    
-    def to_dict(self) -> Dict:
-        """Convert animal system to dictionary"""
-        return {
-            "herbivores": self.herbivores,
-            "carnivores": self.carnivores,
-            "omnivores": self.omnivores,
-            "domesticated": self.domesticated,
-            "behaviors": self.behaviors,
-            "traits": self.traits,
-            "predator_prey": self.predator_prey,
-            "symbiotic": self.symbiotic,
-            "competition": self.competition,
-            "habitats": {k: list(v) for k, v in self.habitats.items()},
-            "populations": self.populations,
-            "events": self.events
-        }
 
     def _initialize_predator_prey_relationships(self):
         """Initialize predator-prey relationships."""
@@ -807,3 +851,24 @@ class AnimalSystem:
         logger.info("Social structures initialized")
         
         logger.info("Animal ecosystems initialization complete") 
+
+    def _update_animal_food(self, animal: dict):
+        """Update animal's food consumption using CookingSystem."""
+        cooking_system = CookingSystem()
+        food_items = [item for item in animal.get('inventory', {}) if item in FoodType._value2member_map_]
+        for food_item in food_items:
+            if animal['needs']['hunger'] < 80.0 and animal['inventory'][food_item] > 0:
+                food_type = FoodType(food_item)
+                props = cooking_system.get_food_properties(food_type)
+                if not props:
+                    continue
+                # Consume one unit of food
+                animal['inventory'][food_item] = max(0.0, animal['inventory'][food_item] - 1.0)
+                # Update hunger
+                animal['needs']['hunger'] = min(100.0, animal['needs']['hunger'] + props.nutritional_value)
+                # Health effect
+                animal['needs']['health'] = max(0.0, min(100.0, animal['needs']['health'] + props.health_effect))
+                # Sickness risk
+                if props.food_safety_risk > 50.0 and random.random() < (props.food_safety_risk / 100.0):
+                    animal['needs']['health'] = max(0.0, animal['needs']['health'] - 20.0)  # Sickness penalty
+                break  # Only eat one food per update 

@@ -1,4 +1,4 @@
-from enum import Enum
+python start_simulation.pyfrom enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 import random
@@ -9,6 +9,7 @@ import numpy as np
 import uuid
 from datetime import datetime
 from .utils.logging_config import get_logger
+from .cooking import FoodType
 
 logger = get_logger(__name__)
 
@@ -101,51 +102,120 @@ class PlantSystem:
         logger.info("Plant distribution initialized")
         
         logger.info("Plant system initialization complete")
-
-    def _initialize_plant_types(self) -> Dict[PlantType, Dict]:
+        
+    def _initialize_plant_types(self):
+        """Initialize plant types with their properties."""
         return {
-            PlantType.WHEAT: {
-                "growth_time": 120.0,  # days to mature
-                "water_need": 0.8,  # water consumption rate
-                "nutrient_need": 0.6,
-                "yield": 1.0,
-                "pest_resistance": 0.7,
-                "stages": {
-                    GrowthStage.SEED: 0.0,
-                    GrowthStage.SPROUT: 0.2,
-                    GrowthStage.VEGETATIVE: 0.4,
-                    GrowthStage.FLOWERING: 0.6,
-                    GrowthStage.MATURE: 0.8,
-                    GrowthStage.HARVESTABLE: 1.0
+            'TREE': {
+                'name': 'Tree',
+                'growth_rate': 0.1,
+                'water_need': 0.7,
+                'nutrient_need': 0.6,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.2,
+                    'sapling': 0.4,
+                    'young': 0.6,
+                    'mature': 0.8,
+                    'old': 1.0
+                },
+                'maturity_age': 100,
+                'lifespan': 1000,
+                'reproduction_rate': 0.1,
+                'spread_rate': 0.05,
+                'biomass': 100.0,
+                'carbon_sequestration': 0.5,
+                'oxygen_production': 0.3,
+                'soil_stabilization': 0.4,
+                'habitat_value': 0.8,
+                'resource_production': {
+                    'wood': 50.0,
+                    'fruit': 20.0,
+                    'seeds': 10.0
                 }
             },
-            PlantType.CORN: {
-                "growth_time": 90.0,
-                "water_need": 1.0,
-                "nutrient_need": 0.8,
-                "yield": 1.2,
-                "pest_resistance": 0.5,
-                "stages": {
-                    GrowthStage.SEED: 0.0,
-                    GrowthStage.SPROUT: 0.15,
-                    GrowthStage.VEGETATIVE: 0.35,
-                    GrowthStage.FLOWERING: 0.55,
-                    GrowthStage.MATURE: 0.75,
-                    GrowthStage.HARVESTABLE: 1.0
+            'GRASS': {
+                'name': 'Grass',
+                'growth_rate': 0.2,
+                'water_need': 0.5,
+                'nutrient_need': 0.4,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.3,
+                    'young': 0.6,
+                    'mature': 0.8,
+                    'old': 1.0
+                },
+                'maturity_age': 20,
+                'lifespan': 100,
+                'reproduction_rate': 0.3,
+                'spread_rate': 0.2,
+                'biomass': 10.0,
+                'carbon_sequestration': 0.2,
+                'oxygen_production': 0.2,
+                'soil_stabilization': 0.6,
+                'habitat_value': 0.3,
+                'resource_production': {
+                    'biomass': 5.0,
+                    'seeds': 2.0
                 }
             },
-            PlantType.GRASS: {
-                "growth_time": 30.0,
-                "water_need": 0.5,
-                "nutrient_need": 0.4,
-                "yield": 0.8,
-                "pest_resistance": 0.9,
-                "stages": {
-                    GrowthStage.SEED: 0.0,
-                    GrowthStage.SPROUT: 0.3,
-                    GrowthStage.VEGETATIVE: 0.6,
-                    GrowthStage.MATURE: 0.8,
-                    GrowthStage.HARVESTABLE: 1.0
+            'BUSH': {
+                'name': 'Bush',
+                'growth_rate': 0.15,
+                'water_need': 0.6,
+                'nutrient_need': 0.5,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.25,
+                    'young': 0.5,
+                    'mature': 0.75,
+                    'old': 1.0
+                },
+                'maturity_age': 50,
+                'lifespan': 200,
+                'reproduction_rate': 0.2,
+                'spread_rate': 0.1,
+                'biomass': 30.0,
+                'carbon_sequestration': 0.3,
+                'oxygen_production': 0.25,
+                'soil_stabilization': 0.5,
+                'habitat_value': 0.5,
+                'resource_production': {
+                    'berries': 15.0,
+                    'biomass': 10.0,
+                    'seeds': 5.0
+                }
+            },
+            'SHRUB': {
+                'name': 'Shrub',
+                'growth_rate': 0.15,
+                'water_need': 0.6,
+                'nutrient_need': 0.5,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.25,
+                    'young': 0.5,
+                    'mature': 0.75,
+                    'old': 1.0
+                },
+                'maturity_age': 50,
+                'lifespan': 200,
+                'reproduction_rate': 0.2,
+                'spread_rate': 0.1,
+                'biomass': 30.0,
+                'carbon_sequestration': 0.3,
+                'oxygen_production': 0.25,
+                'soil_stabilization': 0.5,
+                'habitat_value': 0.5,
+                'resource_production': {
+                    'berries': 15.0,
+                    'biomass': 10.0,
+                    'seeds': 5.0
                 }
             }
         }
@@ -243,41 +313,50 @@ class PlantSystem:
             self._handle_death(plant)
 
     def _update_growth(self, plant: Plant, current_time: float, world_state: Dict) -> None:
-        """Update plant growth"""
-        if plant.state.is_harvested or plant.state.growth_stage == GrowthStage.DEAD:
-            return
-
-        plant_type = self.plant_types[plant.type]
-        growth_rate = 1.0
-
-        # Growth rate affected by needs
-        if plant.needs.water < 30:
-            growth_rate *= 0.5
-        if plant.needs.nutrients < 30:
-            growth_rate *= 0.7
-        if plant.needs.health < 50:
-            growth_rate *= 0.8
-
-        # Weather effects
-        weather = world_state.get("weather", "clear")
-        if weather == "rain":
-            growth_rate *= 1.2
-        elif weather == "drought":
-            growth_rate *= 0.5
-
-        # Update growth progress
-        plant.state.growth_progress += (1.0 / plant_type["growth_time"]) * growth_rate
-        plant.state.age += 1.0
-
-        # Update growth stage
-        stages = plant_type["stages"]
-        for stage, threshold in sorted(stages.items(), key=lambda x: x[1]):
-            if plant.state.growth_progress >= threshold:
-                plant.state.growth_stage = stage
+        """Update plant growth based on current conditions."""
+        try:
+            # Get plant type data using string key
+            plant_type = self.plant_types[plant.type.upper()]
+            # Calculate growth rate based on conditions
+            growth_rate = plant_type['growth_rate']
+            # Apply environmental factors
+            if 'temperature' in world_state:
+                temp = world_state['temperature']
+                if temp < 10 or temp > 35:  # Temperature stress
+                    growth_rate *= 0.5
+            if 'precipitation' in world_state:
+                precip = world_state['precipitation']
+                if precip < 0.1:  # Drought stress
+                    growth_rate *= 0.3
+            # Update growth progress
+            plant.state.growth_progress += growth_rate
+            # Check for stage transitions
+            current_stage = plant.state.growth_stage
+            stages = plant_type['growth_stages']
+            # Find next stage
+            next_stage = None
+            for stage, threshold in stages.items():
+                if plant.state.growth_progress >= threshold * 100:
+                    next_stage = stage
+            if next_stage and next_stage != current_stage:
+                plant.state.growth_stage = GrowthStage(next_stage)
+            # Update age
+            plant.age += 1
+            # Check for maturity
+            if plant.age >= plant_type['maturity_age']:
+                plant.state.growth_stage = GrowthStage.MATURE
+            # Check for death
+            if plant.age >= plant_type['lifespan']:
+                plant.state.growth_stage = GrowthStage.DEAD
+        except Exception as e:
+            logger.error(f"Error updating plant growth: {e}")
+            logger.error(f"Plant type: {plant.type}")
+            logger.error(f"Available plant types: {list(self.plant_types.keys())}")
+            raise
 
     def _update_needs(self, plant: Plant, current_time: float, world_state: Dict) -> None:
         """Update plant needs"""
-        plant_type = self.plant_types[plant.type]
+        plant_type = self.plant_types[plant.type.upper()]
         
         # Water consumption
         time_since_watered = current_time - plant.state.last_watered
@@ -367,22 +446,39 @@ class PlantSystem:
                 plant.needs.health = min(100, plant.needs.health + 10)
         return True
 
-    def harvest_plant(self, plant_id: str) -> Optional[float]:
-        """Harvest a plant, returns yield amount"""
+    def harvest_plant(self, plant_id: str) -> Optional[dict]:
+        """Harvest a plant, returns a dict of food items and amounts."""
         if plant_id not in self.plants:
             return None
-            
         plant = self.plants[plant_id]
         if plant.state.growth_stage != GrowthStage.HARVESTABLE:
             return None
-            
         plant.state.is_harvested = True
         plant.last_action = "harvested"
-        
         # Calculate yield based on health and growth
-        base_yield = self.plant_types[plant.type]["yield"]
+        base_yield = self.plant_types[plant.type.upper()]["yield"]
         health_factor = plant.needs.health / 100.0
-        return base_yield * health_factor
+        food_amount = base_yield * health_factor
+        # Map plant type to FoodType
+        plant_food_map = {
+            "wheat": FoodType.RAW_GRAINS.value,
+            "corn": FoodType.RAW_GRAINS.value,
+            "potato": FoodType.RAW_VEGETABLES.value,
+            "carrot": FoodType.RAW_VEGETABLES.value,
+            "tomato": FoodType.RAW_VEGETABLES.value,
+            "grass": None,  # Not edible for agents
+            "tree": None,
+            "undergrowth": None,
+            "flower": None,
+            "cactus": FoodType.RAW_VEGETABLES.value,
+            "shrub": None,
+            "moss": None,
+            "lichen": None
+        }
+        food_type = plant_food_map.get(plant.type, None)
+        if food_type:
+            return {food_type: food_amount}
+        return None
 
     def get_field_plants(self, field_id: str) -> List[Plant]:
         """Get all plants in a field"""
@@ -392,37 +488,47 @@ class PlantSystem:
         return [self.plants[pid] for pid in self.fields[field_id] 
                 if pid in self.plants]
 
+    def get_state(self) -> Dict:
+        """Get the current state of the plant system."""
+        return {
+            'plants': {str(plant_id): {
+                'id': plant.id,
+                'type': plant.type,
+                'species': plant.species,
+                'age': plant.age,
+                'health': plant.health,
+                'size': plant.size,
+                'position': [float(plant.longitude), float(plant.latitude)],
+                'growth_rate': plant.growth_rate,
+                'reproduction_rate': plant.reproduction_rate,
+                'resource_yield': plant.resource_yield,
+                'planted_by': plant.planted_by,
+                'needs': {
+                    'water': plant.needs.water,
+                    'nutrients': plant.needs.nutrients,
+                    'health': plant.needs.health,
+                    'pest_resistance': plant.needs.pest_resistance
+                },
+                'state': {
+                    'growth_stage': plant.state.growth_stage.value,
+                    'growth_progress': plant.state.growth_progress,
+                    'age': plant.state.age,
+                    'last_watered': plant.state.last_watered,
+                    'last_fertilized': plant.state.last_fertilized,
+                    'last_weeded': plant.state.last_weeded,
+                    'has_pests': plant.state.has_pests,
+                    'pest_damage': plant.state.pest_damage,
+                    'is_harvested': plant.state.is_harvested
+                },
+                'field_id': plant.field_id,
+                'last_action': plant.last_action
+            } for plant_id, plant in self.plants.items()},
+            'fields': {str(field_id): [str(pid) for pid in plant_ids] for field_id, plant_ids in self.fields.items()}
+        }
+
     def to_dict(self) -> Dict:
         """Convert plant system state to dictionary"""
-        return {
-            "plants": {
-                plant_id: {
-                    "id": plant.id,
-                    "type": plant.type,
-                    "species": plant.species,
-                    "position": (plant.longitude, plant.latitude),
-                    "needs": {
-                        "water": plant.needs.water,
-                        "nutrients": plant.needs.nutrients,
-                        "health": plant.needs.health,
-                        "pest_resistance": plant.needs.pest_resistance
-                    },
-                    "state": {
-                        "growth_stage": plant.state.growth_stage.value,
-                        "growth_progress": plant.state.growth_progress,
-                        "age": plant.state.age,
-                        "has_pests": plant.state.has_pests,
-                        "pest_damage": plant.state.pest_damage,
-                        "is_harvested": plant.state.is_harvested
-                    },
-                    "planted_by": plant.planted_by,
-                    "field_id": plant.field_id,
-                    "last_action": plant.last_action
-                }
-                for plant_id, plant in self.plants.items()
-            },
-            "fields": self.fields
-        }
+        return self.get_state()
 
     def initialize_plants(self):
         """Initialize the plant system."""

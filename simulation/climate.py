@@ -49,6 +49,7 @@ class ClimateSystem:
         self.precipitation_data = {}  # (longitude, latitude) -> float
         self.humidity_data = {}  # (longitude, latitude) -> float
         self.wind_data = {}  # (longitude, latitude) -> Dict
+        self.current_conditions = {}  # (longitude, latitude) -> Dict
         
         # Define coordinate ranges
         self.longitude_range = np.arange(-180.0, 180.0, 1.0)  # 1-degree resolution
@@ -57,17 +58,15 @@ class ClimateSystem:
         # Initialize maps
         self.temperature_map = np.zeros((len(self.longitude_range), len(self.latitude_range)))
         self.precipitation_map = np.zeros((len(self.longitude_range), len(self.latitude_range)))
-
-        self.wind_map = np.zeros((len(self.longitude_range), len(self.latitude_range)))
+        
+        # Initialize wind map with tuples of (speed, direction)
+        self.wind_map = np.zeros((len(self.longitude_range), len(self.latitude_range)), dtype=object)
+        for i in range(len(self.longitude_range)):
+            for j in range(len(self.latitude_range)):
+                self.wind_map[i][j] = (0.0, 0.0)  # (speed, direction)
 
         # Simulation time tracking
         self.current_time = 0.0
-
-        self.wind_map = np.zeros((len(self.longitude_range), len(self.latitude_range)))
-
-        # Simulation time tracking
-        self.current_time = 0.0
-
         
         self.initialize_earth_climate()
         
@@ -422,7 +421,6 @@ class ClimateSystem:
             }
         })
         
-
     def get_temperature_at(self, longitude: float, latitude: float) -> float:
         """Get temperature at given coordinates in Celsius."""
         lon_grid = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
@@ -439,30 +437,9 @@ class ClimateSystem:
         lat_grid = round(latitude / self.world.latitude_resolution) * self.world.latitude_resolution
         return self.precipitation_data.get((lon_grid, lat_grid), 0.0)
 
-    # Backwards compatibility for older code
     def get_precipitation(self, longitude: float, latitude: float) -> float:
+        """Alias for get_precipitation_at."""
         return self.get_precipitation_at(longitude, latitude)
-
-    def get_temperature_at(self, longitude: float, latitude: float) -> float:
-        """Get temperature at given coordinates in Celsius."""
-        lon_grid = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
-        lat_grid = round(latitude / self.world.latitude_resolution) * self.world.latitude_resolution
-        return self.temperature_data.get((lon_grid, lat_grid), 20.0)
-
-    def get_temperature(self, longitude: float, latitude: float) -> float:
-        """Alias for get_temperature_at."""
-        return self.get_temperature_at(longitude, latitude)
-        
-    def get_precipitation_at(self, longitude: float, latitude: float) -> float:
-        """Get precipitation at given coordinates in mm/year."""
-        lon_grid = round(longitude / self.world.longitude_resolution) * self.world.longitude_resolution
-        lat_grid = round(latitude / self.world.latitude_resolution) * self.world.latitude_resolution
-        return self.precipitation_data.get((lon_grid, lat_grid), 0.0)
-
-    # Backwards compatibility for older code
-    def get_precipitation(self, longitude: float, latitude: float) -> float:
-        return self.get_precipitation_at(longitude, latitude)
-
         
     def get_humidity_at(self, longitude: float, latitude: float) -> float:
         """Get humidity at given coordinates (0-1)."""
@@ -578,27 +555,16 @@ class ClimateSystem:
                 self.precipitation_map[(lon, lat)] = precipitation
         logger.info("Precipitation map initialized")
 
-    def _initialize_wind_map(self):
-        """Initialize the wind map based on pressure gradients."""
-        logger.info("Initializing wind map...")
-        for lon in np.arange(-180, 180, self.world.longitude_resolution):
-            for lat in np.arange(-90, 90, self.world.latitude_resolution):
-                # Base wind speed varies with latitude
-                base_speed = 5 + abs(lat) * 0.1  # Stronger winds at higher latitudes
-                
-                # Add seasonal variation
-                season_factor = 2 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))
-                
-                # Add random variation
-                random_factor = np.random.normal(0, 1)  # 1 m/s standard deviation
-                
-                wind_speed = max(0, base_speed + season_factor + random_factor)
-                
-                # Wind direction (in degrees)
-                wind_direction = (lon + 180) % 360  # Basic eastward flow
-                
-                self.wind_map[(lon, lat)] = (wind_speed, wind_direction)
-        logger.info("Wind map initialized")
+    def _initialize_wind_map(self, time_delta: float):
+        """Initialize wind map with random wind patterns."""
+        logger.info("Updating wind conditions...")
+        # Use the correct map size attribute for wind map
+        map_size = len(self.longitude_range)
+        for i in range(map_size):
+            for j in range(len(self.latitude_range)):
+                speed = np.random.uniform(0, 30)
+                direction = np.random.uniform(0, 360)
+                self.wind_map[i][j] = (speed, direction)
 
     def _initialize_current_conditions(self):
         """Initialize current weather conditions."""
@@ -607,7 +573,7 @@ class ClimateSystem:
             for lat in np.arange(-90, 90, self.world.latitude_resolution):
                 temperature = self.temperature_map.get((lon, lat), 20)
                 precipitation = self.precipitation_map.get((lon, lat), 0)
-                wind_speed, wind_direction = self.wind_map.get((lon, lat), (0, 0))
+                wind_speed, wind_direction = self.wind_map[lon, lat]
                 
                 # Determine weather type
                 if precipitation > 50:
@@ -640,7 +606,7 @@ class ClimateSystem:
         self._update_precipitation_map(time_delta)
         
         # Update wind map
-        self._update_wind_map(time_delta)
+        self._initialize_wind_map(time_delta)
         
         # Update current conditions
         self._update_current_conditions()
@@ -649,11 +615,7 @@ class ClimateSystem:
 
     def _update_temperature_map(self, time_delta: float):
         """Update temperature map over time."""
-
         for (i, j), temp in np.ndenumerate(self.temperature_map):
-
-        for (i, j), temp in np.ndenumerate(self.temperature_map):
-
             # Daily cycle
             daily_factor = 5 * np.sin(2 * np.pi * (self.current_time % (24 * 60)) / (24 * 60))
             
@@ -663,19 +625,11 @@ class ClimateSystem:
             # Random variation
             random_factor = np.random.normal(0, 0.1) * time_delta
             
-
             self.temperature_map[i][j] = temp + daily_factor + seasonal_factor + random_factor
 
     def _update_precipitation_map(self, time_delta: float):
         """Update precipitation map over time."""
         for (i, j), precip in np.ndenumerate(self.precipitation_map):
-
-            self.temperature_map[i][j] = temp + daily_factor + seasonal_factor + random_factor
-
-    def _update_precipitation_map(self, time_delta: float):
-        """Update precipitation map over time."""
-        for (i, j), precip in np.ndenumerate(self.precipitation_map):
-
             # Seasonal variation
             seasonal_factor = 50 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))
             
@@ -683,66 +637,6 @@ class ClimateSystem:
             random_factor = np.random.normal(0, 5) * time_delta
 
             self.precipitation_map[i][j] = max(0, precip + seasonal_factor + random_factor)
-
-    def _update_wind_map(self, time_delta: float):
-        """Update wind map over time."""
-        for (i, j), (speed, direction) in np.ndenumerate(self.wind_map):
-            # Seasonal variation in speed
-            speed_factor = 2 * np.sin(2 * np.pi * self.current_time / (365 * 24 * 60))
-            
-            # Random variation
-            random_speed = np.random.normal(0, 0.5) * time_delta
-            random_direction = np.random.normal(0, 5) * time_delta
-            
-            new_speed = max(0, speed + speed_factor + random_speed)
-            new_direction = (direction + random_direction) % 360
-            
-            self.wind_map[i][j] = (new_speed, new_direction)
-
-    def _update_current_conditions(self):
-        """Update current weather conditions based on maps."""
-        for (i, j), temperature in np.ndenumerate(self.temperature_map):
-            lon = self.longitude_range[i]
-            lat = self.latitude_range[j]
-            precipitation = self.precipitation_map[i][j]
-            wind_speed, wind_direction = self.wind_map[i][j]
-            self.precipitation_map[i][j] = max(0, precip + seasonal_factor + random_factor)
-
-    def _update_wind_map(self, time_delta: float):
-        """Update wind conditions across the map."""
-        logger.info("Updating wind conditions...")
-        
-        # Create a new wind map with the same shape
-        new_wind_map = np.zeros_like(self.wind_map)
-        
-        # Update each point
-        for i in range(self.wind_map.shape[0]):
-            for j in range(self.wind_map.shape[1]):
-                # Get current wind speed
-                current_speed = self.wind_map[i, j]
-                
-                # Calculate new wind speed based on time and location
-                lat = self.latitude_range[j]
-                lon = self.longitude_range[i]
-                
-                # Base wind speed on latitude (stronger at higher latitudes)
-                base_speed = abs(lat) * 0.1
-                
-                # Add some random variation
-                variation = np.random.normal(0, 0.1)
-                
-                # Calculate new speed
-                new_speed = base_speed + variation
-                
-                # Ensure non-negative
-                new_speed = max(0.0, new_speed)
-                
-                # Store in new map
-                new_wind_map[i, j] = new_speed
-        
-        # Update the wind map
-        self.wind_map = new_wind_map
-        logger.info("Wind conditions updated")
 
     def _update_current_conditions(self):
         """Update current weather conditions based on maps."""
@@ -778,6 +672,18 @@ class ClimateSystem:
         """Placeholder precipitation model."""
         return max(0.0, 1.0 - abs(latitude) / 90.0)
 
-    def _calculate_base_wind(self, latitude: float, longitude: float) -> float:
+    def _calculate_base_wind(self, latitude: float, longitude: float) -> Dict:
         """Placeholder wind speed model."""
-        return abs(latitude) * 0.1 
+        return abs(latitude) * 0.1
+
+    def get_nearby_climate(self, longitude: float, latitude: float, radius: float) -> Dict[str, Dict]:
+        """Get climate data within radius of location."""
+        nearby = {}
+        for dlon in np.arange(-radius, radius + self.world.longitude_resolution, self.world.longitude_resolution):
+            for dlat in np.arange(-radius, radius + self.world.latitude_resolution, self.world.latitude_resolution):
+                check_lon = longitude + dlon
+                check_lat = latitude + dlat
+                pos = (check_lon, check_lat)
+                if pos in self.climate_data:
+                    nearby[f"{check_lon},{check_lat}"] = self.climate_data[pos]
+        return nearby 
