@@ -42,17 +42,16 @@ def run_simulation_loop():
         logger.error(f"Error in simulation loop: {e}")
         logger.error(traceback.format_exc())
 
-def start_backend():
+def start_backend_server():
     """Start the Flask backend server."""
     logger.info("Starting backend server...")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5001, debug=False)
 
 def start_frontend():
-    """Start the frontend in a web browser."""
+    """Start the frontend interface."""
     logger.info("Starting frontend...")
-    # Wait for backend to initialize
-    time.sleep(2)
-    webbrowser.open('http://localhost:5000')
+    time.sleep(2)  # Give the server time to start
+    webbrowser.open('http://localhost:5001')
 
 def main():
     """Main entry point for the simulation."""
@@ -68,7 +67,7 @@ def main():
         
         # Start backend server in a separate thread
         logger.info("Starting backend server...")
-        server_thread = threading.Thread(target=start_backend, daemon=True)
+        server_thread = threading.Thread(target=start_backend_server, daemon=True)
         server_thread.start()
         
         # Start simulation loop in a separate thread

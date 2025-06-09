@@ -1,0 +1,28 @@
+{
+  "current_weather": {
+    "temperature": 18.875406813707134,
+    "humidity": 0.2800080484145543,
+    "wind_speed": 85.06628767505758,
+    "wind_direction": 327.8066885811835,
+    "precipitation": 0.0,
+    "cloud_cover": 0.5743161987846583,
+    "weather_type": "cloudy",
+    "severity": 0.6024859253037688,
+    "pressure": 1010.5916382081676,
+    "visibility": 10.0,
+    "uv_index": 1.0226037364490597
+  },
+  "season": "spring",
+  "day_length": 12,
+  "time_of_day": 16.666666666667002,
+  "effects": {
+    "temperature": 18.875406813707134,
+    "humidity": 0.2800080484145543,
+    "wind_speed": 85.06628767505758,
+    "precipitation": 0.0,
+    "cloud_cover": 0.5743161987846583,
+    "pressure": 1010.5916382081676,
+    "visibility": 10.0,
+    "uv_index": 1.0226037364490597
+  }
+}

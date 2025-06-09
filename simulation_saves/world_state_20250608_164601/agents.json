@@ -1,0 +1,64 @@
+{
+  "agents": {
+    "b87bb3d1-b189-4e00-8136-845116acba30": {
+      "id": "b87bb3d1-b189-4e00-8136-845116acba30",
+      "name": "Agent_1",
+      "position": [
+        -74.1285,
+        40.8576
+      ],
+      "health": 100.0,
+      "energy": 100.0,
+      "hunger": 0.0,
+      "thirst": 0.0,
+      "age": 0,
+      "skills": {
+        "hunting": 0.3,
+        "gathering": 0.3,
+        "crafting": 0.2
+      },
+      "inventory": {
+        "food": 10.0,
+        "water": 10.0,
+        "tools": 1
+      },
+      "created_at": 1749399924.3001254,
+      "last_update": 1749399924.3001258,
+      "last_action": null
+    },
+    "ec0a88c2-e765-4a80-9350-1682814fe62c": {
+      "id": "ec0a88c2-e765-4a80-9350-1682814fe62c",
+      "name": "Agent_2",
+      "position": [
+        -74.1185,
+        40.867599999999996
+      ],
+      "health": 100.0,
+      "energy": 100.0,
+      "hunger": 0.0,
+      "thirst": 0.0,
+      "age": 0,
+      "skills": {
+        "hunting": 0.3,
+        "gathering": 0.3,
+        "crafting": 0.2
+      },
+      "inventory": {
+        "food": 10.0,
+        "water": 10.0,
+        "tools": 1
+      },
+      "created_at": 1749399924.3001735,
+      "last_update": 1749399924.3001735,
+      "last_action": null
+    }
+  },
+  "agent_positions": {
+    "-74.1285,40.8576": [
+      "b87bb3d1-b189-4e00-8136-845116acba30"
+    ],
+    "-74.1185,40.867599999999996": [
+      "ec0a88c2-e765-4a80-9350-1682814fe62c"
+    ]
+  }
+}
