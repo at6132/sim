@@ -78,3 +78,6 @@ htmlcov/
 coverage.xml
 *.cover
 .hypothesis/
+data/
+simulation_saves/
+
