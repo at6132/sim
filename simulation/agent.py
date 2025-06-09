@@ -423,7 +423,7 @@ class Agent:
             self.genes.water_resistance += 0.01
         elif weather_type == WeatherType.SNOW:
             self.genes.cold_resistance += 0.01
-        elif weather_type == WeatherType.SANDSTORM:
+        elif weather_type == WeatherType.WINDY:
             self.genes.dust_resistance += 0.01
             
         # Cap all gene values between 0 and 1
@@ -1702,7 +1702,7 @@ class Agent:
             self.genes.water_resistance += 0.001
         elif weather and weather["type"] == WeatherType.SNOW:
             self.genes.cold_resistance += 0.001
-        elif weather and weather["type"] == WeatherType.SANDSTORM:
+        elif weather and weather["type"] == WeatherType.WINDY:
             self.genes.dust_resistance += 0.001
             
         # Update social and cognitive skills based on interactions
@@ -1791,6 +1791,19 @@ class Agent:
                     "understanding_levels": self.understanding_levels,
                     "current_question": "What is the nature of happiness?"
                 })
+            elif weather["type"] == WeatherType.WINDY:
+                # Strong winds behavior
+                if random.random() < 0.01:  # 1% chance to comment on weather
+                    self.add_memory(
+                        f"Commented on weather: {weather['intensity']}",
+                        0.5,
+                        {
+                            "weather_type": weather["type"].value,
+                            "intensity": weather["intensity"]
+                        },
+                        emotional_impact=0.3,
+                        philosophical_impact=0.2
+                    )
                 
         # Update based on social interactions
         if self.needs.social < 0.3:  # If feeling lonely
@@ -2085,7 +2098,7 @@ class Agent:
             elif weather["type"] == WeatherType.SNOW:
                 if self.genes.cold_resistance < 0.5:
                     self.health = max(0.0, self.health - 0.02)
-            elif weather["type"] == WeatherType.SANDSTORM:
+            elif weather["type"] == WeatherType.WINDY:
                 if self.genes.dust_resistance < 0.5:
                     self.health = max(0.0, self.health - 0.01)
                     

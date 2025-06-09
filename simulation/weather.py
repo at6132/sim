@@ -224,7 +224,7 @@ class WeatherSystem:
         air_mass_humidity /= len(self.air_masses)
         
         # Weather effects
-        if self.current_weather.weather_type in [WeatherType.RAINY, WeatherType.HEAVY_RAIN, WeatherType.THUNDERSTORM]:
+        if self.current_weather.weather_type in [WeatherType.RAIN, WeatherType.HEAVY_RAIN, WeatherType.THUNDERSTORM]:
             base_humidity += 0.2
         elif self.current_weather.weather_type == WeatherType.DROUGHT:
             base_humidity -= 0.3
@@ -305,7 +305,7 @@ class WeatherSystem:
     
     def _update_precipitation(self) -> None:
         """Update precipitation based on weather, humidity, and temperature."""
-        if self.current_weather.weather_type in [WeatherType.RAINY, WeatherType.HEAVY_RAIN, WeatherType.THUNDERSTORM]:
+        if self.current_weather.weather_type in [WeatherType.RAIN, WeatherType.HEAVY_RAIN, WeatherType.THUNDERSTORM]:
             base_precip = 1.0
             if self.current_weather.weather_type == WeatherType.HEAVY_RAIN:
                 base_precip = 3.0
@@ -333,7 +333,7 @@ class WeatherSystem:
         }[self.season]
         
         # Weather effects
-        if self.current_weather.weather_type in [WeatherType.RAINY, WeatherType.HEAVY_RAIN, WeatherType.THUNDERSTORM]:
+        if self.current_weather.weather_type in [WeatherType.RAIN, WeatherType.HEAVY_RAIN, WeatherType.THUNDERSTORM]:
             base_clouds = 0.9
         elif self.current_weather.weather_type == WeatherType.CLEAR:
             base_clouds = 0.1
@@ -360,10 +360,10 @@ class WeatherSystem:
             base_visibility *= 0.4
         elif self.current_weather.weather_type == WeatherType.THUNDERSTORM:
             base_visibility *= 0.3
-        elif self.current_weather.weather_type == WeatherType.BLIZZARD:
+        elif self.current_weather.weather_type == WeatherType.HEAVY_SNOW:
             base_visibility *= 0.1
-        elif self.current_weather.weather_type == WeatherType.SANDSTORM:
-            base_visibility *= 0.2
+        elif self.current_weather.weather_type == WeatherType.MONSOON:
+            base_visibility *= 0.25
             
         # Precipitation effects
         if self.current_weather.precipitation > 0:
@@ -397,12 +397,11 @@ class WeatherSystem:
         probabilities = {
             WeatherType.CLEAR: 0.3,
             WeatherType.CLOUDY: 0.2,
-            WeatherType.RAINY: 0.1,
+            WeatherType.RAIN: 0.1,
             WeatherType.HEAVY_RAIN: 0.05,
             WeatherType.THUNDERSTORM: 0.05,
             WeatherType.SNOW: 0.05,
-            WeatherType.BLIZZARD: 0.02,
-            WeatherType.SANDSTORM: 0.02,
+            WeatherType.HEAVY_SNOW: 0.02,
             WeatherType.FOG: 0.05,
             WeatherType.WINDY: 0.1,
             WeatherType.DROUGHT: 0.02,
@@ -416,7 +415,7 @@ class WeatherSystem:
         # Adjust probabilities based on season
         if self.season == "winter":
             probabilities[WeatherType.SNOW] += 0.2
-            probabilities[WeatherType.BLIZZARD] += 0.1
+            probabilities[WeatherType.HEAVY_SNOW] += 0.1
             probabilities[WeatherType.HEAT_WAVE] = 0.0
             probabilities[WeatherType.DROUGHT] = 0.0
         elif self.season == "summer":
@@ -424,9 +423,9 @@ class WeatherSystem:
             probabilities[WeatherType.DROUGHT] += 0.1
             probabilities[WeatherType.THUNDERSTORM] += 0.1
             probabilities[WeatherType.SNOW] = 0.0
-            probabilities[WeatherType.BLIZZARD] = 0.0
+            probabilities[WeatherType.HEAVY_SNOW] = 0.0
         elif self.season == "spring":
-            probabilities[WeatherType.RAINY] += 0.1
+            probabilities[WeatherType.RAIN] += 0.1
             probabilities[WeatherType.FOG] += 0.1
         elif self.season == "fall":
             probabilities[WeatherType.WINDY] += 0.1
@@ -434,7 +433,7 @@ class WeatherSystem:
             
         # Adjust based on current conditions
         if self.current_weather.humidity > 0.8:
-            probabilities[WeatherType.RAINY] += 0.2
+            probabilities[WeatherType.RAIN] += 0.2
             probabilities[WeatherType.HEAVY_RAIN] += 0.1
             probabilities[WeatherType.THUNDERSTORM] += 0.1
         if self.current_weather.temperature > 30:
@@ -450,7 +449,7 @@ class WeatherSystem:
         # Front influence
         for front in self.weather_fronts:
             if front["type"] == "cold":
-                probabilities[WeatherType.RAINY] += 0.1
+                probabilities[WeatherType.RAIN] += 0.1
                 probabilities[WeatherType.THUNDERSTORM] += 0.05
             else:
                 probabilities[WeatherType.CLOUDY] += 0.1
