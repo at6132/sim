@@ -114,6 +114,16 @@ class Environment:
         sunrise = 12 - day_length / 2
         sunset = 12 + day_length / 2
 
+        # Update season using day of year
+        if 80 <= day_of_year < 172:
+            self.season = "spring"
+        elif 172 <= day_of_year < 264:
+            self.season = "summer"
+        elif 264 <= day_of_year < 355:
+            self.season = "fall"
+        else:
+            self.season = "winter"
+
         # Update time of day
         self.time_of_day = (self.time_of_day + hours) % 24.0
 
@@ -133,6 +143,12 @@ class Environment:
         # Update precipitation
         if random.random() < 0.1 * hours:  # 10% chance per hour
             self.precipitation = random.uniform(0.0, 1.0)
+
+        # Adjust humidity based on precipitation
+        if self.precipitation > 0.1:
+            self.humidity = min(1.0, self.humidity + 0.05 * hours)
+        else:
+            self.humidity = max(0.0, self.humidity - 0.01 * hours)
 
         self.last_update = datetime.now().timestamp()
 

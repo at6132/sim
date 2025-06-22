@@ -49,9 +49,11 @@ This will:
 - Procedurally generated terrain with elevation, water bodies, and vegetation
 - Resource distribution and management
 - Agent-based simulation with individual behaviors
+- Agents possess open-ended free will, forming cultures and societies
 - Real-time visualization and control interface
 - Detailed logging and progress tracking
 - Natural disaster system simulating earthquakes, hurricanes, and more
+- Seasons progress throughout the year, influencing weather and climate
 - Realistic day/night cycle with real-world latitude and longitude
 - Environments track coordinates for localized time of day
 - Two initial agents spawn near Passaic, NJ with no predefined names
