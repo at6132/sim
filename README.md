@@ -51,6 +51,11 @@ This will:
 - Agent-based simulation with individual behaviors
 - Real-time visualization and control interface
 - Detailed logging and progress tracking
+- Natural disaster system simulating earthquakes, hurricanes, and more
+- Realistic day/night cycle with real-world latitude and longitude
+- Two initial agents spawn near Passaic, NJ with no predefined names
+- Basic physics system applying Newtonian motion to agents
+- Simple building system for constructing structures over time
 
 ## Development
 

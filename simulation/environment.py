@@ -5,14 +5,17 @@ import random
 import logging
 import time
 from datetime import datetime
+import math
 from .utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+
 @dataclass
 class Environment:
     """Represents the physical environment of the simulation."""
-    world: 'World'  # Reference to parent World
+
+    world: "World"  # Reference to parent World
     width: int = 1000  # Width in units
     height: int = 1000  # Height in units
     type: str = "terrestrial"
@@ -29,21 +32,17 @@ class Environment:
     last_update: float = field(default_factory=datetime.now().timestamp)
     pressure: float = 1013.25  # hPa (standard atmospheric pressure)
     visibility: float = 10.0  # km
+    properties: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Initialize environment after creation."""
         self.logger = get_logger(__name__)
         self.logger.info(f"Initializing environment: {self.name}")
-        
+
     def get_terrain_at(self, x: float, y: float) -> str:
         """Get terrain type at specified coordinates."""
-        # Convert world coordinates to terrain grid coordinates
-        grid_x = int(x * self.width / self.world.max_longitude)
-        grid_y = int(y * self.height / self.world.max_latitude)
-        
-        # Get terrain from terrain system
-        return self.world.terrain.get_terrain_at(grid_x, grid_y)
-        
+        return self.world.terrain.get_terrain_at(x, y)
+
     def get_temperature_at(self, x: float, y: float) -> float:
         """Get temperature at specified coordinates."""
         base_temp = self.temperature
@@ -54,7 +53,7 @@ class Environment:
         elif terrain == "desert":
             base_temp += 5.0
         return base_temp
-        
+
     def get_humidity_at(self, x: float, y: float) -> float:
         """Get humidity at specified coordinates."""
         base_humidity = self.humidity
@@ -65,7 +64,7 @@ class Environment:
         elif terrain == "desert":
             base_humidity -= 0.2
         return max(0.0, min(1.0, base_humidity))
-        
+
     def get_wind_at(self, x: float, y: float) -> Tuple[float, float]:
         """Get wind speed and direction at specified coordinates."""
         # Add terrain-based wind variations
@@ -76,29 +75,55 @@ class Environment:
         elif terrain == "forest":
             speed_modifier = 0.7
         return (self.wind_speed * speed_modifier, self.wind_direction)
-        
+
+    def _calculate_day_length(self, latitude: float, day_of_year: int) -> float:
+        """Approximate day length in hours for a latitude and day of year."""
+        axial_tilt = 23.44  # degrees
+        lat_rad = math.radians(latitude)
+        decl = math.radians(axial_tilt) * math.sin(
+            2 * math.pi * (day_of_year - 81) / 365
+        )
+        cos_ha = (
+            math.sin(math.radians(-0.83)) - math.sin(lat_rad) * math.sin(decl)
+        ) / (math.cos(lat_rad) * math.cos(decl))
+        cos_ha = max(-1.0, min(1.0, cos_ha))
+        ha = math.acos(cos_ha)
+        return 2 * ha * 24 / (2 * math.pi)
+
     def update(self, time_delta: float):
         """Update environment state."""
+        # Convert simulation seconds to hours for environmental calculations
+        hours = time_delta / 3600.0
+
+        # Determine current sunrise and sunset based on latitude and season
+        mid_lat = (self.world.min_latitude + self.world.max_latitude) / 2
+        day_of_year = self.world.game_time.timetuple().tm_yday
+        day_length = self._calculate_day_length(mid_lat, day_of_year)
+        sunrise = 12 - day_length / 2
+        sunset = 12 + day_length / 2
+
         # Update time of day
-        self.time_of_day = (self.time_of_day + time_delta) % 24.0
-        
+        self.time_of_day = (self.time_of_day + hours) % 24.0
+
         # Update temperature based on time of day
-        if 6 <= self.time_of_day < 18:  # Daytime
-            self.temperature += 0.1 * time_delta
+        if sunrise <= self.time_of_day < sunset:  # Daytime
+            self.temperature += 0.1 * hours
         else:  # Nighttime
-            self.temperature -= 0.1 * time_delta
-            
+            self.temperature -= 0.1 * hours
+
         # Update wind
-        self.wind_speed += random.uniform(-0.1, 0.1) * time_delta
+        self.wind_speed += random.uniform(-0.1, 0.1) * hours
         self.wind_speed = max(0.0, min(30.0, self.wind_speed))
-        self.wind_direction = (self.wind_direction + random.uniform(-5, 5)) % 360.0
-        
+        self.wind_direction = (
+            self.wind_direction + random.uniform(-5, 5)
+        ) % 360.0
+
         # Update precipitation
-        if random.random() < 0.1 * time_delta:  # 10% chance per hour
+        if random.random() < 0.1 * hours:  # 10% chance per hour
             self.precipitation = random.uniform(0.0, 1.0)
-            
+
         self.last_update = datetime.now().timestamp()
-        
+
     def get_state(self) -> Dict:
         """Get current environment state."""
         return {
@@ -113,20 +138,21 @@ class Environment:
             "time_of_day": self.time_of_day,
             "season": self.season,
             "width": self.width,
-            "height": self.height
+            "height": self.height,
         }
 
     def to_dict(self) -> Dict:
         """Convert environment state to dictionary for serialization."""
         return {
-            'temperature': self.temperature,
-            'precipitation': self.precipitation,
-            'wind_speed': self.wind_speed,
-            'wind_direction': self.wind_direction,
-            'humidity': self.humidity,
-            'pressure': self.pressure,
-            'visibility': self.visibility
+            "temperature": self.temperature,
+            "precipitation": self.precipitation,
+            "wind_speed": self.wind_speed,
+            "wind_direction": self.wind_direction,
+            "humidity": self.humidity,
+            "pressure": self.pressure,
+            "visibility": self.visibility,
         }
+
 
 @dataclass
 class Resource:
@@ -140,6 +166,7 @@ class Resource:
     depletion_rate: float = 0.0
     created_at: float = field(default_factory=time.time)
     last_update: float = field(default_factory=time.time)
+
 
 @dataclass
 class ClimateZone:
@@ -155,6 +182,7 @@ class ClimateZone:
     created_at: float = field(default_factory=time.time)
     last_update: float = field(default_factory=time.time)
 
+
 @dataclass
 class EnvironmentalImpact:
     name: str
@@ -164,10 +192,13 @@ class EnvironmentalImpact:
     type: str = ""
     severity: float = 0.0  # 0-1 scale
     duration: float = 0.0  # Time in hours
-    affected_resources: List[str] = field(default_factory=list)  # List of resource names
+    affected_resources: List[str] = field(
+        default_factory=list
+    )  # List of resource names
     affected_zones: List[str] = field(default_factory=list)  # List of zone names
     created_at: float = field(default_factory=time.time)
     last_update: float = field(default_factory=time.time)
+
 
 @dataclass
 class Ecosystem:
@@ -183,6 +214,7 @@ class Ecosystem:
     created_at: float = field(default_factory=time.time)
     last_update: float = field(default_factory=time.time)
 
+
 class EnvironmentalSystem:
     def __init__(self, world):
         """Initialize the environmental system."""
@@ -195,225 +227,233 @@ class EnvironmentalSystem:
         self.impacts: Dict[str, EnvironmentalImpact] = {}
         self.ecosystems: Dict[str, Ecosystem] = {}
         self.initialize_system()
-        
+
     def initialize_system(self):
         """Initialize the environmental system with minimal structure."""
         logger.info("Initializing environmental system...")
-        
+
         # Create a basic environment - but don't prescribe its type
         self.environments["initial_environment"] = Environment(
             world=self.world,
-            width=self.world.max_longitude,
-            height=self.world.max_latitude
+            width=self.world.width,
+            height=self.world.height,
         )
-        
+
         logger.info("Environmental system initialization complete")
-        
-    def create_environment(self, type: str, name: str, description: str,
-                          properties: Dict[str, Any] = None) -> Environment:
+
+    def create_environment(
+        self, type: str, name: str, description: str, properties: Dict[str, Any] = None
+    ) -> Environment:
         """Create new environment with custom properties."""
         environment = Environment(
             world=self.world,
-            width=self.world.max_longitude,
-            height=self.world.max_latitude,
+            width=self.world.width,
+            height=self.world.height,
             type=type,
             name=name,
             description=description,
-            properties=properties or {}
+            properties=properties or {},
         )
-        
+
         environment_id = f"environment_{len(self.environments)}"
         self.environments[environment_id] = environment
         logger.info(f"Created new environment: {name} of type {type}")
         return environment
-        
-    def create_resource(self, name: str, creator: str,
-                       location: Tuple[float, float], type: str,
-                       quantity: float, regeneration_rate: float) -> Resource:
+
+    def create_resource(
+        self,
+        name: str,
+        creator: str,
+        location: Tuple[float, float],
+        type: str,
+        quantity: float,
+        regeneration_rate: float,
+    ) -> Resource:
         """Create a new resource."""
         if name in self.resources:
             logger.warning(f"Resource {name} already exists")
             return self.resources[name]
-            
+
         resource = Resource(
             name=name,
             creator=creator,
             location=location,
             type=type,
             quantity=quantity,
-            regeneration_rate=regeneration_rate
+            regeneration_rate=regeneration_rate,
         )
-        
+
         self.resources[name] = resource
         logger.info(f"Created new resource: {name}")
         return resource
-        
-    def create_climate_zone(self, name: str, creator: str,
-                           location: Tuple[float, float], size: float) -> ClimateZone:
+
+    def create_climate_zone(
+        self, name: str, creator: str, location: Tuple[float, float], size: float
+    ) -> ClimateZone:
         """Create a new climate zone."""
         if name in self.climate_zones:
             logger.warning(f"Climate zone {name} already exists")
             return self.climate_zones[name]
-            
-        zone = ClimateZone(
-            name=name,
-            creator=creator,
-            location=location,
-            size=size
-        )
-        
+
+        zone = ClimateZone(name=name, creator=creator, location=location, size=size)
+
         self.climate_zones[name] = zone
         logger.info(f"Created new climate zone: {name}")
         return zone
-        
-    def create_impact(self, name: str, creator: str,
-                     location: Tuple[float, float], type: str) -> EnvironmentalImpact:
+
+    def create_impact(
+        self, name: str, creator: str, location: Tuple[float, float], type: str
+    ) -> EnvironmentalImpact:
         """Create a new environmental impact."""
         if name in self.impacts:
             logger.warning(f"Impact {name} already exists")
             return self.impacts[name]
-            
+
         impact = EnvironmentalImpact(
-            name=name,
-            creator=creator,
-            location=location,
-            type=type
+            name=name, creator=creator, location=location, type=type
         )
-        
+
         self.impacts[name] = impact
         logger.info(f"Created new impact: {name}")
         return impact
-        
-    def create_ecosystem(self, name: str, creator: str,
-                        location: Tuple[float, float], size: float) -> Ecosystem:
+
+    def create_ecosystem(
+        self, name: str, creator: str, location: Tuple[float, float], size: float
+    ) -> Ecosystem:
         """Create a new ecosystem."""
         if name in self.ecosystems:
             logger.warning(f"Ecosystem {name} already exists")
             return self.ecosystems[name]
-            
-        ecosystem = Ecosystem(
-            name=name,
-            creator=creator,
-            location=location,
-            size=size
-        )
-        
+
+        ecosystem = Ecosystem(name=name, creator=creator, location=location, size=size)
+
         self.ecosystems[name] = ecosystem
         logger.info(f"Created new ecosystem: {name}")
         return ecosystem
-        
+
     def add_resource_to_ecosystem(self, ecosystem: str, resource: str):
         """Add a resource to an ecosystem."""
         if ecosystem in self.ecosystems and resource in self.resources:
             self.ecosystems[ecosystem].resources.append(resource)
             logger.info(f"Added resource {resource} to ecosystem {ecosystem}")
-            
+
     def add_impact_to_resource(self, impact: str, resource: str):
         """Add a resource to an impact's affected resources."""
         if impact in self.impacts and resource in self.resources:
             self.impacts[impact].affected_resources.append(resource)
             logger.info(f"Added resource {resource} to impact {impact}")
-            
+
     def add_impact_to_zone(self, impact: str, zone: str):
         """Add a zone to an impact's affected zones."""
         if impact in self.impacts and zone in self.climate_zones:
             self.impacts[impact].affected_zones.append(zone)
             logger.info(f"Added zone {zone} to impact {impact}")
-            
+
     def evolve_resource(self, name: str, time_delta: float):
         """Evolve a resource over time."""
         if name not in self.resources:
             return
-            
+
         resource = self.resources[name]
-        
+
         # Update quantity based on regeneration and depletion
         net_change = (resource.regeneration_rate - resource.depletion_rate) * time_delta
         resource.quantity = max(0.0, resource.quantity + net_change)
-        
+
     def evolve_climate_zone(self, name: str, time_delta: float):
         """Evolve a climate zone over time."""
         if name not in self.climate_zones:
             return
-            
+
         zone = self.climate_zones[name]
-        
+
         # Update climate parameters
         if random.random() < 0.1 * time_delta:  # 10% chance per hour
             zone.temperature += random.uniform(-0.1, 0.1)
             zone.precipitation += random.uniform(-0.1, 0.1)
             zone.humidity += random.uniform(-0.1, 0.1)
             zone.wind_speed += random.uniform(-0.1, 0.1)
-            
+
     def evolve_impact(self, name: str, time_delta: float):
         """Evolve an environmental impact over time."""
         if name not in self.impacts:
             return
-            
+
         impact = self.impacts[name]
-        
+
         # Update duration
         impact.duration += time_delta
-        
+
         # Update severity based on affected resources and zones
         resource_factor = min(1.0, len(impact.affected_resources) / 10.0)
         zone_factor = min(1.0, len(impact.affected_zones) / 5.0)
-        impact.severity = (impact.severity * 0.9 + 
-                         (resource_factor * 0.6 + zone_factor * 0.4) * 0.1)
-                         
+        impact.severity = (
+            impact.severity * 0.9 + (resource_factor * 0.6 + zone_factor * 0.4) * 0.1
+        )
+
     def evolve_ecosystem(self, name: str, time_delta: float):
         """Evolve an ecosystem over time."""
         if name not in self.ecosystems:
             return
-            
+
         ecosystem = self.ecosystems[name]
-        
+
         # Update biodiversity based on resources
         resource_factor = min(1.0, len(ecosystem.resources) / 20.0)
-        ecosystem.biodiversity = (ecosystem.biodiversity * 0.9 + resource_factor * 0.1)
-        
+        ecosystem.biodiversity = ecosystem.biodiversity * 0.9 + resource_factor * 0.1
+
         # Update stability based on climate and impacts
         climate_stability = 1.0
         if ecosystem.climate_zone in self.climate_zones:
             zone = self.climate_zones[ecosystem.climate_zone]
             climate_stability = 1.0 - abs(zone.temperature) - abs(zone.precipitation)
-            
+
         impact_stability = 1.0
         for impact in self.impacts.values():
             if ecosystem.name in impact.affected_zones:
-                impact_stability *= (1.0 - impact.severity)
-                
-        ecosystem.stability = (ecosystem.stability * 0.9 + 
-                             (climate_stability * 0.6 + impact_stability * 0.4) * 0.1)
-                             
+                impact_stability *= 1.0 - impact.severity
+
+        ecosystem.stability = (
+            ecosystem.stability * 0.9
+            + (climate_stability * 0.6 + impact_stability * 0.4) * 0.1
+        )
+
     def update(self, time_delta: float):
         """Update environmental system state."""
+        # Update all environment instances
+        for env in self.environments.values():
+            env.update(time_delta)
+
         # Evolve resources
         for name in list(self.resources.keys()):
             self.evolve_resource(name, time_delta)
-            
+
         # Evolve climate zones
         for name in list(self.climate_zones.keys()):
             self.evolve_climate_zone(name, time_delta)
-            
+
         # Evolve impacts
         for name in list(self.impacts.keys()):
             self.evolve_impact(name, time_delta)
-            
+
         # Evolve ecosystems
         for name in list(self.ecosystems.keys()):
             self.evolve_ecosystem(name, time_delta)
-        
+
     def get_state(self) -> Dict:
         """Get current environmental system state."""
         return {
             "width": self.width,
             "height": self.height,
-            "environments": {str(k): v.get_state() for k, v in self.environments.items()},
+            "environments": {
+                str(k): v.get_state() for k, v in self.environments.items()
+            },
             "resources": {str(k): v.to_dict() for k, v in self.resources.items()},
-            "climate_zones": {str(k): v.to_dict() for k, v in self.climate_zones.items()},
+            "climate_zones": {
+                str(k): v.to_dict() for k, v in self.climate_zones.items()
+            },
             "impacts": {str(k): v.to_dict() for k, v in self.impacts.items()},
-            "ecosystems": {str(k): v.to_dict() for k, v in self.ecosystems.items()}
+            "ecosystems": {str(k): v.to_dict() for k, v in self.ecosystems.items()},
         }
 
     def to_dict(self) -> Dict:
@@ -423,7 +463,9 @@ class EnvironmentalSystem:
             "height": self.height,
             "environments": {str(k): v.to_dict() for k, v in self.environments.items()},
             "resources": {str(k): v.to_dict() for k, v in self.resources.items()},
-            "climate_zones": {str(k): v.to_dict() for k, v in self.climate_zones.items()},
+            "climate_zones": {
+                str(k): v.to_dict() for k, v in self.climate_zones.items()
+            },
             "impacts": {str(k): v.to_dict() for k, v in self.impacts.items()},
-            "ecosystems": {str(k): v.to_dict() for k, v in self.ecosystems.items()}
-        } 
+            "ecosystems": {str(k): v.to_dict() for k, v in self.ecosystems.items()},
+        }
