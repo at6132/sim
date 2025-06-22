@@ -15,6 +15,12 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+Ensure a Redis server is running locally (or set `REDIS_HOST` and `REDIS_PORT`)
+so the simulation can persist world state for the frontend.
+
+The simulation runs at a time scale of **48×**, meaning one in-game day
+passes every 30 minutes of real time.
+
 ## Running the Simulation
 
 1. Start the simulation:

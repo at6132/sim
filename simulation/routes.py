@@ -1,4 +1,5 @@
 from flask import jsonify, render_template, request, Blueprint
+import json
 from flask_socketio import emit
 import logging
 from .server import app, socketio
@@ -163,6 +164,15 @@ def get_saves():
 def get_world():
     engine = get_engine()
     if engine and engine.world:
+        # Attempt to fetch the latest state from Redis first
+        if getattr(engine.world, "redis", None):
+            try:
+                data = engine.world.redis.get("world_state")
+                if data:
+                    return jsonify(json.loads(data))
+            except Exception as e:
+                logger.error(f"Error reading world state from Redis: {e}")
+        # Fallback to in-memory state
         return jsonify(engine.world.get_state())
     return jsonify({"error": "Simulation not initialized"}), 503
 

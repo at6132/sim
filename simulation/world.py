@@ -1,15 +1,12 @@
 import os
 import json
-import time
 import random
 import math
-import logging
 import traceback
-import concurrent.futures
 from datetime import datetime, timedelta
-from typing import Dict, List, Set, Tuple, Any, Optional
-from dataclasses import dataclass, field
-from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+import redis
 
 # System imports
 from .environment import EnvironmentalSystem, Environment
@@ -101,7 +98,8 @@ class World:
         self.game_time = datetime.now()
         self.real_time_start = datetime.now()
         self.game_time_start = datetime.now()
-        self.time_scale = 1.0
+        # 48 game seconds pass per real second (1 day every 30 minutes)
+        self.time_scale = 48.0
         self.day = 1
         self.year = 1
         self.running = False
@@ -117,6 +115,18 @@ class World:
         os.makedirs(self.db_dir, exist_ok=True)
         os.makedirs(os.path.join(self.save_dir, "current_world"), exist_ok=True)
         logger.info(f"Initialized save directories: {self.save_dir} and {self.db_dir}")
+
+        # Initialize Redis client for world state persistence
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = int(os.getenv("REDIS_PORT", "6379"))
+        try:
+            self.redis = redis.Redis(host=redis_host, port=redis_port, db=0, decode_responses=True)
+            # Test connection
+            self.redis.ping()
+            logger.info(f"Connected to Redis at {redis_host}:{redis_port}")
+        except Exception as e:
+            self.redis = None
+            logger.error(f"Failed to connect to Redis: {e}")
         
         # Initialize systems in dependency order
         self.climate = ClimateSystem(self)
@@ -299,6 +309,11 @@ class World:
         self.simulation_time += 1
         self.current_tick += 1
         self.game_time += timedelta(seconds=1)
+
+        # Log the tick number and current game time
+        self.logger.info(
+            f"Tick {self.current_tick}: game time {self.game_time.isoformat()}"
+        )
         
         # Increment day every 86,400 ticks (1 day in game)
         if self.current_tick % 86400 == 0:
@@ -317,6 +332,13 @@ class World:
         self.transportation.update(1)
         self.weather.update(1)
         self.agents.update(1)
+
+        # Persist world state to Redis for frontend consumption
+        if self.redis:
+            try:
+                self.redis.set('world_state', json.dumps(self.get_world_state()))
+            except Exception as e:
+                self.logger.error(f"Failed to update Redis state: {e}")
         
         # Save state every 1000 ticks
         if self.current_tick % 1000 == 0:
