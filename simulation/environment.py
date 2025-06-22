@@ -80,6 +80,14 @@ class Environment:
             speed_modifier = 0.7
         return (self.wind_speed * speed_modifier, self.wind_direction)
 
+    def get_climate_at(self, x: float, y: float) -> Dict:
+        """Get climate data from the world's climate system."""
+        return self.world.climate.get_climate_at(x, y)
+
+    def get_weather_at(self, x: float, y: float) -> Dict:
+        """Get current weather data from the world's weather system."""
+        return self.world.weather.get_state().get("current_weather", {})
+
     def _calculate_day_length(self, latitude: float, day_of_year: int) -> float:
         """Approximate day length in hours for a latitude and day of year."""
         axial_tilt = 23.44  # degrees

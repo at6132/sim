@@ -1661,14 +1661,19 @@ class World:
     def _get_environment_state(self, environment: Environment) -> Dict:
         """Get current state of environment for the frontend."""
         return {
-            "type": environment.type.value,
+            "type": environment.type,
+            "name": environment.name,
+            "description": environment.description,
             "temperature": environment.temperature,
             "humidity": environment.humidity,
             "precipitation": environment.precipitation,
             "wind_speed": environment.wind_speed,
             "wind_direction": environment.wind_direction,
-            "air_pressure": environment.air_pressure,
+            "pressure": environment.pressure,
             "visibility": environment.visibility,
-            "resources": {f"{k[0]},{k[1]}": v for k, v in environment.resources.items()},
-            "position": [float(environment.position[0]), float(environment.position[1])]
+            "center_longitude": environment.center_longitude,
+            "center_latitude": environment.center_latitude,
+            "time_of_day": environment.time_of_day,
+            "season": environment.season,
+            "current_time": self.game_time.isoformat(),
         }
