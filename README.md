@@ -23,16 +23,16 @@ passes every 30 minutes of real time.
 
 ## Running the Simulation
 
-1. Start the simulation:
+1. Launch the dashboard:
 ```bash
-python start_simulation.py
+python run_dashboard.py
 ```
 
 This will:
 - Initialize the simulation engine
 - Start the backend server
-- Open the frontend in your default web browser
-- Begin the simulation loop
+- Persist each tick to Redis
+- Open the God view dashboard in your web browser
 
 2. Access the simulation:
 - Frontend: http://localhost:5000
@@ -63,6 +63,7 @@ This will:
 - Simple building system for constructing structures over time
 - Fire-making technology enabling cooking and warmth
 - Environment state reports current world time for synchronization
+- God-view dashboard at `/godview` displays Redis-backed world data
 
 ## Development
 

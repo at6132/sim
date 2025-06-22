@@ -21,6 +21,11 @@ def index():
     """Render main simulation view."""
     return render_template('index.html')
 
+@api.route('/godview')
+def god_view():
+    """Render simplified dashboard view."""
+    return render_template('godview.html')
+
 @socketio.on('connect')
 def handle_connect(auth=None):
     """Handle client connection."""

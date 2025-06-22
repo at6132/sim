@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>World Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        html, body { height: 100%; margin: 0; }
+        #info { padding: 5px; background: #fff; }
+        #map { height: calc(100% - 30px); }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <span id="time">Time:</span> |
+        <span id="season">Season:</span> |
+        <span id="weather">Weather:</span>
+    </div>
+    <div id="map"></div>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([40.8568, -74.1295], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 6 }).addTo(map);
+        let markers = {};
+        function update() {
+            fetch('/api/world')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('time').textContent = 'Time: ' + data.time;
+                    const envs = data.environment.environments;
+                    if (envs) {
+                        const env = Object.values(envs)[0];
+                        document.getElementById('season').textContent = 'Season: ' + env.season;
+                        document.getElementById('weather').textContent = 'Temp ' + env.temperature.toFixed(1) + '°C';
+                    }
+                    const agents = data.agents || {};
+                    for (const id in markers) { map.removeLayer(markers[id]); }
+                    markers = {};
+                    for (const id in agents) {
+                        const a = agents[id];
+                        const m = L.circleMarker([a.position[1], a.position[0]], { radius: 4, color: 'red' }).addTo(map);
+                        m.bindPopup('Agent ' + id);
+                        markers[id] = m;
+                    }
+                });
+        }
+        setInterval(update, 1000);
+        update();
+    </script>
+</body>
+</html>
