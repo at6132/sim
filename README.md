@@ -15,6 +15,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+Ensure a Redis server is running locally (or set `REDIS_HOST` and `REDIS_PORT`)
+so the simulation can persist world state for the frontend.
+
 ## Running the Simulation
 
 1. Start the simulation:

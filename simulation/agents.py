@@ -413,7 +413,7 @@ class AgentSystem:
         terrain_cost = terrain_costs.get(terrain_type, 1.0)
         
         # Slope cost (0-1 scale)
-        slope_cost = 1.0 + (slope * 4.0)  # Steeper slopes cost more energy
+        slope_cost = 1.0 + (slope * 0.1)  # Reduce slope impact to allow movement
         
         return base_cost * terrain_cost * slope_cost
     
