@@ -90,6 +90,7 @@ class PlantSystem:
         self.world = world
         self.plants: Dict[str, Plant] = {}
         self.fields: Dict[str, List[str]] = {}  # field_id -> list of plant_ids
+        self.field_properties: Dict[str, Dict[str, float]] = {}
         
         # Initialize plant types
         logger.info("Setting up plant types...")
@@ -330,6 +331,15 @@ class PlantSystem:
         """Create a new field for planting"""
         field_id = f"field_{len(self.fields)}"
         self.fields[field_id] = []
+        soil = self.world.terrain.soil_quality_data.get((longitude, latitude), 0.5)
+        nutrients = self.world.terrain.nutrient_data.get((longitude, latitude), 0.5)
+        self.field_properties[field_id] = {
+            "longitude": longitude,
+            "latitude": latitude,
+            "size": size,
+            "soil_quality": soil,
+            "nutrient_level": nutrients,
+        }
         return field_id
 
     def plant_seed(self, plant_type: PlantType, longitude: float, latitude: float, 
@@ -374,17 +384,24 @@ class PlantSystem:
         try:
             # Get plant type data using string key
             plant_type = self.plant_types[plant.type.upper()]
+            lon, lat = plant.position
+            env = self.world.environment.environments.get("initial_environment")
+            temp = env.get_temperature_at(lon, lat)
+            precip = env.precipitation
+            soil = self.world.terrain.soil_quality_data.get((lon, lat), 0.5)
+            nutrients = self.world.terrain.nutrient_data.get((lon, lat), 0.5)
+
             # Calculate growth rate based on conditions
             growth_rate = plant_type['growth_rate']
+
             # Apply environmental factors
-            if 'temperature' in world_state:
-                temp = world_state['temperature']
-                if temp < 10 or temp > 35:  # Temperature stress
-                    growth_rate *= 0.5
-            if 'precipitation' in world_state:
-                precip = world_state['precipitation']
-                if precip < 0.1:  # Drought stress
-                    growth_rate *= 0.3
+            if temp < 10 or temp > 35:
+                growth_rate *= 0.5
+            if precip < 0.1:
+                growth_rate *= 0.3
+
+            growth_rate *= (0.5 + soil)
+            growth_rate *= (0.5 + nutrients)
             # Update growth progress
             plant.state.growth_progress += growth_rate
             # Check for stage transitions
@@ -580,7 +597,8 @@ class PlantSystem:
                 'field_id': str(plant.field_id) if plant.field_id else None,
                 'last_action': str(plant.last_action)
             } for plant_id, plant in self.plants.items()},
-            'fields': {str(field_id): [str(pid) for pid in plant_ids] for field_id, plant_ids in self.fields.items()}
+            'fields': {str(field_id): [str(pid) for pid in plant_ids] for field_id, plant_ids in self.fields.items()},
+            'field_properties': self.field_properties
         }
 
     def to_dict(self) -> Dict:

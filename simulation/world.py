@@ -13,7 +13,7 @@ from .environment import EnvironmentalSystem, Environment
 from .terrain import TerrainSystem, TerrainType, OceanCurrent
 from .climate import ClimateSystem, ClimateType
 from .resources import ResourceSystem, ResourceType, Resource
-from .plants import PlantSystem, Plant
+from .plants import PlantSystem, Plant, PlantType
 from .animals import AnimalSystem, Animal
 from .technology import TechnologySystem, Technology
 from .society import SocietySystem, Society
@@ -336,7 +336,7 @@ class World:
         self.terrain.update(1)
         self.climate.update(1)
         self.resources.update(1)
-        self.plants.update(self.simulation_time, self.to_dict())
+        self.plants.update(self.simulation_time, self.get_world_state())
         self.animals.update(1)
         self.marine.update(1)
         self.technology.update(1)
@@ -436,6 +436,7 @@ class World:
             "marine": self.marine.get_state(),
             "weather": self.weather.get_state(),
             "disasters": self.disasters.get_state(),
+            "environment": self.environment.get_state(),
             "discovery": self.discovery.get_state()
         }
         
@@ -463,6 +464,16 @@ class World:
             gender="unknown",
         )
         self.physics.register_agent(self.agents.get_agent(second_id))
+
+        # Create an initial farming field near the spawn area
+        field_id = self.plants.create_field(base_lon, base_lat, size=1.0)
+        self.plants.plant_seed(
+            PlantType.WHEAT,
+            base_lon,
+            base_lat,
+            planted_by=first_id,
+            field_id=field_id,
+        )
 
         self.logger.info(
             f"Spawned initial agents at ({male_lon:.2f},{male_lat:.2f}) and ({female_lon:.2f},{female_lat:.2f})"
