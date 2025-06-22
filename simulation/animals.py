@@ -8,6 +8,7 @@ from datetime import datetime
 import numpy as np
 from .utils.logging_config import get_logger
 from .cooking import CookingSystem, FoodType
+import traceback
 
 logger = get_logger(__name__)
 
@@ -194,45 +195,125 @@ class AnimalSystem:
 
     def get_state(self) -> Dict:
         """Get the current state of the animal system."""
-        return self.get_animal_state()
-
-    def get_animal_state(self) -> Dict:
-        """Get detailed animal system state."""
-        # Calculate current populations
-        current_populations = {}
-        for animal in self.animals.values():
-            animal_type = animal['type']
-            current_populations[animal_type] = current_populations.get(animal_type, 0) + 1
+        logger.info("Starting animal system state serialization...")
         
-        return {
-            'animals': {animal_id: {
-                'id': animal['id'],
-                'type': animal['type'],
-                'name': animal['name'],
-                'temperament': animal['temperament'],
-                'size': animal['size'],
-                'speed': animal['speed'],
-                'strength': animal['strength'],
-                'intelligence': animal['intelligence'],
-                'longitude': animal['longitude'],
-                'latitude': animal['latitude'],
-                'needs': animal['needs'],
-                'state': animal['state'],
-                'is_domesticated': animal['is_domesticated'],
-                'owner_id': animal['owner_id'],
-                'training_progress': animal['training_progress'],
-                'reproduction_cooldown': animal['reproduction_cooldown'],
-                'last_action': animal['last_action'],
-                'last_action_time': animal['last_action_time'],
-                'diet': animal['diet'],
-                'social_group': animal['social_group'],
-                'territory': animal['territory'],
-                'energy': animal['energy']
-            } for animal_id, animal in self.animals.items()},
-            'populations': current_populations,
-            'territories': self.territories,
-            'social_groups': self.social_groups
-        }
+        def convert_animal_to_dict(animal) -> Dict:
+            try:
+                # If it's already a dict, just convert its keys
+                if isinstance(animal, dict):
+                    logger.info(f"Converting animal dict with id {animal.get('id', 'unknown')}...")
+                    return convert_dict(animal)
+                
+                # Otherwise convert Animal object to dict
+                logger.info(f"Converting animal object {animal.id} to dict...")
+                
+                # Convert territory to dict if it exists
+                territory = None
+                if animal.territory:
+                    territory = {
+                        'center_longitude': animal.territory.center_longitude,
+                        'center_latitude': animal.territory.center_latitude,
+                        'radius': animal.territory.radius,
+                        'claimed_by': animal.territory.claimed_by,
+                        'resources': animal.territory.resources,
+                        'history': animal.territory.history
+                    }
+                
+                return {
+                    'id': animal.id,
+                    'type': animal.type.value,
+                    'name': animal.name,
+                    'temperament': animal.temperament.value,
+                    'size': animal.size,
+                    'speed': animal.speed,
+                    'strength': animal.strength,
+                    'intelligence': animal.intelligence,
+                    'longitude': animal.longitude,
+                    'latitude': animal.latitude,
+                    'needs': {
+                        'hunger': animal.needs.hunger,
+                        'thirst': animal.needs.thirst,
+                        'energy': animal.needs.energy,
+                        'health': animal.needs.health,
+                        'reproduction_urge': animal.needs.reproduction_urge,
+                        'social_need': animal.needs.social_need,
+                        'comfort': animal.needs.comfort,
+                        'water_quality': animal.needs.water_quality
+                    },
+                    'state': {
+                        'is_sick': animal.state.is_sick,
+                        'disease_resistance': animal.state.disease_resistance,
+                        'pregnancy_progress': animal.state.pregnancy_progress,
+                        'age': animal.state.age,
+                        'lifespan': animal.state.lifespan,
+                        'maturity_age': animal.state.maturity_age,
+                        'last_meal_time': animal.state.last_meal_time,
+                        'last_water_time': animal.state.last_water_time,
+                        'last_rest_time': animal.state.last_rest_time,
+                        'last_social_time': animal.state.last_social_time
+                    },
+                    'is_domesticated': animal.is_domesticated,
+                    'owner_id': animal.owner_id,
+                    'training_progress': animal.training_progress,
+                    'reproduction_cooldown': animal.reproduction_cooldown,
+                    'last_action': animal.last_action,
+                    'last_action_time': animal.last_action_time,
+                    'diet': animal.diet,
+                    'social_group': animal.social_group,
+                    'territory': territory,
+                    'energy': animal.energy
+                }
+            except Exception as e:
+                logger.error(f"Error converting animal {getattr(animal, 'id', animal.get('id', 'unknown'))}: {e}")
+                logger.error(traceback.format_exc())
+                raise
+
+        def convert_coords_to_str(coords):
+            if isinstance(coords, tuple):
+                return f"{coords[0]},{coords[1]}"
+            return str(coords)
+
+        def convert_dict(d):
+            if isinstance(d, dict):
+                return {str(k): convert_dict(v) for k, v in d.items()}
+            elif isinstance(d, list):
+                return [convert_dict(item) for item in d]
+            elif isinstance(d, tuple):
+                return convert_coords_to_str(d)
+            elif isinstance(d, (AnimalType, AnimalTemperament, WaterType)):
+                return d.value
+            return d
+
+        try:
+            logger.info("Converting animals...")
+            animals_dict = {str(animal_id): convert_animal_to_dict(animal) for animal_id, animal in self.animals.items()}
+            logger.info(f"Converted {len(animals_dict)} animals")
+
+            logger.info("Converting populations...")
+            populations_dict = {str(k): v for k, v in self.populations.items()}
+            logger.info(f"Converted populations: {populations_dict}")
+
+            logger.info("Converting territories...")
+            territories_dict = {convert_coords_to_str(territory_id): convert_dict(territory) for territory_id, territory in self.territories.items()}
+            logger.info(f"Converted {len(territories_dict)} territories")
+
+            logger.info("Converting social groups...")
+            social_groups_dict = convert_dict(self.social_groups)
+            logger.info(f"Converted {len(social_groups_dict)} social groups")
+
+            state = {
+                'animals': animals_dict,
+                'populations': populations_dict,
+                'territories': territories_dict,
+                'social_groups': social_groups_dict
+            }
+            logger.info("Successfully created animal system state")
+            return state
+
+        except Exception as e:
+            logger.error(f"Error getting animal state: {e}")
+            logger.error(traceback.format_exc())
+            return {'error': str(e)}
 
     def _initialize_animal_types(self):
         """Initialize animal types and their properties."""
@@ -328,21 +409,38 @@ class AnimalSystem:
 
     def _create_initial_animals(self):
         """Create initial animals for the simulation."""
-        # Create some herbivores
-        for _ in range(10):
-            animal_id = self._generate_animal_id("herbivore")
-            animal = self._create_animal(animal_id, AnimalType.DEER)
-            self.herbivores[animal_id] = animal
-            self.animals[animal_id] = animal
-            self.populations["deer"] += 1
+        self.logger.info("Starting to create initial animals...")
         
-        # Create some carnivores
-        for _ in range(5):
-            animal_id = self._generate_animal_id("carnivore")
-            animal = self._create_animal(animal_id, AnimalType.WOLF)
-            self.carnivores[animal_id] = animal
-            self.animals[animal_id] = animal
-            self.populations["wolf"] += 1
+        # Define the number of pairs to create for each type
+        pairs_per_type = 1  # 1 pair = 2 animals of each type
+        total_animals = len(AnimalType) * pairs_per_type * 2
+        animals_created = 0
+        
+        # Create pairs for each animal type
+        for animal_type in AnimalType:
+            self.logger.info(f"Creating {pairs_per_type} pairs of {animal_type.value}...")
+            
+            for i in range(pairs_per_type):
+                # Create female
+                female_id = self._generate_animal_id(animal_type.value)
+                female = self._create_animal(female_id, animal_type)
+                female['gender'] = 'female'
+                self.animals[female_id] = female
+                self.populations[animal_type.value] += 1
+                animals_created += 1
+                self.logger.info(f"Created female {animal_type.value} (ID: {female_id}) - {animals_created}/{total_animals} animals ({int(animals_created/total_animals*100)}% complete)")
+                
+                # Create male
+                male_id = self._generate_animal_id(animal_type.value)
+                male = self._create_animal(male_id, animal_type)
+                male['gender'] = 'male'
+                self.animals[male_id] = male
+                self.populations[animal_type.value] += 1
+                animals_created += 1
+                self.logger.info(f"Created male {animal_type.value} (ID: {male_id}) - {animals_created}/{total_animals} animals ({int(animals_created/total_animals*100)}% complete)")
+        
+        self.logger.info(f"Animal creation complete. Created {animals_created} animals in total.")
+        self.logger.info(f"Current populations: {self.populations}")
 
     def _create_animal(self, animal_id: str, animal_type: AnimalType) -> Dict:
         """Create a new animal with the given type."""
@@ -368,7 +466,8 @@ class AnimalSystem:
                 'health': 100.0,
                 'reproduction_urge': 0.0,
                 'social_need': 50.0,
-                'comfort': 100.0
+                'comfort': 100.0,
+                'water_quality': 100.0
             },
             'state': {
                 'is_sick': False,
@@ -850,7 +949,7 @@ class AnimalSystem:
             }
         logger.info("Social structures initialized")
         
-        logger.info("Animal ecosystems initialization complete") 
+        logger.info("Animal ecosystems initialization complete")
 
     def _update_animal_food(self, animal: dict):
         """Update animal's food consumption using CookingSystem."""
@@ -871,4 +970,36 @@ class AnimalSystem:
                 # Sickness risk
                 if props.food_safety_risk > 50.0 and random.random() < (props.food_safety_risk / 100.0):
                     animal['needs']['health'] = max(0.0, animal['needs']['health'] - 20.0)  # Sickness penalty
-                break  # Only eat one food per update 
+                break  # Only eat one food per update
+
+    def update(self, time_delta: float) -> None:
+        """Update the animal system for the given time delta.
+        
+        Args:
+            time_delta: Time elapsed in game minutes
+        """
+        self.logger.info(f"Updating animal system for {time_delta} minutes")
+        
+        # Get current environment state
+        environment = self.world.to_dict()
+        
+        # Update populations
+        self._update_populations(time_delta, environment)
+        
+        # Update different types of animals
+        self._update_herbivores(time_delta, environment)
+        self._update_carnivores(time_delta, environment)
+        self._update_omnivores(time_delta, environment)
+        self._update_domesticated(time_delta, environment)
+        
+        # Update behaviors and interactions
+        self._update_behaviors(time_delta)
+        self._update_interactions(time_delta)
+        
+        # Update habitats
+        self._update_habitats(time_delta, environment)
+        
+        # Record events
+        self._record_events()
+        
+        self.logger.info("Animal system update complete") 

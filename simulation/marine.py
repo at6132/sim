@@ -159,7 +159,7 @@ class MarineSystem:
         """Generate a unique ID for a new marine creature."""
         # Get the list of marine life of this type
         marine_list = {id: marine for id, marine in self.marine_life.items() 
-                      if marine['type'].startswith(marine_type)}
+                      if hasattr(marine, 'type') and str(marine.type).startswith(marine_type)}
         # Generate ID with type and count
         new_marine_id = f"{marine_type}_{len(marine_list) + 1}"
         return new_marine_id
@@ -412,10 +412,49 @@ class MarineSystem:
             self.populations[marine.type.value] -= 1
 
     def get_state(self) -> Dict:
-        """Get the current state of the marine system."""
+        """Get current marine system state."""
+        def convert_marine_to_dict(marine: Marine) -> Dict:
+            return {
+                'id': marine.id,
+                'type': marine.type.value,
+                'species': marine.species,
+                'position': [float(marine.position[0]), float(marine.position[1])],
+                'age': marine.age,
+                'health': marine.health,
+                'size': marine.size,
+                'growth_rate': marine.growth_rate,
+                'reproduction_rate': marine.reproduction_rate,
+                'spread_rate': marine.spread_rate,
+                'biomass': marine.biomass,
+                'carbon_sequestration': marine.carbon_sequestration,
+                'oxygen_production': marine.oxygen_production,
+                'habitat_value': marine.habitat_value,
+                'resource_production': marine.resource_production,
+                'environment': marine.environment,
+                'needs': {
+                    'hunger': marine.needs.hunger,
+                    'energy': marine.needs.energy,
+                    'health': marine.needs.health,
+                    'reproduction_urge': marine.needs.reproduction_urge,
+                    'social_need': marine.needs.social_need,
+                    'water_quality': marine.needs.water_quality
+                },
+                'state': {
+                    'is_sick': marine.state.is_sick,
+                    'disease_resistance': marine.state.disease_resistance,
+                    'pregnancy_progress': marine.state.pregnancy_progress,
+                    'age': marine.state.age,
+                    'lifespan': marine.state.lifespan,
+                    'maturity_age': marine.state.maturity_age,
+                    'last_meal_time': marine.state.last_meal_time,
+                    'last_rest_time': marine.state.last_rest_time,
+                    'last_social_time': marine.state.last_social_time
+                }
+            }
+
         return {
-            'marine_life': self.marine_life,
-            'populations': self.populations,
             'ocean_currents': self.ocean_currents,
-            'marine_resources': self.marine_resources
+            'marine_life': {marine_id: convert_marine_to_dict(marine) for marine_id, marine in self.marine_life.items()},
+            'marine_resources': self.marine_resources,
+            'populations': self.populations
         }

@@ -684,6 +684,9 @@ class ClimateSystem:
                 check_lon = longitude + dlon
                 check_lat = latitude + dlat
                 pos = (check_lon, check_lat)
-                if pos in self.climate_data:
-                    nearby[f"{check_lon},{check_lat}"] = self.climate_data[pos]
+                if pos in self.current_conditions:
+                    nearby[f"{check_lon},{check_lat}"] = {
+                        str(key): value 
+                        for key, value in self.current_conditions[pos].items()
+                    }
         return nearby 

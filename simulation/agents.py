@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, Any
 import uuid
 import time
 from datetime import datetime
@@ -6,39 +6,168 @@ from .utils.logging_config import get_logger
 import math
 from .cooking import CookingSystem, FoodType
 import random
+from dataclasses import dataclass
 
+@dataclass
 class Agent:
-    def __init__(self, agent_id: str, name: str, position: Tuple[float, float]):
-        self.id = agent_id
-        self.name = name
-        self.position = position
-        self.health = 100.0
-        self.energy = 100.0
-        self.hunger = 0.0
-        self.thirst = 0.0
-        self.age = 0
-        self.skills = {}
-        self.inventory = {}
-        self.created_at = time.time()
-        self.last_update = time.time()
-        self.last_action = None
+    """Represents an agent in the simulation."""
+    id: str
+    name: str
+    position: Tuple[float, float]
+    health: float
+    energy: float
+    hunger: float
+    thirst: float
+    age: int
+    skills: Dict[str, float]
+    inventory: Dict[str, Any]
+    last_action: Optional[str]
+    world: Optional[Any] = None  # Reference to world for movement validation
+    logger: Optional[Any] = None  # Logger for agent-specific logging
+    gender: str = 'unknown'
 
-    def to_dict(self):
+    def get_state(self) -> Dict:
+        """Get current agent state for serialization."""
         return {
-            'id': self.id,
-            'name': self.name,
-            'position': self.position,
-            'health': self.health,
-            'energy': self.energy,
-            'hunger': self.hunger,
-            'thirst': self.thirst,
-            'age': self.age,
-            'skills': self.skills,
-            'inventory': self.inventory,
-            'created_at': self.created_at,
-            'last_update': self.last_update,
-            'last_action': self.last_action
+            "id": self.id,
+            "name": self.name,
+            "position": self.position,
+            "health": self.health,
+            "energy": self.energy,
+            "hunger": self.hunger,
+            "thirst": self.thirst,
+            "age": self.age,
+            "skills": self.skills,
+            "inventory": self.inventory,
+            "last_action": self.last_action
         }
+
+    def _is_valid_position(self, longitude: float, latitude: float) -> bool:
+        """Check if a position is valid for movement."""
+        # Check world bounds
+        if not (self.world.min_longitude <= longitude <= self.world.max_longitude and
+                self.world.min_latitude <= latitude <= self.world.max_latitude):
+            return False
+            
+        # All positions are valid, including water
+        return True
+
+    def move(self, target_longitude: float, target_latitude: float) -> bool:
+        """Move agent to target position."""
+        # Calculate distance to target
+        distance = self.world.get_distance(
+            self.position[0], self.position[1],
+            target_longitude, target_latitude
+        )
+        
+        # Get terrain type at target
+        terrain_info = self.world.terrain.get_terrain_info_at(target_longitude, target_latitude)
+        terrain_type = terrain_info.get('type', 'UNKNOWN')
+        
+        # Calculate movement cost based on terrain and slope
+        base_cost = distance * 10  # Base cost per unit distance
+        terrain_cost = {
+            "PLAINS": 1.0,
+            "FOREST": 1.5,
+            "MOUNTAINS": 2.0,
+            "DESERT": 1.2,
+            "OCEAN": 2.5,  # Swimming is more energy intensive
+            "LAKE": 2.0,
+            "RIVER": 1.8
+        }.get(terrain_type, 1.0)
+        
+        slope = self.world.terrain.get_slope_at(target_longitude, target_latitude)
+        slope_cost = 1.0 + abs(slope) * 0.5
+        
+        total_cost = base_cost * terrain_cost * slope_cost
+        
+        # Check if agent has enough energy
+        if self.energy < total_cost:
+            self.logger.info(f"Agent {self.name} doesn't have enough energy to move (needs {total_cost}, has {self.energy})")
+            return False
+            
+        # Handle water movement
+        if terrain_type in ["OCEAN", "LAKE", "RIVER"]:
+            # Check if agent can swim (based on skills or equipment)
+            can_swim = self.skills.get("swimming", 0) > 0.3 or "swimming_gear" in self.inventory
+            
+            if not can_swim:
+                # Risk of drowning
+                if random.random() < 0.3:  # 30% chance of drowning
+                    self.health -= 20
+                    self.logger.info(f"Agent {self.name} is drowning in {terrain_type}!")
+                    if self.health <= 0:
+                        self.logger.info(f"Agent {self.name} has drowned!")
+                        return False
+                else:
+                    # Struggle to stay afloat
+                    self.energy -= total_cost * 1.5
+                    self.logger.info(f"Agent {self.name} is struggling in {terrain_type}")
+            else:
+                # Swimming is more energy intensive
+                self.energy -= total_cost * 1.2
+                self.logger.info(f"Agent {self.name} is swimming in {terrain_type}")
+        else:
+            # Normal movement
+            self.energy -= total_cost
+            
+        # Update position
+        self.position = (target_longitude, target_latitude)
+        self.last_action = "move"
+        self.logger.info(f"Agent {self.name} moved to ({target_longitude}, {target_latitude})")
+        return True
+
+    def _create_initial_agents(self):
+        """Create initial agents in the world."""
+        # Passaic, New Jersey coordinates (adjusted to be on land)
+        base_longitude = -74.1295  # Passaic longitude
+        base_latitude = 40.8574    # Passaic latitude
+        
+        # Create first agent
+        agent1 = Agent(
+            id=str(uuid.uuid4()),
+            name="Agent_1",
+            position=(base_longitude + 0.01, base_latitude + 0.01),  # Slightly offset to ensure on land
+            health=100.0,
+            energy=100.0,
+            hunger=0.0,
+            thirst=0.0,
+            age=20,
+            skills={
+                "hunting": 0.3,
+                "gathering": 0.3,
+                "crafting": 0.2,
+                "swimming": 0.1
+            },
+            inventory={},
+            last_action=None,
+            world=self.world  # Pass world reference
+        )
+        self.agents[agent1.id] = agent1
+        self.logger.info(f"Created agent {agent1.name} at position {agent1.position}")
+        
+        # Create second agent
+        agent2 = Agent(
+            id=str(uuid.uuid4()),
+            name="Agent_2",
+            position=(base_longitude - 0.01, base_latitude - 0.01),  # Slightly offset in opposite direction
+            health=100.0,
+            energy=100.0,
+            hunger=0.0,
+            thirst=0.0,
+            age=20,
+            skills={
+                "hunting": 0.3,
+                "gathering": 0.3,
+                "crafting": 0.2,
+                "swimming": 0.1
+            },
+            inventory={},
+            last_action=None,
+            world=self.world  # Pass world reference
+        )
+        self.agents[agent2.id] = agent2
+        self.logger.info(f"Created agent {agent2.name} at position {agent2.position}")
 
 class AgentSystem:
     def __init__(self, world):
@@ -55,64 +184,89 @@ class AgentSystem:
     def initialize_agents(self):
         """Initialize the agent system with basic structures."""
         self.logger.info("Initializing agent system...")
-        
-        # Create initial agents
-        self._create_initial_agents()
-        
+        # Just initialize the system, don't create agents yet
         self.logger.info("Agent system initialization complete")
     
     def _create_initial_agents(self):
-        """Create the initial set of agents."""
-        self.logger.info("Creating initial agents...")
+        """Create initial agents in the world."""
+        # Passaic, New Jersey coordinates (adjusted to be on land)
+        base_longitude = -74.1295  # Passaic longitude
+        base_latitude = 40.8574    # Passaic latitude
         
-        # Passaic, New Jersey coordinates
-        passaic_lon = -74.1285  # Longitude
-        passaic_lat = 40.8576   # Latitude
+        # Create first agent
+        agent1 = Agent(
+            id=str(uuid.uuid4()),
+            name="Agent_1",
+            position=(base_longitude + 0.01, base_latitude + 0.01),  # Slightly offset to ensure on land
+            health=100.0,
+            energy=100.0,
+            hunger=0.0,
+            thirst=0.0,
+            age=20,
+            skills={
+                "hunting": 0.3,
+                "gathering": 0.3,
+                "crafting": 0.2,
+                "swimming": 0.1
+            },
+            inventory={},
+            last_action=None,
+            world=self.world  # Pass world reference
+        )
+        self.agents[agent1.id] = agent1
+        self.logger.info(f"Created agent {agent1.name} at position {agent1.position}")
         
-        # Create two agents near Passaic
-        initial_positions = [
-            (passaic_lon, passaic_lat),  # First agent at Passaic
-            (passaic_lon + 0.01, passaic_lat + 0.01)  # Second agent slightly offset
-        ]
-        
-        for i, position in enumerate(initial_positions):
-            agent_id = str(uuid.uuid4())
-            name = f"Agent_{i+1}"
-            
-            agent = Agent(
-                agent_id=agent_id,
-                name=name,
-                position=position
-            )
-            
-            # Initialize basic skills
-            agent.skills = {
-                'hunting': 0.3,
-                'gathering': 0.3,
-                'crafting': 0.2
-            }
-            
-            # Initialize basic inventory
-            agent.inventory = {
-                'food': 10.0,
-                'water': 10.0,
-                'tools': 1
-            }
-            
-            # Add agent to storage
-            self.agents[agent_id] = agent
-            self.agent_positions[position] = {agent_id}
-            
-            self.logger.info(f"Created agent {name} at position {position}")
+        # Create second agent
+        agent2 = Agent(
+            id=str(uuid.uuid4()),
+            name="Agent_2",
+            position=(base_longitude - 0.01, base_latitude - 0.01),  # Slightly offset in opposite direction
+            health=100.0,
+            energy=100.0,
+            hunger=0.0,
+            thirst=0.0,
+            age=20,
+            skills={
+                "hunting": 0.3,
+                "gathering": 0.3,
+                "crafting": 0.2,
+                "swimming": 0.1
+            },
+            inventory={},
+            last_action=None,
+            world=self.world  # Pass world reference
+        )
+        self.agents[agent2.id] = agent2
+        self.logger.info(f"Created agent {agent2.name} at position {agent2.position}")
 
     def create_agent(self, longitude: float, latitude: float, name: Optional[str] = None,
-                     parent_id: Optional[str] = None) -> str:
+                     parent_id: Optional[str] = None, gender: str = 'unknown') -> str:
         """Create a new agent and add it to the system."""
         agent_id = str(uuid.uuid4())
         if name is None:
             name = f"Agent_{len(self.agents) + 1}"
 
-        agent = Agent(agent_id=agent_id, name=name, position=(longitude, latitude))
+        agent = Agent(
+            id=agent_id,
+            name=name,
+            position=(longitude, latitude),
+            health=100.0,
+            energy=100.0,
+            hunger=0.0,
+            thirst=0.0,
+            age=20,
+            skills={
+                "hunting": 0.3,
+                "gathering": 0.3,
+                "crafting": 0.2,
+                "swimming": 0.1
+            },
+            inventory={},
+            last_action=None,
+            world=self.world,  # Pass world reference
+            logger=self.logger,  # Pass logger reference
+            gender=gender
+        )
 
         self.agents[agent_id] = agent
         if (longitude, latitude) not in self.agent_positions:
@@ -131,9 +285,14 @@ class AgentSystem:
     
     def update(self, time_delta: float):
         """Update agent states."""
-        self.logger.debug(f"Updating agents with time delta: {time_delta}")
+        self.logger.info(f"Updating {len(self.agents)} agents with time delta: {time_delta}")
         
         for agent_id, agent in self.agents.items():
+            # Log initial state
+            self.logger.info(f"Agent {agent.name} ({agent_id}) - Initial state: "
+                           f"Health: {agent.health:.1f}, Energy: {agent.energy:.1f}, "
+                           f"Hunger: {agent.hunger:.1f}, Thirst: {agent.thirst:.1f}")
+            
             # Update basic needs
             self._update_agent_needs(agent, time_delta)
             
@@ -145,9 +304,20 @@ class AgentSystem:
             
             # Update agent inventory
             self._update_agent_inventory(agent, time_delta)
+            
+            # Log final state
+            self.logger.info(f"Agent {agent.name} ({agent_id}) - Final state: "
+                           f"Health: {agent.health:.1f}, Energy: {agent.energy:.1f}, "
+                           f"Hunger: {agent.hunger:.1f}, Thirst: {agent.thirst:.1f}, "
+                           f"Action: {agent.last_action}")
     
     def _update_agent_needs(self, agent: Agent, time_delta: float):
         """Update agent's basic needs."""
+        old_hunger = agent.hunger
+        old_thirst = agent.thirst
+        old_energy = agent.energy
+        old_health = agent.health
+        
         # Increase hunger and thirst over time
         agent.hunger = min(100.0, agent.hunger + 0.1 * time_delta)
         agent.thirst = min(100.0, agent.thirst + 0.15 * time_delta)
@@ -159,9 +329,22 @@ class AgentSystem:
         # Decrease health if energy is too low
         if agent.energy < 20.0:
             agent.health = max(0.0, agent.health - 0.1 * time_delta)
+        
+        # Log significant changes
+        if abs(agent.hunger - old_hunger) > 5 or abs(agent.thirst - old_thirst) > 5:
+            self.logger.info(f"Agent {agent.name} needs changed - "
+                           f"Hunger: {old_hunger:.1f} -> {agent.hunger:.1f}, "
+                           f"Thirst: {old_thirst:.1f} -> {agent.thirst:.1f}")
+        
+        if abs(agent.energy - old_energy) > 10 or abs(agent.health - old_health) > 5:
+            self.logger.info(f"Agent {agent.name} status changed - "
+                           f"Energy: {old_energy:.1f} -> {agent.energy:.1f}, "
+                           f"Health: {old_health:.1f} -> {agent.health:.1f}")
     
     def _update_agent_position(self, agent: Agent, time_delta: float):
         """Update agent's position considering terrain and energy costs."""
+        old_position = agent.position
+        
         # Get current terrain info
         current_terrain = self.world.terrain.get_terrain_info_at(*agent.position)
         current_elevation = self.world.terrain.get_elevation_at(*agent.position)
@@ -175,10 +358,13 @@ class AgentSystem:
             # Agent is too tired to move
             agent.last_action = "resting"
             agent.energy = min(100.0, agent.energy + 0.5 * time_delta)  # Rest and recover energy
+            self.logger.info(f"Agent {agent.name} is resting to recover energy. "
+                           f"Current energy: {agent.energy:.1f}")
             return
         
         # Calculate possible movement range based on energy
-        max_distance = min(0.01 * time_delta, agent.energy / movement_cost)
+        # Use smaller base distance (0.001 instead of 0.01)
+        max_distance = min(0.001 * time_delta, agent.energy / movement_cost)
         
         # Generate random movement within energy constraints
         angle = random.uniform(0, 2 * math.pi)
@@ -189,45 +375,20 @@ class AgentSystem:
         new_lon = lon + distance * math.cos(angle)
         new_lat = lat + distance * math.sin(angle)
         
-        # Check if new position is valid
-        if not self._is_valid_position(new_lon, new_lat):
-            return
-        
-        # Get terrain at new position
-        new_terrain = self.world.terrain.get_terrain_info_at(new_lon, new_lat)
-        new_elevation = self.world.terrain.get_elevation_at(new_lon, new_lat)
-        new_slope = self.world.terrain.get_slope_at(new_lon, new_lat)
-        
-        # Calculate elevation change cost
-        elevation_change = abs(new_elevation - current_elevation)
-        elevation_cost = elevation_change * 2.0  # Climbing/descending costs more energy
-        
-        # Check if agent has enough energy for the elevation change
-        if agent.energy < (movement_cost + elevation_cost):
-            return
-        
-        # Update position
-        old_position = agent.position
-        agent.position = (new_lon, new_lat)
-        
-        # Update energy based on movement and terrain
-        agent.energy = max(0.0, agent.energy - (movement_cost + elevation_cost))
-        
-        # Update position tracking
-        if old_position in self.agent_positions:
-            self.agent_positions[old_position].remove(agent.id)
-            if not self.agent_positions[old_position]:
-                del self.agent_positions[old_position]
-        
-        if agent.position not in self.agent_positions:
-            self.agent_positions[agent.position] = set()
-        self.agent_positions[agent.position].add(agent.id)
-        
-        # Update last action
-        if elevation_change > 0:
-            agent.last_action = "climbing" if new_elevation > current_elevation else "descending"
-        else:
-            agent.last_action = "moving"
+        # Try to move to new position
+        if agent.move(new_lon, new_lat):
+            # Update agent positions tracking
+            if old_position in self.agent_positions:
+                self.agent_positions[old_position].remove(agent.id)
+                if not self.agent_positions[old_position]:
+                    del self.agent_positions[old_position]
+            
+            if agent.position not in self.agent_positions:
+                self.agent_positions[agent.position] = set()
+            self.agent_positions[agent.position].add(agent.id)
+            
+            # Log movement
+            self.logger.info(f"Agent {agent.name} moved from {old_position} to {agent.position}")
     
     def _calculate_movement_cost(self, terrain_info: Dict, slope: float) -> float:
         """Calculate the energy cost of movement based on terrain and slope."""
@@ -255,26 +416,6 @@ class AgentSystem:
         slope_cost = 1.0 + (slope * 4.0)  # Steeper slopes cost more energy
         
         return base_cost * terrain_cost * slope_cost
-    
-    def _is_valid_position(self, lon: float, lat: float) -> bool:
-        """Check if a position is valid for movement."""
-        # Check world bounds
-        if not (self.world.min_longitude <= lon <= self.world.max_longitude and
-                self.world.min_latitude <= lat <= self.world.max_latitude):
-            return False
-        
-        # Check if position is in impassable terrain
-        terrain_info = self.world.terrain.get_terrain_info_at(lon, lat)
-        terrain_type = terrain_info.get("type", "PLAINS")
-        
-        impassable_terrain = {
-            "OCEAN",
-            "LAKE",
-            "RIVER",  # Rivers are passable but with high cost
-            "GLACIER"  # Glaciers are passable but with high cost
-        }
-        
-        return terrain_type not in impassable_terrain
     
     def _update_agent_skills(self, agent: Agent, time_delta: float):
         """Update agent's skills."""

@@ -185,27 +185,311 @@ class Genes:
         return attractiveness
 
 @dataclass
+class NeedEffect:
+    threshold: float  # When this effect starts
+    severity: float  # How strong the effect is
+    duration: float  # How long the effect lasts
+    type: str  # Type of effect (e.g., "health", "energy", "mood")
+    description: str
+
 class AgentNeeds:
-    hunger: float = 1.0  # 0-1 scale, 1.0 is full
-    thirst: float = 1.0
-    energy: float = 1.0
-    health: float = 1.0
-    bladder: float = 0.0  # 0-1 scale, 1.0 is urgent
-    bowel: float = 0.0   # 0-1 scale, 1.0 is urgent
-    hygiene: float = 1.0  # 0-1 scale, 1.0 is clean
-    comfort: float = 1.0
-    social: float = 0.5
-    safety: float = 1.0
-    reproduction_urge: float = 0.0
-    animal_companionship: float = 0.5  # Need for animal companionship
-    hunting_urge: float = 0.5  # Urge to hunt animals
-    emotional_expression: float = 0.5  # Need to express emotions
-    purpose: float = 0.5  # Need for purpose/meaning
-    understanding: float = 0.5  # Need for understanding
-    philosophical_expression: float = 0.5  # Need for philosophical expression
-    creative_expression: float = 0.5  # Need for creative expression
-    reproduction: float = 0.0  # Need for reproduction
-    rest: float = 1.0  # Need for rest/sleep
+    def __init__(self):
+        self.hunger: float = 0.0  # 0-100, higher means more hungry
+        self.thirst: float = 0.0  # 0-100, higher means more thirsty
+        self.energy: float = 100.0  # 0-100, higher means more energy
+        self.health: float = 100.0  # 0-100, higher means better health
+        self.mood: float = 50.0  # 0-100, higher means better mood
+        self.temperature: float = 37.0  # Body temperature in Celsius
+        self.active_effects: List[NeedEffect] = []
+        self.need_history: List[Dict] = []
+        
+    def update(self, time_delta: float, agent: 'Agent'):
+        """Update needs over time."""
+        # Update basic needs
+        self.hunger = min(100.0, self.hunger + 0.1 * time_delta)
+        self.thirst = min(100.0, self.thirst + 0.15 * time_delta)
+        self.energy = max(0.0, self.energy - 0.05 * time_delta)
+        
+        # Update temperature based on environment
+        self._update_temperature(time_delta, agent)
+        
+        # Apply need effects
+        self._apply_need_effects(time_delta)
+        
+        # Update health based on needs
+        self._update_health(time_delta)
+        
+        # Update mood based on needs
+        self._update_mood(time_delta)
+        
+        # Record need state
+        self._record_needs()
+        
+    def _update_temperature(self, time_delta: float, agent: 'Agent'):
+        """Update body temperature based on environment and needs."""
+        # Get environmental temperature
+        env_temp = agent.world.weather.get_temperature(agent.position)
+        
+        # Calculate temperature change
+        temp_diff = env_temp - self.temperature
+        temp_change = temp_diff * 0.1 * time_delta
+        
+        # Apply clothing effects
+        if agent.inventory:
+            for item in agent.inventory.items:
+                if item.type == "clothing":
+                    temp_change *= (1.0 - item.insulation)
+                    
+        # Apply need effects
+        if self.energy < 30.0:
+            temp_change *= 0.8  # Less able to regulate temperature
+        if self.health < 50.0:
+            temp_change *= 1.2  # More susceptible to temperature changes
+            
+        # Update temperature
+        self.temperature += temp_change
+        
+        # Apply temperature effects
+        if self.temperature < 35.0:
+            self._add_effect(NeedEffect(
+                threshold=35.0,
+                severity=0.1,
+                duration=time_delta,
+                type="health",
+                description="Hypothermia"
+            ))
+        elif self.temperature > 39.0:
+            self._add_effect(NeedEffect(
+                threshold=39.0,
+                severity=0.1,
+                duration=time_delta,
+                type="health",
+                description="Hyperthermia"
+            ))
+            
+    def _apply_need_effects(self, time_delta: float):
+        """Apply effects based on need levels."""
+        # Hunger effects
+        if self.hunger > 80.0:
+            self._add_effect(NeedEffect(
+                threshold=80.0,
+                severity=0.2,
+                duration=time_delta,
+                type="energy",
+                description="Severe hunger"
+            ))
+        elif self.hunger > 60.0:
+            self._add_effect(NeedEffect(
+                threshold=60.0,
+                severity=0.1,
+                duration=time_delta,
+                type="energy",
+                description="Hungry"
+            ))
+            
+        # Thirst effects
+        if self.thirst > 80.0:
+            self._add_effect(NeedEffect(
+                threshold=80.0,
+                severity=0.3,
+                duration=time_delta,
+                type="health",
+                description="Severe dehydration"
+            ))
+        elif self.thirst > 60.0:
+            self._add_effect(NeedEffect(
+                threshold=60.0,
+                severity=0.15,
+                duration=time_delta,
+                type="health",
+                description="Dehydrated"
+            ))
+            
+        # Energy effects
+        if self.energy < 20.0:
+            self._add_effect(NeedEffect(
+                threshold=20.0,
+                severity=0.3,
+                duration=time_delta,
+                type="mood",
+                description="Exhausted"
+            ))
+        elif self.energy < 40.0:
+            self._add_effect(NeedEffect(
+                threshold=40.0,
+                severity=0.15,
+                duration=time_delta,
+                type="mood",
+                description="Tired"
+            ))
+            
+        # Update active effects
+        self._update_active_effects(time_delta)
+        
+    def _add_effect(self, effect: NeedEffect):
+        """Add a new need effect."""
+        # Check if similar effect exists
+        for existing in self.active_effects:
+            if existing.type == effect.type and existing.description == effect.description:
+                # Update existing effect
+                existing.severity = max(existing.severity, effect.severity)
+                existing.duration = max(existing.duration, effect.duration)
+                return
+                
+        # Add new effect
+        self.active_effects.append(effect)
+        
+    def _update_active_effects(self, time_delta: float):
+        """Update and remove expired effects."""
+        for effect in list(self.active_effects):
+            effect.duration -= time_delta
+            if effect.duration <= 0.0:
+                self.active_effects.remove(effect)
+                
+    def _update_health(self, time_delta: float):
+        """Update health based on needs and effects."""
+        health_change = 0.0
+        
+        # Base health change
+        if self.hunger > 80.0:
+            health_change -= 0.2 * time_delta
+        if self.thirst > 80.0:
+            health_change -= 0.3 * time_delta
+        if self.energy < 20.0:
+            health_change -= 0.1 * time_delta
+            
+        # Apply active effects
+        for effect in self.active_effects:
+            if effect.type == "health":
+                health_change -= effect.severity * time_delta
+                
+        # Update health
+        self.health = max(0.0, min(100.0, self.health + health_change))
+        
+    def _update_mood(self, time_delta: float):
+        """Update mood based on needs and effects."""
+        mood_change = 0.0
+        
+        # Base mood change
+        if self.hunger > 60.0:
+            mood_change -= 0.1 * time_delta
+        if self.thirst > 60.0:
+            mood_change -= 0.15 * time_delta
+        if self.energy < 40.0:
+            mood_change -= 0.1 * time_delta
+        if self.health < 50.0:
+            mood_change -= 0.2 * time_delta
+            
+        # Apply active effects
+        for effect in self.active_effects:
+            if effect.type == "mood":
+                mood_change -= effect.severity * time_delta
+                
+        # Update mood
+        self.mood = max(0.0, min(100.0, self.mood + mood_change))
+        
+    def _record_needs(self):
+        """Record current need state."""
+        self.need_history.append({
+            'timestamp': time.time(),
+            'hunger': self.hunger,
+            'thirst': self.thirst,
+            'energy': self.energy,
+            'health': self.health,
+            'mood': self.mood,
+            'temperature': self.temperature,
+            'active_effects': [
+                {
+                    'type': effect.type,
+                    'severity': effect.severity,
+                    'description': effect.description
+                }
+                for effect in self.active_effects
+            ]
+        })
+        
+        # Keep only last 1000 records
+        if len(self.need_history) > 1000:
+            self.need_history = self.need_history[-1000:]
+            
+    def eat(self, food: 'Food') -> float:
+        """Eat food and update needs."""
+        if not food:
+            return 0.0
+            
+        # Calculate satisfaction
+        satisfaction = min(1.0, food.amount * food.quality)
+        
+        # Update hunger
+        hunger_reduction = 30.0 * satisfaction
+        self.hunger = max(0.0, self.hunger - hunger_reduction)
+        
+        # Apply food effects
+        if food.effects:
+            for effect, value in food.effects.items():
+                if effect == "health":
+                    self.health = min(100.0, self.health + value * satisfaction)
+                elif effect == "energy":
+                    self.energy = min(100.0, self.energy + value * satisfaction)
+                elif effect == "mood":
+                    self.mood = min(100.0, self.mood + value * satisfaction)
+                    
+        return satisfaction
+        
+    def drink(self, amount: float) -> float:
+        """Drink water and update needs."""
+        if amount <= 0.0:
+            return 0.0
+            
+        # Calculate satisfaction
+        satisfaction = min(1.0, amount)
+        
+        # Update thirst
+        thirst_reduction = 40.0 * satisfaction
+        self.thirst = max(0.0, self.thirst - thirst_reduction)
+        
+        return satisfaction
+        
+    def rest(self, time_delta: float) -> float:
+        """Rest and recover energy."""
+        if time_delta <= 0.0:
+            return 0.0
+            
+        # Calculate energy recovery
+        recovery_rate = 0.2  # Base recovery rate
+        
+        # Apply modifiers
+        if self.health < 50.0:
+            recovery_rate *= 0.5
+        if self.hunger > 60.0 or self.thirst > 60.0:
+            recovery_rate *= 0.7
+            
+        # Update energy
+        energy_gain = recovery_rate * time_delta
+        self.energy = min(100.0, self.energy + energy_gain)
+        
+        return energy_gain
+        
+    def to_dict(self) -> Dict:
+        """Convert needs state to dictionary."""
+        return {
+            'hunger': self.hunger,
+            'thirst': self.thirst,
+            'energy': self.energy,
+            'health': self.health,
+            'mood': self.mood,
+            'temperature': self.temperature,
+            'active_effects': [
+                {
+                    'type': effect.type,
+                    'severity': effect.severity,
+                    'duration': effect.duration,
+                    'description': effect.description
+                }
+                for effect in self.active_effects
+            ],
+            'need_history': self.need_history[-100:]  # Last 100 records
+        }
 
 @dataclass
 class MoralAlignment(Enum):
@@ -306,7 +590,7 @@ class Agent:
 
         # Continue with existing update logic
         self.age += time_delta / (365 * 24 * 3600)  # Convert seconds to years
-        self.needs.update(time_delta)
+        self.needs.update(time_delta, self)
         self.health.update(time_delta, world_state)
         self.emotions.update(time_delta, world_state)
         self.relationships.update(time_delta, world_state)

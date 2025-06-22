@@ -203,7 +203,10 @@ class ResourceSystem:
                 check_lat = latitude + dlat
                 pos = (check_lon, check_lat)
                 if pos in self.resources:
-                    nearby[f"{check_lon},{check_lat}"] = self.resources[pos]
+                    nearby[f"{check_lon},{check_lat}"] = {
+                        str(resource_type): amount 
+                        for resource_type, amount in self.resources[pos].items()
+                    }
         return nearby
         
     def update_resources(self, lon: float, lat: float, resource_type: str, amount: float):

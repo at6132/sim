@@ -1,54 +1,44 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template
 from flask_socketio import SocketIO
-from flask_cors import CORS
+from .engine import SimulationEngine, get_engine
+from .world import World
 from .utils.logging_config import get_logger
+import logging
+import traceback
+import threading
+import time
 
+# Get logger for this module
 logger = get_logger(__name__)
 
 # Initialize Flask app
-app = Flask(__name__, 
-    template_folder='templates',
-    static_folder='static'
-)
-CORS(app)
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your-secret-key-here'
 
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-@app.route("/api/world")
-def get_world_state():
-    """Get current world state."""
-    from .engine import engine
-    if engine and engine.world:
-        return jsonify(engine.world.get_state())
-    return jsonify({"error": "World not initialized"})
+# Import routes after app is created
+from .routes import api
 
-@app.route("/api/start")
-def start_simulation():
-    """Start the simulation."""
-    from .engine import engine
-    if engine:
-        engine.start()
-        return jsonify({"status": "started"})
-    return jsonify({"error": "Engine not initialized"})
+# Register blueprint
+app.register_blueprint(api)
 
-@app.route("/api/stop")
-def stop_simulation():
-    """Stop the simulation."""
-    from .engine import engine
-    if engine:
-        engine.stop()
-        return jsonify({"status": "stopped"})
-    return jsonify({"error": "Engine not initialized"})
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection."""
+    logger.info("Client connected")
 
-@app.route("/api/reset")
-def reset_simulation():
-    """Reset the simulation to initial state."""
-    from .engine import engine
-    if engine:
-        engine.reset()
-        return jsonify({"status": "reset"})
-    return jsonify({"error": "Engine not initialized"})
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection."""
+    logger.info("Client disconnected")
 
-# Export app and socketio for use in routes
-__all__ = ['app', 'socketio'] 
+def run_server():
+    """Run the Flask server."""
+    try:
+        logger.info("Starting Flask server...")
+        socketio.run(app, debug=True, use_reloader=False)
+    except Exception as e:
+        logger.error(f"Error running server: {e}")
+        logger.error(traceback.format_exc()) 

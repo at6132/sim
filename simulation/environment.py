@@ -404,89 +404,26 @@ class EnvironmentalSystem:
         for name in list(self.ecosystems.keys()):
             self.evolve_ecosystem(name, time_delta)
         
+    def get_state(self) -> Dict:
+        """Get current environmental system state."""
+        return {
+            "width": self.width,
+            "height": self.height,
+            "environments": {str(k): v.get_state() for k, v in self.environments.items()},
+            "resources": {str(k): v.to_dict() for k, v in self.resources.items()},
+            "climate_zones": {str(k): v.to_dict() for k, v in self.climate_zones.items()},
+            "impacts": {str(k): v.to_dict() for k, v in self.impacts.items()},
+            "ecosystems": {str(k): v.to_dict() for k, v in self.ecosystems.items()}
+        }
+
     def to_dict(self) -> Dict:
         """Convert environmental system state to dictionary for serialization."""
         return {
-            "environments": {
-                environment_id: {
-                    "type": environment.type,
-                    "name": environment.name,
-                    "description": environment.description,
-                    "temperature": environment.temperature,
-                    "humidity": environment.humidity,
-                    "precipitation": environment.precipitation,
-                    "wind_speed": environment.wind_speed,
-                    "wind_direction": environment.wind_direction,
-                    "time_of_day": environment.time_of_day,
-                    "season": environment.season,
-                    "width": environment.width,
-                    "height": environment.height,
-                    "created_at": environment.created_at,
-                    "last_update": environment.last_update
-                }
-                for environment_id, environment in self.environments.items()
-            },
-            "resources": {
-                name: {
-                    "name": resource.name,
-                    "creator": resource.creator,
-                    "creation_date": resource.creation_date,
-                    "location": resource.location,
-                    "type": resource.type,
-                    "quantity": resource.quantity,
-                    "regeneration_rate": resource.regeneration_rate,
-                    "depletion_rate": resource.depletion_rate,
-                    "created_at": resource.created_at,
-                    "last_update": resource.last_update
-                }
-                for name, resource in self.resources.items()
-            },
-            "climate_zones": {
-                name: {
-                    "name": zone.name,
-                    "creator": zone.creator,
-                    "creation_date": zone.creation_date,
-                    "location": zone.location,
-                    "size": zone.size,
-                    "temperature": zone.temperature,
-                    "precipitation": zone.precipitation,
-                    "humidity": zone.humidity,
-                    "wind_speed": zone.wind_speed,
-                    "created_at": zone.created_at,
-                    "last_update": zone.last_update
-                }
-                for name, zone in self.climate_zones.items()
-            },
-            "impacts": {
-                name: {
-                    "name": impact.name,
-                    "creator": impact.creator,
-                    "creation_date": impact.creation_date,
-                    "location": impact.location,
-                    "type": impact.type,
-                    "severity": impact.severity,
-                    "duration": impact.duration,
-                    "affected_resources": impact.affected_resources,
-                    "affected_zones": impact.affected_zones,
-                    "created_at": impact.created_at,
-                    "last_update": impact.last_update
-                }
-                for name, impact in self.impacts.items()
-            },
-            "ecosystems": {
-                name: {
-                    "name": ecosystem.name,
-                    "creator": ecosystem.creator,
-                    "creation_date": ecosystem.creation_date,
-                    "location": ecosystem.location,
-                    "size": ecosystem.size,
-                    "biodiversity": ecosystem.biodiversity,
-                    "stability": ecosystem.stability,
-                    "resources": ecosystem.resources,
-                    "climate_zone": ecosystem.climate_zone,
-                    "created_at": ecosystem.created_at,
-                    "last_update": ecosystem.last_update
-                }
-                for name, ecosystem in self.ecosystems.items()
-            }
+            "width": self.width,
+            "height": self.height,
+            "environments": {str(k): v.to_dict() for k, v in self.environments.items()},
+            "resources": {str(k): v.to_dict() for k, v in self.resources.items()},
+            "climate_zones": {str(k): v.to_dict() for k, v in self.climate_zones.items()},
+            "impacts": {str(k): v.to_dict() for k, v in self.impacts.items()},
+            "ecosystems": {str(k): v.to_dict() for k, v in self.ecosystems.items()}
         } 

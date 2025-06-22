@@ -1,4 +1,4 @@
-python start_simulation.pyfrom enum import Enum
+from enum import Enum
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 import random
@@ -215,6 +215,63 @@ class PlantSystem:
                 'resource_production': {
                     'berries': 15.0,
                     'biomass': 10.0,
+                    'seeds': 5.0
+                }
+            },
+            'FLOWER': {
+                'name': 'Flower',
+                'growth_rate': 0.25,
+                'water_need': 0.7,
+                'nutrient_need': 0.6,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.3,
+                    'bud': 0.6,
+                    'bloom': 0.8,
+                    'mature': 1.0
+                },
+                'maturity_age': 30,
+                'lifespan': 120,
+                'reproduction_rate': 0.4,
+                'spread_rate': 0.15,
+                'biomass': 5.0,
+                'carbon_sequestration': 0.1,
+                'oxygen_production': 0.15,
+                'soil_stabilization': 0.3,
+                'habitat_value': 0.4,
+                'resource_production': {
+                    'pollen': 10.0,
+                    'nectar': 8.0,
+                    'seeds': 3.0
+                }
+            },
+            'WHEAT': {
+                'name': 'Wheat',
+                'growth_rate': 0.3,
+                'water_need': 0.8,
+                'nutrient_need': 0.7,
+                'health': 1.0,
+                'growth_stages': {
+                    'seed': 0.0,
+                    'sprout': 0.2,
+                    'tillering': 0.4,
+                    'stem_extension': 0.6,
+                    'heading': 0.8,
+                    'mature': 1.0
+                },
+                'maturity_age': 90,
+                'lifespan': 120,
+                'reproduction_rate': 0.2,
+                'spread_rate': 0.1,
+                'biomass': 15.0,
+                'carbon_sequestration': 0.2,
+                'oxygen_production': 0.2,
+                'soil_stabilization': 0.4,
+                'habitat_value': 0.3,
+                'resource_production': {
+                    'grain': 25.0,
+                    'straw': 15.0,
                     'seeds': 5.0
                 }
             }
@@ -492,36 +549,36 @@ class PlantSystem:
         """Get the current state of the plant system."""
         return {
             'plants': {str(plant_id): {
-                'id': plant.id,
-                'type': plant.type,
-                'species': plant.species,
-                'age': plant.age,
-                'health': plant.health,
-                'size': plant.size,
+                'id': str(plant.id),
+                'type': str(plant.type),
+                'species': str(plant.species),
+                'age': float(plant.age),
+                'health': float(plant.health),
+                'size': float(plant.size),
                 'position': [float(plant.longitude), float(plant.latitude)],
-                'growth_rate': plant.growth_rate,
-                'reproduction_rate': plant.reproduction_rate,
-                'resource_yield': plant.resource_yield,
-                'planted_by': plant.planted_by,
+                'growth_rate': float(plant.growth_rate),
+                'reproduction_rate': float(plant.reproduction_rate),
+                'resource_yield': {str(k): float(v) for k, v in plant.resource_yield.items()},
+                'planted_by': str(plant.planted_by) if plant.planted_by else None,
                 'needs': {
-                    'water': plant.needs.water,
-                    'nutrients': plant.needs.nutrients,
-                    'health': plant.needs.health,
-                    'pest_resistance': plant.needs.pest_resistance
+                    'water': float(plant.needs.water),
+                    'nutrients': float(plant.needs.nutrients),
+                    'health': float(plant.needs.health),
+                    'pest_resistance': float(plant.needs.pest_resistance)
                 },
                 'state': {
-                    'growth_stage': plant.state.growth_stage.value,
-                    'growth_progress': plant.state.growth_progress,
-                    'age': plant.state.age,
-                    'last_watered': plant.state.last_watered,
-                    'last_fertilized': plant.state.last_fertilized,
-                    'last_weeded': plant.state.last_weeded,
-                    'has_pests': plant.state.has_pests,
-                    'pest_damage': plant.state.pest_damage,
-                    'is_harvested': plant.state.is_harvested
+                    'growth_stage': str(plant.state.growth_stage.value),
+                    'growth_progress': float(plant.state.growth_progress),
+                    'age': float(plant.state.age),
+                    'last_watered': float(plant.state.last_watered),
+                    'last_fertilized': float(plant.state.last_fertilized),
+                    'last_weeded': float(plant.state.last_weeded),
+                    'has_pests': bool(plant.state.has_pests),
+                    'pest_damage': float(plant.state.pest_damage),
+                    'is_harvested': bool(plant.state.is_harvested)
                 },
-                'field_id': plant.field_id,
-                'last_action': plant.last_action
+                'field_id': str(plant.field_id) if plant.field_id else None,
+                'last_action': str(plant.last_action)
             } for plant_id, plant in self.plants.items()},
             'fields': {str(field_id): [str(pid) for pid in plant_ids] for field_id, plant_ids in self.fields.items()}
         }

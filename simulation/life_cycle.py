@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Tuple
 from enum import Enum
 import random
 from datetime import datetime, timedelta
+import time
 
 class LifeStage(Enum):
     INFANT = "infant"  # 0-2 years
@@ -36,12 +37,31 @@ class Resource:
     regrowth_rate: float = 0.1  # Amount regenerated per day
 
 @dataclass
+class CourtshipState:
+    is_courting: bool = False
+    courtship_target: Optional[str] = None
+    courtship_progress: float = 0.0  # 0-100
+    courtship_actions: List[str] = field(default_factory=list)
+    last_courtship_time: float = 0.0
+    courtship_cooldown: float = 0.0
+
+@dataclass
+class FamilyRelationship:
+    relationship_type: str  # parent, child, sibling, mate
+    related_agent_id: str
+    bond_strength: float = 0.0  # 0-100
+    last_interaction_time: float = 0.0
+    shared_memories: List[Dict] = field(default_factory=list)
+
+@dataclass
 class LifeCycleSystem:
     def __init__(self):
         self.pregnancies: Dict[str, Pregnancy] = {}  # agent_id -> pregnancy
         self.resources: Dict[str, List[Resource]] = {}  # resource_type -> resources
         self.death_records: List[Dict] = []
         self.birth_records: List[Dict] = []
+        self.courtships: Dict[str, CourtshipState] = {}
+        self.family_relationships: Dict[str, List[FamilyRelationship]] = {}
         
     def update_agent(self, agent: 'Agent', time_delta: float, world_state: Dict):
         """Update agent's life cycle state."""
@@ -161,7 +181,7 @@ class LifeCycleSystem:
         self._notify_death(agent)
         
     def _can_reproduce(self, agent: 'Agent') -> bool:
-        """Check if agent can reproduce."""
+        """Enhanced check if agent can reproduce."""
         if agent.life_stage not in [LifeStage.ADULT]:
             return False
             
@@ -171,6 +191,16 @@ class LifeCycleSystem:
         if agent.needs.hunger < 0.7 or agent.needs.thirst < 0.7:
             return False
             
+        # Check if agent is already pregnant
+        if agent.id in self.pregnancies:
+            return False
+            
+        # Check if agent is in courtship cooldown
+        if agent.id in self.courtships:
+            courtship = self.courtships[agent.id]
+            if courtship.is_courting and time.time() - courtship.last_courtship_time < courtship.courtship_cooldown:
+                return False
+                
         return True
         
     def _attempt_reproduction(self, agent: 'Agent', world_state: Dict):
@@ -209,7 +239,7 @@ class LifeCycleSystem:
         )
         
     def _handle_birth(self, mother: 'Agent', pregnancy: Pregnancy):
-        """Handle birth of new agent."""
+        """Enhanced birth handling with family relationship updates."""
         # Create new agent with inherited genes
         father = self.world.agents.get(pregnancy.father_id)
         new_agent = self._create_child(mother, father)
@@ -230,23 +260,37 @@ class LifeCycleSystem:
         self.birth_records.append(birth_record)
         
         # Update family relationships
-        mother.children.append(new_agent.id)
+        self._update_relationship(mother.id, new_agent.id, "parent", 50.0)
+        self._update_relationship(new_agent.id, mother.id, "child", 50.0)
+        
         if father:
-            father.children.append(new_agent.id)
-        new_agent.parents = [mother.id]
-        if father:
-            new_agent.parents.append(father.id)
+            self._update_relationship(father.id, new_agent.id, "parent", 50.0)
+            self._update_relationship(new_agent.id, father.id, "child", 50.0)
             
+        # Update siblings
+        for child_id in mother.children:
+            if child_id != new_agent.id:
+                self._update_relationship(new_agent.id, child_id, "sibling", 30.0)
+                self._update_relationship(child_id, new_agent.id, "sibling", 30.0)
+                
         # Remove pregnancy
         del self.pregnancies[mother.id]
         
         # Update mother's needs and emotions
-        mother.needs.hunger *= 0.8  # Reduced hunger
+        mother.needs.hunger *= 0.8
         mother.emotions.process_experience(
             "Gave birth",
             {"child": new_agent.id},
             mother.to_dict()
         )
+        
+        # Log the birth
+        self.world.log_event("agent_birth", {
+            "agent_id": new_agent.id,
+            "mother_id": mother.id,
+            "father_id": father.id if father else None,
+            "location": mother.position
+        })
         
     def _create_child(self, mother: 'Agent', father: Optional['Agent']) -> 'Agent':
         """Create a new child agent with inherited genes."""
@@ -384,6 +428,152 @@ class LifeCycleSystem:
         return abs(pos1[0] - pos2[0]) <= max_distance and \
                abs(pos1[1] - pos2[1]) <= max_distance
 
+    def _find_potential_mate(self, agent: 'Agent', world_state: Dict) -> Optional['Agent']:
+        """Find a suitable mate based on various factors."""
+        potential_mates = []
+        
+        for other_id, other_agent in world_state["agents"].items():
+            if other_id == agent.id:
+                continue
+                
+            # Basic compatibility checks
+            if not self._can_reproduce(other_agent):
+                continue
+                
+            # Check if already in a relationship
+            if other_agent.mate:
+                continue
+                
+            # Calculate compatibility score
+            compatibility = self._calculate_compatibility(agent, other_agent)
+            if compatibility > 0.5:  # Minimum compatibility threshold
+                potential_mates.append((other_agent, compatibility))
+                
+        if not potential_mates:
+            return None
+            
+        # Sort by compatibility and return the best match
+        potential_mates.sort(key=lambda x: x[1], reverse=True)
+        return potential_mates[0][0]
+        
+    def _calculate_compatibility(self, agent1: 'Agent', agent2: 'Agent') -> float:
+        """Calculate compatibility between two agents."""
+        compatibility = 0.0
+        
+        # Genetic compatibility
+        gene_compatibility = sum(
+            abs(getattr(agent1.genes, gene) - getattr(agent2.genes, gene))
+            for gene in agent1.genes.__dataclass_fields__
+        ) / len(agent1.genes.__dataclass_fields__)
+        compatibility += (1.0 - gene_compatibility) * 0.3
+        
+        # Personality compatibility
+        personality_compatibility = sum(
+            abs(getattr(agent1.personality, trait) - getattr(agent2.personality, trait))
+            for trait in agent1.personality.__dataclass_fields__
+        ) / len(agent1.personality.__dataclass_fields__)
+        compatibility += (1.0 - personality_compatibility) * 0.3
+        
+        # Social compatibility
+        if agent1.tribe == agent2.tribe:
+            compatibility += 0.2
+            
+        # Age compatibility
+        age_diff = abs(agent1.age - agent2.age)
+        if age_diff < 5:
+            compatibility += 0.1
+        elif age_diff < 10:
+            compatibility += 0.05
+            
+        return min(1.0, compatibility)
+        
+    def _initiate_courtship(self, agent: 'Agent', target: 'Agent'):
+        """Initiate courtship with another agent."""
+        if agent.id not in self.courtships:
+            self.courtships[agent.id] = CourtshipState()
+            
+        courtship = self.courtships[agent.id]
+        courtship.is_courting = True
+        courtship.courtship_target = target.id
+        courtship.courtship_progress = 0.0
+        courtship.last_courtship_time = time.time()
+        courtship.courtship_cooldown = random.uniform(3600, 7200)  # 1-2 hours
+        
+        # Add courtship action
+        action = random.choice([
+            "gift_giving",
+            "dancing",
+            "singing",
+            "storytelling",
+            "hunting_together",
+            "gathering_together"
+        ])
+        courtship.courtship_actions.append(action)
+        
+        # Update relationship
+        self._update_relationship(agent.id, target.id, "potential_mate", 10.0)
+        
+    def _update_courtship(self, agent: 'Agent', time_delta: float):
+        """Update courtship progress."""
+        if agent.id not in self.courtships:
+            return
+            
+        courtship = self.courtships[agent.id]
+        if not courtship.is_courting:
+            return
+            
+        # Increase courtship progress
+        courtship.courtship_progress += time_delta * 0.1
+        
+        # Check if courtship is successful
+        if courtship.courtship_progress >= 100.0:
+            target = self.world.agents.get_agent(courtship.courtship_target)
+            if target and self._can_reproduce(target):
+                self._form_mate_bond(agent, target)
+                courtship.is_courting = False
+                
+    def _form_mate_bond(self, agent1: 'Agent', agent2: 'Agent'):
+        """Form a mate bond between two agents."""
+        agent1.mate = agent2.id
+        agent2.mate = agent1.id
+        
+        # Create family relationships
+        self._update_relationship(agent1.id, agent2.id, "mate", 50.0)
+        self._update_relationship(agent2.id, agent1.id, "mate", 50.0)
+        
+        # Log the event
+        self.world.log_event("mate_bond_formed", {
+            "agent1_id": agent1.id,
+            "agent2_id": agent2.id,
+            "compatibility": self._calculate_compatibility(agent1, agent2)
+        })
+        
+    def _update_relationship(self, agent_id: str, related_id: str, relationship_type: str, bond_change: float):
+        """Update relationship between two agents."""
+        if agent_id not in self.family_relationships:
+            self.family_relationships[agent_id] = []
+            
+        # Find existing relationship
+        relationship = None
+        for rel in self.family_relationships[agent_id]:
+            if rel.related_agent_id == related_id:
+                relationship = rel
+                break
+                
+        if relationship:
+            # Update existing relationship
+            relationship.bond_strength = min(100.0, relationship.bond_strength + bond_change)
+            relationship.last_interaction_time = time.time()
+        else:
+            # Create new relationship
+            relationship = FamilyRelationship(
+                relationship_type=relationship_type,
+                related_agent_id=related_id,
+                bond_strength=bond_change,
+                last_interaction_time=time.time()
+            )
+            self.family_relationships[agent_id].append(relationship)
+            
     def to_dict(self) -> Dict:
         """Convert life cycle state to dictionary for serialization."""
         return {
@@ -414,5 +604,29 @@ class LifeCycleSystem:
                 for resource_type, resources in self.resources.items()
             },
             'death_records': self.death_records,
-            'birth_records': self.birth_records
+            'birth_records': self.birth_records,
+            'courtships': {
+                agent_id: {
+                    'is_courting': courtship.is_courting,
+                    'courtship_target': courtship.courtship_target,
+                    'courtship_progress': courtship.courtship_progress,
+                    'courtship_actions': courtship.courtship_actions,
+                    'last_courtship_time': courtship.last_courtship_time,
+                    'courtship_cooldown': courtship.courtship_cooldown
+                }
+                for agent_id, courtship in self.courtships.items()
+            },
+            'family_relationships': {
+                agent_id: [
+                    {
+                        'relationship_type': rel.relationship_type,
+                        'related_agent_id': rel.related_agent_id,
+                        'bond_strength': rel.bond_strength,
+                        'last_interaction_time': rel.last_interaction_time,
+                        'shared_memories': rel.shared_memories
+                    }
+                    for rel in relationships
+                ]
+                for agent_id, relationships in self.family_relationships.items()
+            }
         } 

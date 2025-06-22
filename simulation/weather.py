@@ -372,7 +372,7 @@ class WeatherSystem:
         self.current_weather.visibility = max(0.1, min(10.0, base_visibility))
     
     def _update_uv_index(self) -> None:
-        """Update UV index based on time of day, season, and cloud cover."""
+        """Update UV index based on time of day and season."""
         # Base UV by season
         base_uv = {
             "spring": 5.0,
@@ -381,16 +381,37 @@ class WeatherSystem:
             "winter": 2.0
         }[self.season]
         
-        # Time of day effect (peak at noon)
-        time_factor = math.sin(math.pi * (self.time_of_day - 6) / 12)
+        # Daily variation (highest at noon)
+        daily_variation = 4.0 * math.sin(math.pi * (self.time_of_day - 6) / 12)
         
-        # Cloud cover effect
-        cloud_factor = 1 - (self.current_weather.cloud_cover * 0.7)
+        # Cloud cover reduction
+        cloud_reduction = self.current_weather.cloud_cover * 3.0
         
-        self.current_weather.uv_index = max(0.0, min(11.0,
-            base_uv * time_factor * cloud_factor
+        # Calculate final UV index
+        self.current_weather.uv_index = max(0.0, min(11.0, 
+            base_uv + daily_variation - cloud_reduction + random.uniform(-0.5, 0.5)
         ))
-    
+
+    def _update_season(self) -> None:
+        """Update the current season based on simulation time."""
+        # Get the current simulation day
+        current_day = self.world.simulation_time // 24  # Convert hours to days
+        
+        # Define season transitions (in days)
+        # Spring: 0-90, Summer: 91-181, Fall: 182-273, Winter: 274-365
+        day_of_year = current_day % 365
+        
+        if 0 <= day_of_year < 91:
+            self.season = "spring"
+        elif 91 <= day_of_year < 182:
+            self.season = "summer"
+        elif 182 <= day_of_year < 274:
+            self.season = "fall"
+        else:
+            self.season = "winter"
+            
+        logger.info(f"Season changed to {self.season}")
+
     def _update_weather_type(self) -> None:
         """Update weather type based on conditions and fronts."""
         # Calculate probabilities for different weather types

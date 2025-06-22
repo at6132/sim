@@ -79,6 +79,16 @@ class Relationship:
     history: List[str]  # List of past interactions
     last_interaction: float  # Timestamp of last interaction
 
+    def to_dict(self) -> Dict:
+        """Convert relationship to dictionary."""
+        return {
+            "type": self.type.value,
+            "strength": self.strength,
+            "trust": self.trust,
+            "history": self.history,
+            "last_interaction": self.last_interaction
+        }
+
 @dataclass
 class SocialGroup:
     id: str
@@ -92,10 +102,61 @@ class SocialGroup:
     traditions: List[str]
     language: str
     technology_level: int
-    roles: Dict[int, SocialRole]  # Agent ID to role mapping
-    relationships: Dict[Tuple[int, int], Relationship]  # (agent1_id, agent2_id) to relationship
-    territory: List[Tuple[int, int]]  # List of territory coordinates
+    roles: Dict[str, SocialRole]  # Agent ID to role mapping
+    relationships: Dict[str, Relationship]  # "agent1_id:agent2_id" to relationship
+    territory: List[Tuple[float, float]]  # List of territory coordinates
     laws: Dict[str, float]  # Law name to enforcement strength
+
+    def __post_init__(self):
+        """Initialize social group after creation."""
+        self.relationships = {}
+        self.roles = {}
+        self.territory = []
+        self.laws = {}
+        self.beliefs = {}
+        self.traditions = []
+        self.members = []
+        self.settlements = []
+
+    def get_relationship_key(self, agent1_id: str, agent2_id: str) -> str:
+        """Get the key for a relationship between two agents."""
+        return f"{agent1_id}:{agent2_id}"
+
+    def add_relationship(self, agent1_id: str, agent2_id: str, relationship: Relationship) -> None:
+        """Add a relationship between two agents."""
+        key = self.get_relationship_key(agent1_id, agent2_id)
+        self.relationships[key] = relationship
+
+    def get_relationship(self, agent1_id: str, agent2_id: str) -> Optional[Relationship]:
+        """Get the relationship between two agents."""
+        key = self.get_relationship_key(agent1_id, agent2_id)
+        return self.relationships.get(key)
+
+    def remove_relationship(self, agent1_id: str, agent2_id: str) -> None:
+        """Remove a relationship between two agents."""
+        key = self.get_relationship_key(agent1_id, agent2_id)
+        if key in self.relationships:
+            del self.relationships[key]
+
+    def to_dict(self) -> Dict:
+        """Convert social group to dictionary."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type.value,
+            "leader_id": self.leader_id,
+            "members": self.members,
+            "settlements": self.settlements,
+            "culture": self.culture.value,
+            "beliefs": self.beliefs,
+            "traditions": self.traditions,
+            "language": self.language,
+            "technology_level": self.technology_level,
+            "roles": {str(k): v.value for k, v in self.roles.items()},
+            "relationships": {k: v.to_dict() for k, v in self.relationships.items()},
+            "territory": [f"{lon},{lat}" for lon, lat in self.territory],
+            "laws": self.laws
+        }
 
 @dataclass
 class SocietyTerritory:
@@ -484,7 +545,7 @@ class Society:
         # Initialize relationships with existing members
         for member_id in group.members:
             if member_id != str(agent_id):
-                self._initialize_relationship(agent_id, member_id, group)
+                self._initialize_relationship(str(agent_id), member_id, group)
                 
         logger.info(f"Added agent {agent_id} to group {group_name} as {role.value}")
         return True
@@ -504,17 +565,17 @@ class Society:
         
         # Remove relationships with group members
         for member_id in list(group.members):
-            self._remove_relationship(agent_id, member_id)
+            self._remove_relationship(str(agent_id), member_id)
             
         logger.info(f"Removed agent {agent_id} from group {group_name}")
         return True
         
-    def _initialize_relationship(self, agent1_id: int, agent2_id: int, group: SocialGroup) -> None:
+    def _initialize_relationship(self, agent1_id: str, agent2_id: str, group: SocialGroup) -> None:
         """Initialize a relationship between two agents"""
         # Determine relationship type based on roles and group culture
-        if group.roles[agent1_id] == SocialRole.LEADER:
+        if group.roles.get(agent1_id) == SocialRole.LEADER:
             rel_type = RelationshipType.MENTOR
-        elif group.roles[agent2_id] == SocialRole.LEADER:
+        elif group.roles.get(agent2_id) == SocialRole.LEADER:
             rel_type = RelationshipType.STUDENT
         else:
             rel_type = random.choice(list(RelationshipType))
@@ -524,21 +585,17 @@ class Society:
             strength=random.random(),
             trust=random.random(),
             history=[],
-            last_interaction=0.0
+            last_interaction=time.time()
         )
         
-        group.relationships[(agent1_id, agent2_id)] = relationship
-        group.relationships[(agent2_id, agent1_id)] = relationship
+        group.add_relationship(agent1_id, agent2_id, relationship)
         
-    def _remove_relationship(self, agent1_id: int, agent2_id: int) -> None:
+    def _remove_relationship(self, agent1_id: str, agent2_id: str) -> None:
         """Remove a relationship between two agents"""
         for group in self.social_groups.values():
-            if (agent1_id, agent2_id) in group.relationships:
-                del group.relationships[(agent1_id, agent2_id)]
-            if (agent2_id, agent1_id) in group.relationships:
-                del group.relationships[(agent2_id, agent1_id)]
+            group.remove_relationship(agent1_id, agent2_id)
                 
-    def update_relationship(self, agent1_id: int, agent2_id: int, 
+    def update_relationship(self, agent1_id: str, agent2_id: str, 
                           interaction: str, strength_change: float, trust_change: float) -> None:
         """Update relationship between two agents based on interaction"""
         group_name = self.agent_groups.get(agent1_id)
@@ -546,17 +603,14 @@ class Society:
             return
             
         group = self.social_groups[group_name]
-        if (agent1_id, agent2_id) not in group.relationships:
+        relationship = group.get_relationship(agent1_id, agent2_id)
+        if not relationship:
             return
             
-        relationship = group.relationships[(agent1_id, agent2_id)]
         relationship.strength = max(0.0, min(1.0, relationship.strength + strength_change))
         relationship.trust = max(0.0, min(1.0, relationship.trust + trust_change))
         relationship.history.append(interaction)
-        relationship.last_interaction = 0.0  # Reset to current time
-        
-        # Update reverse relationship
-        group.relationships[(agent2_id, agent1_id)] = relationship
+        relationship.last_interaction = time.time()
         
         logger.info(f"Updated relationship between {agent1_id} and {agent2_id}: {interaction}")
         
@@ -602,12 +656,12 @@ class Society:
             return None
         return self.social_groups[group_name].roles.get(agent_id)
         
-    def get_relationship(self, agent1_id: int, agent2_id: int) -> Optional[Relationship]:
+    def get_relationship(self, agent1_id: str, agent2_id: str) -> Optional[Relationship]:
         """Get the relationship between two agents"""
         group_name = self.agent_groups.get(agent1_id)
         if not group_name or group_name != self.agent_groups.get(agent2_id):
             return None
-        return self.social_groups[group_name].relationships.get((agent1_id, agent2_id))
+        return self.social_groups[group_name].get_relationship(agent1_id, agent2_id)
         
     def get_group_laws(self, group_name: str) -> Dict[str, float]:
         """Get all laws of a group"""

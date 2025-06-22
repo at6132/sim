@@ -925,27 +925,29 @@ class TerrainSystem:
         return (dx*dx + dy*dy) <= (radius*radius)
         
     def _is_ocean(self, longitude: float, latitude: float) -> bool:
-        """Check if coordinates are in ocean."""
+        """Check if a location is ocean."""
         ocean_types = {
             TerrainType.DEEP_OCEAN,
             TerrainType.CONTINENTAL_SHELF,
             TerrainType.CONTINENTAL_SLOPE,
-            TerrainType.OCEAN_TRENCH
+            TerrainType.OCEAN_TRENCH,
+            TerrainType.CORAL_REEF,
+            TerrainType.SEAMOUNT,
+            TerrainType.ABYSSAL_PLAIN
         }
-        return self.terrain_data.get((longitude, latitude))['type'] in ocean_types
-
-    def _is_coastal(self, coord: Tuple[int, int]) -> bool:
-        """Return True if the coordinate is along the coast."""
-        lon, lat = coord
-        if not self._is_ocean(lon, lat):
+        terrain = self.terrain_data.get((longitude, latitude))
+        if terrain is None:
             return False
+        return terrain['type'] in {t.value for t in ocean_types}
 
-        # Check neighbouring cells for land
-        for dlon, dlat in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-            nlon, nlat = lon + dlon, lat + dlat
-            if (self.world.min_longitude <= nlon <= self.world.max_longitude and
-                    self.world.min_latitude <= nlat <= self.world.max_latitude):
-                if not self._is_ocean(nlon, nlat):
+    def _is_coastal(self, position: Tuple[float, float]) -> bool:
+        """Check if a location is coastal (land adjacent to ocean)."""
+        lon, lat = position
+        if not self._is_ocean(lon, lat):
+            # Check adjacent cells for ocean
+            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                adj_lon, adj_lat = lon + dx, lat + dy
+                if self._is_ocean(adj_lon, adj_lat):
                     return True
         return False
 
@@ -1281,3 +1283,7 @@ class TerrainSystem:
                 self.deposition_data[coord] = 0.0
                 terrain['erosion_rate'] = 0.0
                 terrain['deposition_rate'] = 0.0
+
+    def _get_coastal_direction(self, position):
+        """Placeholder: Always returns eastward direction for coastal currents."""
+        return (1.0, 0.0)
