@@ -57,6 +57,7 @@ This will:
 - Two initial agents spawn near Passaic, NJ with no predefined names
 - Basic physics system applying Newtonian motion to agents
 - Farming fields influenced by soil quality and nutrients
+- Natural plant and animal populations spawn in their native habitats
 - Simple building system for constructing structures over time
 - Fire-making technology enabling cooking and warmth
 - Environment state reports current world time for synchronization

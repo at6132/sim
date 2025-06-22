@@ -465,16 +465,6 @@ class World:
         )
         self.physics.register_agent(self.agents.get_agent(second_id))
 
-        # Create an initial farming field near the spawn area
-        field_id = self.plants.create_field(base_lon, base_lat, size=1.0)
-        self.plants.plant_seed(
-            PlantType.WHEAT,
-            base_lon,
-            base_lat,
-            planted_by=first_id,
-            field_id=field_id,
-        )
-
         self.logger.info(
             f"Spawned initial agents at ({male_lon:.2f},{male_lat:.2f}) and ({female_lon:.2f},{female_lat:.2f})"
         )
