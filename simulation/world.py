@@ -437,6 +437,7 @@ class World:
             "weather": self.weather.get_state(),
             "disasters": self.disasters.get_state(),
             "environment": self.environment.get_state(),
+
             "discovery": self.discovery.get_state()
         }
         

@@ -88,6 +88,7 @@ class Environment:
         """Get current weather data from the world's weather system."""
         return self.world.weather.get_state().get("current_weather", {})
 
+
     def _calculate_day_length(self, latitude: float, day_of_year: int) -> float:
         """Approximate day length in hours for a latitude and day of year."""
         axial_tilt = 23.44  # degrees
@@ -108,11 +109,14 @@ class Environment:
         hours = time_delta / 3600.0
 
         # Determine current sunrise and sunset based on latitude and season
+
         mid_lat = self.center_latitude
+
         day_of_year = self.world.game_time.timetuple().tm_yday
         day_length = self._calculate_day_length(mid_lat, day_of_year)
         sunrise = 12 - day_length / 2
         sunset = 12 + day_length / 2
+
 
         # Update season using day of year
         if 80 <= day_of_year < 172:
@@ -123,7 +127,6 @@ class Environment:
             self.season = "fall"
         else:
             self.season = "winter"
-
         # Update time of day
         self.time_of_day = (self.time_of_day + hours) % 24.0
 
@@ -167,9 +170,11 @@ class Environment:
             "season": self.season,
             "width": self.width,
             "height": self.height,
+
             "center_longitude": self.center_longitude,
             "center_latitude": self.center_latitude,
             "current_time": self.world.game_time.isoformat(),
+
         }
 
     def to_dict(self) -> Dict:
@@ -182,8 +187,10 @@ class Environment:
             "humidity": self.humidity,
             "pressure": self.pressure,
             "visibility": self.visibility,
+
             "center_longitude": self.center_longitude,
             "center_latitude": self.center_latitude,
+
         }
 
 
@@ -272,11 +279,13 @@ class EnvironmentalSystem:
             height=self.world.height,
             center_longitude=-74.1295,
             center_latitude=40.8574,
+
         )
 
         logger.info("Environmental system initialization complete")
 
     def create_environment(
+
         self,
         type: str,
         name: str,
@@ -284,6 +293,7 @@ class EnvironmentalSystem:
         properties: Dict[str, Any] = None,
         longitude: float = 0.0,
         latitude: float = 0.0,
+
     ) -> Environment:
         """Create new environment with custom properties."""
         environment = Environment(
@@ -294,8 +304,10 @@ class EnvironmentalSystem:
             name=name,
             description=description,
             properties=properties or {},
+
             center_longitude=longitude,
             center_latitude=latitude,
+
         )
 
         environment_id = f"environment_{len(self.environments)}"

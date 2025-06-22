@@ -42,6 +42,7 @@ class PhysicsSystem:
             friction = 0.1 + (slope / 90.0)
             vx *= max(0.0, 1 - friction * dt)
             vy *= max(0.0, 1 - friction * dt)
+
             new_lon = body.position[0] + vx * dt
             new_lat = body.position[1] + vy * dt
             if self.world.is_valid_position(new_lon, new_lat):
