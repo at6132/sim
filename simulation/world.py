@@ -299,6 +299,11 @@ class World:
         self.simulation_time += 1
         self.current_tick += 1
         self.game_time += timedelta(seconds=1)
+
+        # Log the tick number and current game time
+        self.logger.info(
+            f"Tick {self.current_tick}: game time {self.game_time.isoformat()}"
+        )
         
         # Increment day every 86,400 ticks (1 day in game)
         if self.current_tick % 86400 == 0:
