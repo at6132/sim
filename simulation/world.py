@@ -331,6 +331,7 @@ class World:
         self.society.update(1)
         self.transportation.update(1)
         self.weather.update(1)
+        self.environment.update(1)
         self.agents.update(1)
 
         # Persist world state to Redis for frontend consumption
