@@ -79,6 +79,19 @@ class TechnologyTree:
     
     def _initialize_technologies(self):
         """Initialize the technology tree with basic technologies"""
+        # Fundamental discovery: fire
+        self.technologies["fire"] = Technology(
+            type="fire",
+            name="Fire Making",
+            category=TechnologyCategory.FIRE,
+            description="Ability to create and control fire",
+            prerequisites=set(),
+            difficulty=0.2,
+            discovery_chance=0.05,
+            required_resources={"wood": 0.1},
+            effects={"heat": 1.0, "cooking": 1.0}
+        )
+
         # Agriculture technologies
         self.technologies["basic_farming"] = Technology(
             type="basic_farming",
@@ -194,26 +207,7 @@ class TechnologyTree:
             effects={"building_quality": 1.1}
         )
 
-        # High level category placeholders to satisfy initialization
-        for t_type, category in {
-            "agriculture": TechnologyCategory.AGRICULTURE,
-            "construction": TechnologyCategory.CONSTRUCTION,
-            "transportation": TechnologyCategory.TRANSPORTATION,
-            "communication": TechnologyCategory.COMMUNICATION,
-            "medicine": TechnologyCategory.MEDICINE,
-        }.items():
-            if t_type not in self.technologies:
-                self.technologies[t_type] = Technology(
-                    type=t_type,
-                    name=t_type.capitalize(),
-                    category=category,
-                    description=f"Basic {t_type} techniques",
-                    prerequisites=set(),
-                    difficulty=0.1,
-                    discovery_chance=0.01,
-                    required_resources={},
-                    effects={}
-                )
+
         
         # Transportation technologies
         self.technologies["basic_transportation"] = Technology(
@@ -365,7 +359,8 @@ class TechnologySystem:
             'transportation': 1.0,
             'communication': 1.0,
             'weaponry': 1.0,
-            'defense': 1.0
+            'defense': 1.0,
+            'fire': 1.0
         }
         self.research_progress = {tech: 0.0 for tech in self.technologies}
         self.research_rate = 0.1  # Base research rate per tick
@@ -485,6 +480,11 @@ class TechnologySystem:
     def _initialize_tech_tree(self) -> Dict:
         """Initialize the technology tree with prerequisites and effects."""
         return {
+            'fire': {
+                'level': 1.0,
+                'prerequisites': [],
+                'effects': ['heat', 'cooking']
+            },
             'mining': {
                 'level': 1.0,
                 'prerequisites': [],

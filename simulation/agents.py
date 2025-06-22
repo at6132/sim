@@ -12,7 +12,7 @@ from dataclasses import dataclass
 class Agent:
     """Represents an agent in the simulation."""
     id: str
-    name: str
+    name: Optional[str] = None
     position: Tuple[float, float]
     health: float
     energy: float
@@ -25,6 +25,8 @@ class Agent:
     world: Optional[Any] = None  # Reference to world for movement validation
     logger: Optional[Any] = None  # Logger for agent-specific logging
     gender: str = 'unknown'
+    velocity: Tuple[float, float] = (0.0, 0.0)
+    mass: float = 70.0
 
     def get_state(self) -> Dict:
         """Get current agent state for serialization."""
@@ -39,7 +41,9 @@ class Agent:
             "age": self.age,
             "skills": self.skills,
             "inventory": self.inventory,
-            "last_action": self.last_action
+            "last_action": self.last_action,
+            "velocity": self.velocity,
+            "mass": self.mass
         }
 
     def _is_valid_position(self, longitude: float, latitude: float) -> bool:
@@ -117,57 +121,6 @@ class Agent:
         self.logger.info(f"Agent {self.name} moved to ({target_longitude}, {target_latitude})")
         return True
 
-    def _create_initial_agents(self):
-        """Create initial agents in the world."""
-        # Passaic, New Jersey coordinates (adjusted to be on land)
-        base_longitude = -74.1295  # Passaic longitude
-        base_latitude = 40.8574    # Passaic latitude
-        
-        # Create first agent
-        agent1 = Agent(
-            id=str(uuid.uuid4()),
-            name="Agent_1",
-            position=(base_longitude + 0.01, base_latitude + 0.01),  # Slightly offset to ensure on land
-            health=100.0,
-            energy=100.0,
-            hunger=0.0,
-            thirst=0.0,
-            age=20,
-            skills={
-                "hunting": 0.3,
-                "gathering": 0.3,
-                "crafting": 0.2,
-                "swimming": 0.1
-            },
-            inventory={},
-            last_action=None,
-            world=self.world  # Pass world reference
-        )
-        self.agents[agent1.id] = agent1
-        self.logger.info(f"Created agent {agent1.name} at position {agent1.position}")
-        
-        # Create second agent
-        agent2 = Agent(
-            id=str(uuid.uuid4()),
-            name="Agent_2",
-            position=(base_longitude - 0.01, base_latitude - 0.01),  # Slightly offset in opposite direction
-            health=100.0,
-            energy=100.0,
-            hunger=0.0,
-            thirst=0.0,
-            age=20,
-            skills={
-                "hunting": 0.3,
-                "gathering": 0.3,
-                "crafting": 0.2,
-                "swimming": 0.1
-            },
-            inventory={},
-            last_action=None,
-            world=self.world  # Pass world reference
-        )
-        self.agents[agent2.id] = agent2
-        self.logger.info(f"Created agent {agent2.name} at position {agent2.position}")
 
 class AgentSystem:
     def __init__(self, world):
@@ -196,7 +149,7 @@ class AgentSystem:
         # Create first agent
         agent1 = Agent(
             id=str(uuid.uuid4()),
-            name="Agent_1",
+            name=None,
             position=(base_longitude + 0.01, base_latitude + 0.01),  # Slightly offset to ensure on land
             health=100.0,
             energy=100.0,
@@ -219,7 +172,7 @@ class AgentSystem:
         # Create second agent
         agent2 = Agent(
             id=str(uuid.uuid4()),
-            name="Agent_2",
+            name=None,
             position=(base_longitude - 0.01, base_latitude - 0.01),  # Slightly offset in opposite direction
             health=100.0,
             energy=100.0,
@@ -243,8 +196,6 @@ class AgentSystem:
                      parent_id: Optional[str] = None, gender: str = 'unknown') -> str:
         """Create a new agent and add it to the system."""
         agent_id = str(uuid.uuid4())
-        if name is None:
-            name = f"Agent_{len(self.agents) + 1}"
 
         agent = Agent(
             id=agent_id,
@@ -265,13 +216,19 @@ class AgentSystem:
             last_action=None,
             world=self.world,  # Pass world reference
             logger=self.logger,  # Pass logger reference
-            gender=gender
+            gender=gender,
+            velocity=(0.0, 0.0),
+            mass=70.0
         )
 
         self.agents[agent_id] = agent
         if (longitude, latitude) not in self.agent_positions:
             self.agent_positions[(longitude, latitude)] = set()
         self.agent_positions[(longitude, latitude)].add(agent_id)
+
+        # Register the new agent with the physics system if available
+        if hasattr(self.world, "physics") and self.world.physics:
+            self.world.physics.register_agent(agent)
 
         if parent_id is not None:
             self.agent_groups[agent_id] = self.agent_groups.get(parent_id)

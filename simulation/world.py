@@ -24,6 +24,8 @@ from .biology import BiologicalSystem
 from .weather import WeatherType, WeatherState, WeatherSystem
 from .llm import AgentCognition
 from .marine import MarineSystem, Marine
+from .natural_disaster import NaturalDisasterSystem
+from .physics import PhysicsSystem
 
 # Utility imports
 from .utils.logging_config import get_logger
@@ -85,14 +87,18 @@ class World:
     def __init__(self, logger):
         """Initialize a new world."""
         self.logger = logger
-        self.width = 100
-        self.height = 100
+        # Set world coordinates to match real Earth dimensions
+        self.min_longitude = -180
+        self.max_longitude = 180
+        self.min_latitude = -90
+        self.max_latitude = 90
+
+        # World width/height in degrees
+        self.width = self.max_longitude - self.min_longitude
+        self.height = self.max_latitude - self.min_latitude
+
         self.longitude_resolution = 1.0
         self.latitude_resolution = 1.0
-        self.min_longitude = 0
-        self.max_longitude = 100
-        self.min_latitude = 0
-        self.max_latitude = 100
         self.simulation_time = 0
         self.current_tick = 0
         self.game_time = datetime.now()
@@ -139,6 +145,8 @@ class World:
         self.society = SocietySystem(self)
         self.transportation = TransportationSystem(self)
         self.weather = WeatherSystem(self)
+        self.disasters = NaturalDisasterSystem(self)
+        self.physics = PhysicsSystem(self)
         self.environment = EnvironmentalSystem(self)
         self.agents = AgentSystem(self)
         self.discovery = DiscoverySystem(self)
@@ -199,6 +207,10 @@ class World:
         logger.info("Initializing weather system...")
         self.weather.initialize_weather_systems()
         logger.info("Weather system initialized")
+
+        logger.info("Initializing natural disaster system...")
+        self.disasters.initialize_system()
+        logger.info("Natural disaster system initialized")
         
         logger.info("Initializing technology system...")
         self.technology.initialize_technology()
@@ -331,6 +343,9 @@ class World:
         self.society.update(1)
         self.transportation.update(1)
         self.weather.update(1)
+        self.disasters.update(1)
+        self.physics.update(1)
+        self.environment.update(1)
         self.agents.update(1)
 
         # Persist world state to Redis for frontend consumption
@@ -364,6 +379,7 @@ class World:
             "animals": self.animals.get_state(),
             "marine": self.marine.get_state(),
             "weather": self.weather.get_state(),
+            "disasters": self.disasters.get_state(),
             "technology": self.technology.get_state(),
             "explored_areas": [f"{lon},{lat}" for lon, lat in self.explored_areas],
             "discovered_resources": list(self.discovered_resources),
@@ -419,25 +435,38 @@ class World:
             "animals": self.animals.get_state(),
             "marine": self.marine.get_state(),
             "weather": self.weather.get_state(),
+            "disasters": self.disasters.get_state(),
             "discovery": self.discovery.get_state()
         }
         
-    def spawn_initial_agents(self, count=2):
-        """Spawn initial agents in the world."""
-        # Create exactly two agents, one male and one female
-        male_agent = self.agents.create_agent(
-            longitude=random.uniform(self.min_longitude, self.max_longitude),
-            latitude=random.uniform(self.min_latitude, self.max_latitude),
-            name="Male Agent",
-            gender="male"
+    def spawn_initial_agents(self, count: int = 2):
+        """Spawn the first two agents near Passaic, NJ."""
+
+        base_lon, base_lat = -74.1295, 40.8574
+
+        # Spawn first agent without predefined name
+        male_lon, male_lat = self.get_spawn_location(base_lon, base_lat, radius=0.01)
+        first_id = self.agents.create_agent(
+            longitude=male_lon,
+            latitude=male_lat,
+            name=None,
+            gender="unknown",
         )
-        female_agent = self.agents.create_agent(
-            longitude=random.uniform(self.min_longitude, self.max_longitude),
-            latitude=random.uniform(self.min_latitude, self.max_latitude),
-            name="Female Agent",
-            gender="female"
+        self.physics.register_agent(self.agents.get_agent(first_id))
+
+        # Spawn second agent without predefined name
+        female_lon, female_lat = self.get_spawn_location(base_lon, base_lat, radius=0.01)
+        second_id = self.agents.create_agent(
+            longitude=female_lon,
+            latitude=female_lat,
+            name=None,
+            gender="unknown",
         )
-        self.logger.info("Spawned initial agents: one male and one female")
+        self.physics.register_agent(self.agents.get_agent(second_id))
+
+        self.logger.info(
+            f"Spawned initial agents at ({male_lon:.2f},{male_lat:.2f}) and ({female_lon:.2f},{female_lat:.2f})"
+        )
 
     def _spawn_child(self, parent_id: str) -> Optional[str]:
         """Spawn a child agent from a parent."""
@@ -458,6 +487,9 @@ class World:
             latitude=lat,
             parent_id=parent_id
         )
+
+        if child_id:
+            self.physics.register_agent(self.agents.get_agent(child_id))
 
         if child_id:
             # Initialize cognition system for the child
