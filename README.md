@@ -53,6 +53,7 @@ This will:
 - Detailed logging and progress tracking
 - Natural disaster system simulating earthquakes, hurricanes, and more
 - Realistic day/night cycle with real-world latitude and longitude
+- Environments track coordinates for localized time of day
 - Two initial agents spawn near Passaic, NJ with no predefined names
 - Basic physics system applying Newtonian motion to agents
 - Simple building system for constructing structures over time

@@ -26,6 +26,8 @@ class Environment:
     precipitation: float = 0.3  # 0-1 scale
     wind_speed: float = 0.0  # m/s
     wind_direction: float = 0.0  # degrees
+    center_longitude: float = 0.0  # central longitude for day/night calculations
+    center_latitude: float = 0.0  # central latitude for day/night calculations
     time_of_day: float = 0.0  # 0-24 hours
     season: str = "summer"
     created_at: float = field(default_factory=datetime.now().timestamp)
@@ -37,7 +39,9 @@ class Environment:
     def __post_init__(self):
         """Initialize environment after creation."""
         self.logger = get_logger(__name__)
-        self.logger.info(f"Initializing environment: {self.name}")
+        self.logger.info(
+            f"Initializing environment: {self.name} at ({self.center_longitude}, {self.center_latitude})"
+        )
 
     def get_terrain_at(self, x: float, y: float) -> str:
         """Get terrain type at specified coordinates."""
@@ -96,7 +100,7 @@ class Environment:
         hours = time_delta / 3600.0
 
         # Determine current sunrise and sunset based on latitude and season
-        mid_lat = (self.world.min_latitude + self.world.max_latitude) / 2
+        mid_lat = self.center_latitude
         day_of_year = self.world.game_time.timetuple().tm_yday
         day_length = self._calculate_day_length(mid_lat, day_of_year)
         sunrise = 12 - day_length / 2
@@ -139,6 +143,8 @@ class Environment:
             "season": self.season,
             "width": self.width,
             "height": self.height,
+            "center_longitude": self.center_longitude,
+            "center_latitude": self.center_latitude,
             "current_time": self.world.game_time.isoformat(),
         }
 
@@ -152,6 +158,8 @@ class Environment:
             "humidity": self.humidity,
             "pressure": self.pressure,
             "visibility": self.visibility,
+            "center_longitude": self.center_longitude,
+            "center_latitude": self.center_latitude,
         }
 
 
@@ -238,12 +246,20 @@ class EnvironmentalSystem:
             world=self.world,
             width=self.world.width,
             height=self.world.height,
+            center_longitude=-74.1295,
+            center_latitude=40.8574,
         )
 
         logger.info("Environmental system initialization complete")
 
     def create_environment(
-        self, type: str, name: str, description: str, properties: Dict[str, Any] = None
+        self,
+        type: str,
+        name: str,
+        description: str,
+        properties: Dict[str, Any] = None,
+        longitude: float = 0.0,
+        latitude: float = 0.0,
     ) -> Environment:
         """Create new environment with custom properties."""
         environment = Environment(
@@ -254,6 +270,8 @@ class EnvironmentalSystem:
             name=name,
             description=description,
             properties=properties or {},
+            center_longitude=longitude,
+            center_latitude=latitude,
         )
 
         environment_id = f"environment_{len(self.environments)}"
