@@ -13,7 +13,7 @@ from .environment import EnvironmentalSystem, Environment
 from .terrain import TerrainSystem, TerrainType, OceanCurrent
 from .climate import ClimateSystem, ClimateType
 from .resources import ResourceSystem, ResourceType, Resource
-from .plants import PlantSystem, Plant
+from .plants import PlantSystem, Plant, PlantType
 from .animals import AnimalSystem, Animal
 from .technology import TechnologySystem, Technology
 from .society import SocietySystem, Society
@@ -336,7 +336,7 @@ class World:
         self.terrain.update(1)
         self.climate.update(1)
         self.resources.update(1)
-        self.plants.update(self.simulation_time, self.to_dict())
+        self.plants.update(self.simulation_time, self.get_world_state())
         self.animals.update(1)
         self.marine.update(1)
         self.technology.update(1)
@@ -436,6 +436,8 @@ class World:
             "marine": self.marine.get_state(),
             "weather": self.weather.get_state(),
             "disasters": self.disasters.get_state(),
+            "environment": self.environment.get_state(),
+
             "discovery": self.discovery.get_state()
         }
         
@@ -1661,14 +1663,19 @@ class World:
     def _get_environment_state(self, environment: Environment) -> Dict:
         """Get current state of environment for the frontend."""
         return {
-            "type": environment.type.value,
+            "type": environment.type,
+            "name": environment.name,
+            "description": environment.description,
             "temperature": environment.temperature,
             "humidity": environment.humidity,
             "precipitation": environment.precipitation,
             "wind_speed": environment.wind_speed,
             "wind_direction": environment.wind_direction,
-            "air_pressure": environment.air_pressure,
+            "pressure": environment.pressure,
             "visibility": environment.visibility,
-            "resources": {f"{k[0]},{k[1]}": v for k, v in environment.resources.items()},
-            "position": [float(environment.position[0]), float(environment.position[1])]
+            "center_longitude": environment.center_longitude,
+            "center_latitude": environment.center_latitude,
+            "time_of_day": environment.time_of_day,
+            "season": environment.season,
+            "current_time": self.game_time.isoformat(),
         }

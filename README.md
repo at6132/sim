@@ -23,16 +23,16 @@ passes every 30 minutes of real time.
 
 ## Running the Simulation
 
-1. Start the simulation:
+1. Launch the dashboard:
 ```bash
-python start_simulation.py
+python run_dashboard.py
 ```
 
 This will:
 - Initialize the simulation engine
 - Start the backend server
-- Open the frontend in your default web browser
-- Begin the simulation loop
+- Persist each tick to Redis
+- Open the God view dashboard in your web browser
 
 2. Access the simulation:
 - Frontend: http://localhost:5000
@@ -49,13 +49,23 @@ This will:
 - Procedurally generated terrain with elevation, water bodies, and vegetation
 - Resource distribution and management
 - Agent-based simulation with individual behaviors
+- Agents possess open-ended free will, forming cultures and societies
 - Real-time visualization and control interface
 - Detailed logging and progress tracking
 - Natural disaster system simulating earthquakes, hurricanes, and more
+- Seasons progress throughout the year, influencing weather and climate
 - Realistic day/night cycle with real-world latitude and longitude
+- Environments track coordinates for localized time of day
 - Two initial agents spawn near Passaic, NJ with no predefined names
 - Basic physics system applying Newtonian motion to agents
+- Farming fields influenced by soil quality and nutrients
+- Natural plant and animal populations spawn in their native habitats
 - Simple building system for constructing structures over time
+- Fire-making technology enabling cooking and warmth
+- Environment state reports current world time for synchronization
+- God-view dashboard at `/godview` displays Redis-backed world data
+
+
 
 ## Development
 

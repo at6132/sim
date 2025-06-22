@@ -12,7 +12,6 @@ from dataclasses import dataclass
 class Agent:
     """Represents an agent in the simulation."""
     id: str
-    name: Optional[str] = None
     position: Tuple[float, float]
     health: float
     energy: float
@@ -22,6 +21,7 @@ class Agent:
     skills: Dict[str, float]
     inventory: Dict[str, Any]
     last_action: Optional[str]
+    name: Optional[str] = None
     world: Optional[Any] = None  # Reference to world for movement validation
     logger: Optional[Any] = None  # Logger for agent-specific logging
     gender: str = 'unknown'
@@ -225,6 +225,10 @@ class AgentSystem:
         if (longitude, latitude) not in self.agent_positions:
             self.agent_positions[(longitude, latitude)] = set()
         self.agent_positions[(longitude, latitude)].add(agent_id)
+
+        # Register the new agent with the physics system if available
+        if hasattr(self.world, "physics") and self.world.physics:
+            self.world.physics.register_agent(agent)
 
         if parent_id is not None:
             self.agent_groups[agent_id] = self.agent_groups.get(parent_id)
