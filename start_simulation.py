@@ -160,10 +160,7 @@ def main():
         
         # Initialize engine
         engine = SimulationEngine(world, logger)
-
-        # Start the simulation engine so ticks are processed
-        engine.start()
-
+        
         # Start server
         run_server()
         
