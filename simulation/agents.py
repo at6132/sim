@@ -12,7 +12,6 @@ from dataclasses import dataclass
 class Agent:
     """Represents an agent in the simulation."""
     id: str
-    name: Optional[str] = None
     position: Tuple[float, float]
     health: float
     energy: float
@@ -22,6 +21,7 @@ class Agent:
     skills: Dict[str, float]
     inventory: Dict[str, Any]
     last_action: Optional[str]
+    name: Optional[str] = None
     world: Optional[Any] = None  # Reference to world for movement validation
     logger: Optional[Any] = None  # Logger for agent-specific logging
     gender: str = 'unknown'
